@@ -1,6 +1,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, Globe, Search, TrendingUp } from "lucide-react";
+import { OverviewChart } from "@/components/dashboard/OverviewChart";
 
 export default function DashboardPage() {
   return (
@@ -81,9 +82,7 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="pl-2">
             {/* Chart placeholder */}
-            <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-                Chart Area (Recharts)
-            </div>
+            <OverviewChart />
           </CardContent>
         </Card>
         <Card className="col-span-3 border-primary/10">

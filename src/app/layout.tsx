@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { AppLayout } from "@/components/shared/AppLayout";
 import { cn } from "@/lib/utils";
 
 const fontHeading = Inter({
@@ -33,9 +32,7 @@ export default function RootLayout({
           fontHeading.variable
         )}
       >
-         <AppLayout>
-            {children}
-         </AppLayout>
+        {children}
       </body>
     </html>
   );

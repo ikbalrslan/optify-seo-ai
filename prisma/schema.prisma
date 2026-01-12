@@ -7,11 +7,26 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  TRIAL
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String?
+  role      Role     @default(USER)
   projects  Project[]
+  subscription Subscription? 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -37,7 +52,33 @@ model Analysis {
   description   String?
   h1            String?
   loadTime      Float?
-  status        String   @default("COMPLETED") // COMPLETED, FAILED, PENDING
-  results       Json?    // Store full JSON report
+  status        String   @default("COMPLETED")
+  results       Json?
   createdAt     DateTime @default(now())
 }
+
+model Plan {
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique // e.g., 'basic', 'pro'
+  price         Float
+  limits        Json?    // e.g., { "projects": 5, "analyses": 100 }
+  subscriptions Subscription[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Subscription {
+  id            String             @id @default(cuid())
+  userId        String             @unique
+  user          User               @relation(fields: [userId], references: [id])
+  planId        String
+  plan          Plan               @relation(fields: [planId], references: [id])
+  status        SubscriptionStatus @default(ACTIVE)
+  startDate     DateTime           @default(now())
+  endDate       DateTime?
+  stripeSubscriptionId String?
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+}
+
