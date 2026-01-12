@@ -14,7 +14,7 @@ import {
 
 export function Navbar() {
   return (
-    <div className="sticky top-0 z-30 flex items-center p-4 border-b border-border/40 bg-background/20 backdrop-blur-lg supports-[backdrop-filter]:bg-background/20">
+    <div className="sticky top-0 z-30 flex items-center p-4 border-b border-border/40 bg-background/60 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
         <div className="flex w-full justify-end">
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>

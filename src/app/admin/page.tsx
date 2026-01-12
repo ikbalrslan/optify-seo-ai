@@ -1,6 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, CreditCard, Activity, DollarSign } from "lucide-react";
 
+import { RevenueChart } from "@/components/dashboard/RevenueChart";
+
 export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
@@ -54,10 +56,8 @@ export default function AdminDashboardPage() {
                <CardHeader>
                    <CardTitle>Revenue Overview</CardTitle>
                </CardHeader>
-               <CardContent>
-                   <div className="h-[300px] flex items-center justify-center bg-slate-50 dark:bg-slate-900 rounded-lg border border-dashed">
-                       <span className="text-slate-400">Chart Visualization Placeholder</span>
-                   </div>
+               <CardContent className="pl-2">
+                   <RevenueChart />
                </CardContent>
            </Card>
             <Card className="col-span-3">

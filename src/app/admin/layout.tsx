@@ -45,7 +45,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="h-full relative flex">
       {/* Admin Sidebar - Dark Blue/Slate Theme */}
-      <div className="hidden md:flex flex-col w-64 bg-slate-900 border-r border-slate-800 text-white fixed inset-y-0 z-50">
+      <div className="hidden md:flex flex-col w-56 bg-slate-900 border-r border-slate-800 text-white fixed inset-y-0 z-50">
         <div className="px-6 py-6 border-b border-slate-800 flex items-center gap-2">
             <ShieldCheck className="h-8 w-8 text-blue-500" />
             <span className="text-xl font-bold tracking-tight">Admin<span className="text-blue-500">Panel</span></span>
@@ -82,7 +82,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
 
       {/* Main Content */}
-      <main className="flex-1 md:pl-64 bg-slate-50 dark:bg-slate-950 min-h-screen">
+      <main className="flex-1 md:pl-56 bg-slate-50 dark:bg-slate-950 min-h-screen">
          <div className="h-16 border-b bg-white dark:bg-slate-900 flex items-center justify-between px-8">
              <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 uppercase tracking-wide">
                  Admin Administration

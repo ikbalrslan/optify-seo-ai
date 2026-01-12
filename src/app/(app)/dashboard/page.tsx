@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, Globe, Search, TrendingUp } from "lucide-react";
-import { OverviewChart } from "@/components/dashboard/OverviewChart";
+import { UsageChart } from "@/components/dashboard/UsageChart";
 
 export default function DashboardPage() {
   return (
@@ -75,14 +75,13 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-4 border-primary/10">
           <CardHeader>
-            <CardTitle>Overview</CardTitle>
+            <CardTitle>Usage Activity</CardTitle>
              <CardDescription>
-                Recent activity across your projects.
+                Analyses performed over the last 7 days.
               </CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            {/* Chart placeholder */}
-            <OverviewChart />
+            <UsageChart />
           </CardContent>
         </Card>
         <Card className="col-span-3 border-primary/10">
