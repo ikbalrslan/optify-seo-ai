@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  projects  Project[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Project {
+  id        String   @id @default(cuid())
+  name      String
+  domain    String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  analyses  Analysis[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Analysis {
+  id            String   @id @default(cuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id])
+  url           String
+  score         Int
+  title         String?
+  description   String?
+  h1            String?
+  loadTime      Float?
+  status        String   @default("COMPLETED") // COMPLETED, FAILED, PENDING
+  results       Json?    // Store full JSON report
+  createdAt     DateTime @default(now())
+}

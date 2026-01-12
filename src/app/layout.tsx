@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/shared/Sidebar";
-import { Navbar } from "@/components/shared/Navbar";
+import { AppLayout } from "@/components/shared/AppLayout";
 import { cn } from "@/lib/utils";
 
 const fontHeading = Inter({
@@ -34,17 +33,9 @@ export default function RootLayout({
           fontHeading.variable
         )}
       >
-        <div className="h-full relative">
-          <div className="hidden h-full md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-50">
-            <Sidebar />
-          </div>
-          <main className="md:pl-64 h-full relative flex flex-col">
-            <Navbar />
-            <div className="flex-1 p-8 overflow-y-auto">
-               {children}
-            </div>
-          </main>
-        </div>
+         <AppLayout>
+            {children}
+         </AppLayout>
       </body>
     </html>
   );
