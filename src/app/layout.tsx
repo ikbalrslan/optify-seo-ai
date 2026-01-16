@@ -18,6 +18,10 @@ export const metadata: Metadata = {
   description: "Advanced SEO analysis tool for modern websites",
 };
 
+import { Providers } from "./providers";
+
+// ... existing imports ...
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -32,7 +36,9 @@ export default function RootLayout({
           fontHeading.variable
         )}
       >
-        {children}
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );
