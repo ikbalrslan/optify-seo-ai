@@ -18,11 +18,21 @@ export const metadata: Metadata = {
   description: "Advanced SEO analysis tool for modern websites",
 };
 
-export default function RootLayout({
+import { Providers } from "./providers";
+
+// ... existing imports ...
+
+import { auth } from "@/auth";
+
+// ... existing imports ...
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+
   return (
     <html lang="en" className="h-full">
       <body
@@ -32,7 +42,9 @@ export default function RootLayout({
           fontHeading.variable
         )}
       >
-        {children}
+        <Providers session={session}>
+          {children}
+        </Providers>
       </body>
     </html>
   );
