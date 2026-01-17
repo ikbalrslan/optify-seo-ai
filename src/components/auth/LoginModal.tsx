@@ -20,7 +20,7 @@ export function LoginModal({ children }: { children: React.ReactNode }) {
             </DialogTrigger>
             <DialogContent className="sm:max-w-sm">
                 <DialogHeader>
-                    <DialogTitle className="text-center text-2xl">Welcome Back</DialogTitle>
+                    <DialogTitle className="text-center text-2xl">Optify</DialogTitle>
                     <DialogDescription className="text-center">
                         Sign in to your account to continue
                     </DialogDescription>

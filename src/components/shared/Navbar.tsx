@@ -1,9 +1,9 @@
-
 "use client";
 
 import Link from "next/link";
 import { User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useSession, signOut, signIn } from "next-auth/react";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -12,10 +12,13 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
-import { useSession, signOut, signIn } from "next-auth/react";
+
+import { AuthModal } from "@/components/auth/AuthModal";
+import { useState } from "react";
 
 export function Navbar() {
     const { data: session } = useSession();
+    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
     return (
         <div className="sticky top-0 z-30 flex items-center p-4 border-b border-border/40 bg-background/60 backdrop-blur-md supports-[backdrop-filter]:bg-background/60">
@@ -52,19 +55,16 @@ export function Navbar() {
                                 </div>
                             </DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem>
-                                Profile
-                            </DropdownMenuItem>
                             <DropdownMenuItem asChild>
                                 <Link href="/billing">Billing</Link>
                             </DropdownMenuItem>
-                            <DropdownMenuItem>
-                                Settings
+                            <DropdownMenuItem asChild>
+                                <Link href="/settings">Settings</Link>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                                 className="text-destructive cursor-pointer"
-                                onClick={() => signOut()}
+                                onClick={() => signOut({ callbackUrl: "/" })}
                             >
                                 <LogOut className="mr-2 h-4 w-4" />
                                 Log out
@@ -75,7 +75,7 @@ export function Navbar() {
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+                        onClick={() => setIsAuthModalOpen(true)}
                         className="gap-2"
                     >
                         <User className="h-4 w-4" />
@@ -83,6 +83,12 @@ export function Navbar() {
                     </Button>
                 )}
             </div>
+
+            <AuthModal
+                isOpen={isAuthModalOpen}
+                onClose={() => setIsAuthModalOpen(false)}
+                initialView="login"
+            />
         </div>
     );
 }

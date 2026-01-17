@@ -22,11 +22,17 @@ import { Providers } from "./providers";
 
 // ... existing imports ...
 
-export default function RootLayout({
+import { auth } from "@/auth";
+
+// ... existing imports ...
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+
   return (
     <html lang="en" className="h-full">
       <body
@@ -36,7 +42,7 @@ export default function RootLayout({
           fontHeading.variable
         )}
       >
-        <Providers>
+        <Providers session={session}>
           {children}
         </Providers>
       </body>

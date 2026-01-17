@@ -87,28 +87,6 @@ export default function BillingPage() {
 
             {/* Plan Selector Section */}
             <div className="flex flex-col items-center space-y-8">
-
-                {/* Features Badge */}
-                <span className="bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1">
-                    Up to 10k monthly events <span className="text-yellow-400">★ recommended</span>
-                </span>
-
-                {/* Slider (Custom Style) */}
-                <div className="w-full max-w-lg px-4">
-                    <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        step="25"
-                        className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900 dark:accent-white"
-                        onChange={(e) => setSliderValue(parseInt(e.target.value))}
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground mt-2 font-medium">
-                        <span>10k</span>
-                        <span>10M+</span>
-                    </div>
-                </div>
-
                 {/* Billing Cycle Toggle */}
                 <div className="flex items-center gap-4 relative">
                     <div className="relative flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
@@ -148,7 +126,10 @@ export default function BillingPage() {
                     {/* Handwritten annotation effect */}
                     <div className="absolute -top-8 -right-16 hidden md:block">
                         <div className="relative text-[#E55F37] rotate-6">
-                            <span className="text-sm font-medium font-handwriting whitespace-nowrap absolute -top-4 left-4">
+                            <span
+                                className="text-sm font-medium whitespace-nowrap absolute -top-4 left-4"
+                                style={{ fontFamily: '"Comic Sans MS", "Comic Sans", cursive' }}
+                            >
                                 2 months free
                             </span>
                             <svg width="60" height="40" viewBox="0 0 60 40" fill="none" xmlns="http://www.w3.org/2000/svg" className="transform translate-y-2">
@@ -242,19 +223,6 @@ export default function BillingPage() {
 
             {/* Existing Billing History Section (Preserved) */}
             <div className="space-y-6">
-                {/* Current Usage Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="p-4 bg-muted/30 rounded-lg border">
-                        <div className="flex items-center gap-2 mb-2">
-                            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">Monthly Requests</span>
-                        </div>
-                        <p className="text-2xl font-bold">12,480</p>
-                        <p className="text-xs text-muted-foreground mt-1">of 50,000 used</p>
-                    </div>
-                    {/* ... other stats ... */}
-                </div>
-
                 <div className="border rounded-lg p-6 bg-card">
                     <h2 className="text-xl font-semibold mb-4">Billing History</h2>
                     <div className="space-y-3">

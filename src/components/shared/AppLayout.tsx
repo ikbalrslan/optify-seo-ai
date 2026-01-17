@@ -4,13 +4,16 @@ import { useState, useEffect } from "react";
 import { Sidebar } from "./Sidebar";
 import { Navbar } from "./Navbar";
 import { cn } from "@/lib/utils";
+import { useSession } from "next-auth/react";
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const { update } = useSession();
 
   useEffect(() => {
     setMounted(true);
+    update(); // Force session update on mount to handle soft navigations from unauthenticated state
   }, []);
 
   if (!mounted) {

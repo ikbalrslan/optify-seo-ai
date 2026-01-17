@@ -1,10 +1,51 @@
+"use client";
+
 import { BarChart3 } from "lucide-react";
 import Link from "next/link";
 import { SignInButton } from "@/components/auth/SignInButton";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { register } from "@/actions/register";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 
 export default function SignInPage() {
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState("");
+    const router = useRouter();
+
+    async function handleSubmit(formData: FormData) {
+        setIsLoading(true);
+        setError("");
+
+        try {
+            // Check if we are logging in or registering based on user intent?
+            // For now, let's assume this form acts as a "Sign Up / Sign In" hybrid or just register.
+            // User requested "normal signup".
+
+            // Try to register first
+            await register(formData);
+            // Register action handles redirect on success
+        } catch (err) {
+            // If registration fails (e.g. user exists), try determining if it's a login attempt or just show error.
+            // For simplicity based on prompt "signup not working", we'll just show the error.
+            // Ideally we'd have separate forms or a "smart" check.
+            if (err instanceof Error) {
+                setError(err.message);
+            } else {
+                setError("Something went wrong");
+            }
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    // Wrap the server action in a client handler to manage state
+    const clientAction = async (formData: FormData) => {
+        await handleSubmit(formData);
+    };
+
     return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-[#F9FAFB] p-4">
             <div className="w-full max-w-[480px] bg-white rounded-[32px] shadow-sm border border-slate-100 p-12">
@@ -24,7 +65,7 @@ export default function SignInPage() {
                             Welcome to Optify
                         </h1>
                         <p className="text-[#4a4a4a] text-[17px] leading-relaxed">
-                            Create a free account to discover your business's best marketing channels.
+                            Create a free account to discover your business's best seo strategy.
                         </p>
                     </div>
 
@@ -38,22 +79,46 @@ export default function SignInPage() {
                         <div className="flex-grow border-t border-slate-200"></div>
                     </div>
 
-                    {/* Email Sign Up */}
-                    <div className="space-y-4">
+                    {/* Email Sign Up Form */}
+                    <form action={clientAction} className="space-y-4">
+                        {error && (
+                            <div className="p-3 text-sm text-red-500 bg-red-50 rounded-lg">
+                                {error}
+                            </div>
+                        )}
                         <div className="space-y-1.5">
                             <label className="text-[15px] font-medium text-[#1a1a1a]">
                                 Email
                             </label>
                             <Input
+                                name="email"
                                 type="email"
                                 placeholder="zuck@meta.com"
+                                required
                                 className="h-12 text-lg bg-white border-slate-200 focus:border-[#E55F37] focus:ring-[#E55F37]/20 rounded-xl"
                             />
                         </div>
-                        <Button className="w-full h-12 text-lg font-semibold bg-[#E55F37] hover:bg-[#D44E28] text-white rounded-xl shadow-lg shadow-orange-500/20 transition-all">
-                            Sign up with email
+                        <div className="space-y-1.5">
+                            <label className="text-[15px] font-medium text-[#1a1a1a]">
+                                Password
+                            </label>
+                            <Input
+                                name="password"
+                                type="password"
+                                placeholder="••••••••"
+                                required
+                                minLength={6}
+                                className="h-12 text-lg bg-white border-slate-200 focus:border-[#E55F37] focus:ring-[#E55F37]/20 rounded-xl"
+                            />
+                        </div>
+                        <Button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full h-12 text-lg font-semibold bg-[#E55F37] hover:bg-[#D44E28] text-white rounded-xl shadow-lg shadow-orange-500/20 transition-all"
+                        >
+                            {isLoading ? "Creating account..." : "Sign up with email"}
                         </Button>
-                    </div>
+                    </form>
 
                 </div>
             </div>
