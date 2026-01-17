@@ -12,6 +12,8 @@ import { useState, useEffect } from "react";
 export default function SettingsPage() {
   const { data: session } = useSession();
   const [name, setName] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const { update } = useSession();
 
   // Update local state when session loads
   useEffect(() => {
@@ -19,6 +21,19 @@ export default function SettingsPage() {
       setName(session.user.name);
     }
   }, [session]);
+
+  const handleSaveName = async () => {
+    setIsSaving(true);
+    try {
+      const { updateProfile } = await import("@/actions/update_profile");
+      await updateProfile(name);
+      await update({ name }); // Update client-side session
+    } catch (error) {
+      console.error("Failed to update name:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white p-6 md:p-12 max-w-5xl mx-auto">
@@ -80,8 +95,12 @@ export default function SettingsPage() {
                       className="h-10 text-[15px] rounded-lg border-slate-200"
                       placeholder="Your Name"
                     />
-                    <Button className="bg-[#d4d4d4] hover:bg-[#c0c0c0] text-slate-700 font-medium px-5 h-10 rounded-lg shadow-none">
-                      Save
+                    <Button
+                      onClick={handleSaveName}
+                      disabled={isSaving || !name || name === session?.user?.name}
+                      className="bg-[#d4d4d4] hover:bg-[#c0c0c0] text-slate-700 font-medium px-5 h-10 rounded-lg shadow-none disabled:opacity-50"
+                    >
+                      {isSaving ? "Saving..." : "Save"}
                     </Button>
                   </div>
                   <div className="text-[15px] text-slate-500 pl-1">

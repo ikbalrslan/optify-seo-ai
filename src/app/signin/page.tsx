@@ -9,10 +9,12 @@ import { register } from "@/actions/register";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
+import ReCAPTCHA from "react-google-recaptcha";
 
 export default function SignInPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
+    const [captchaToken, setCaptchaToken] = useState<string | null>(null);
     const router = useRouter();
 
     async function handleSubmit(formData: FormData) {
@@ -48,24 +50,24 @@ export default function SignInPage() {
 
     return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-[#F9FAFB] p-4">
-            <div className="w-full max-w-[480px] bg-white rounded-[32px] shadow-sm border border-slate-100 p-12">
-                <div className="flex flex-col space-y-6">
+            <div className="w-full max-w-[400px] bg-white rounded-[24px] shadow-sm border border-slate-100 p-8">
+                <div className="flex flex-col space-y-5">
                     {/* Logo */}
                     <div className="flex items-center gap-2">
                         <div className="flex items-end gap-[3px]">
-                            <div className="w-2 h-6 bg-[#E57B5E] rounded-full"></div>
-                            <div className="w-2 h-9 bg-[#E55F37] rounded-full"></div>
-                            <div className="w-2 h-4 bg-[#E57B5E]/60 rounded-full"></div>
+                            <div className="w-1.5 h-5 bg-[#E57B5E] rounded-full"></div>
+                            <div className="w-1.5 h-7 bg-[#E55F37] rounded-full"></div>
+                            <div className="w-1.5 h-3 bg-[#E57B5E]/60 rounded-full"></div>
                         </div>
                     </div>
 
                     {/* Header */}
-                    <div className="space-y-2">
-                        <h1 className="text-[32px] font-bold tracking-tight text-[#1a1a1a]">
+                    <div className="space-y-1.5">
+                        <h1 className="text-2xl font-bold tracking-tight text-[#1a1a1a]">
                             Welcome to Optify
                         </h1>
-                        <p className="text-[#4a4a4a] text-[17px] leading-relaxed">
-                            Create a free account to discover your business's best seo strategy.
+                        <p className="text-[#4a4a4a] text-[15px] leading-relaxed">
+                            Create a free account to discover your business&apos;s best seo strategy.
                         </p>
                     </div>
 
@@ -73,9 +75,9 @@ export default function SignInPage() {
                     <SignInButton />
 
                     {/* Divider */}
-                    <div className="relative flex items-center py-4">
+                    <div className="relative flex items-center py-2">
                         <div className="flex-grow border-t border-slate-200"></div>
-                        <span className="flex-shrink-0 mx-4 text-slate-400 text-sm">or</span>
+                        <span className="flex-shrink-0 mx-4 text-slate-400 text-xs">or</span>
                         <div className="flex-grow border-t border-slate-200"></div>
                     </div>
 
@@ -86,6 +88,7 @@ export default function SignInPage() {
                                 {error}
                             </div>
                         )}
+                        <input type="hidden" name="captchaToken" value={captchaToken || ""} />
                         <div className="space-y-1.5">
                             <label className="text-[15px] font-medium text-[#1a1a1a]">
                                 Email
@@ -93,9 +96,9 @@ export default function SignInPage() {
                             <Input
                                 name="email"
                                 type="email"
-                                placeholder="zuck@meta.com"
+                                placeholder="name@example.com"
                                 required
-                                className="h-12 text-lg bg-white border-slate-200 focus:border-[#E55F37] focus:ring-[#E55F37]/20 rounded-xl"
+                                className="h-11 text-[15px] bg-white border-slate-200 focus:border-[#E55F37] focus:ring-[#E55F37]/20 rounded-xl"
                             />
                         </div>
                         <div className="space-y-1.5">
@@ -108,13 +111,22 @@ export default function SignInPage() {
                                 placeholder="••••••••"
                                 required
                                 minLength={6}
-                                className="h-12 text-lg bg-white border-slate-200 focus:border-[#E55F37] focus:ring-[#E55F37]/20 rounded-xl"
+                                className="h-11 text-[15px] bg-white border-slate-200 focus:border-[#E55F37] focus:ring-[#E55F37]/20 rounded-xl"
                             />
                         </div>
+
+                        <div className="flex justify-center scale-90 origin-center py-2">
+                            <ReCAPTCHA
+                                sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
+                                onChange={setCaptchaToken}
+                                theme="light"
+                            />
+                        </div>
+
                         <Button
                             type="submit"
-                            disabled={isLoading}
-                            className="w-full h-12 text-lg font-semibold bg-[#E55F37] hover:bg-[#D44E28] text-white rounded-xl shadow-lg shadow-orange-500/20 transition-all"
+                            disabled={isLoading || !captchaToken}
+                            className="w-full h-11 text-[15px] font-semibold bg-[#E55F37] hover:bg-[#D44E28] text-white rounded-xl shadow-lg shadow-orange-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isLoading ? "Creating account..." : "Sign up with email"}
                         </Button>
