@@ -8,12 +8,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { ArrowLeft, LogOut, Trash, User } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { ProfileUpdatedPopup } from "@/components/shared/ProfileUpdatedPopup";
 
 export default function SettingsPage() {
   const { data: session } = useSession();
   const [name, setName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const { update } = useSession();
+  const router = useRouter();
 
   // Update local state when session loads
   useEffect(() => {
@@ -28,6 +31,9 @@ export default function SettingsPage() {
       const { updateProfile } = await import("@/actions/update_profile");
       await updateProfile(name);
       await update({ name }); // Update client-side session
+
+      // Trigger the success popup via URL parameter
+      router.replace("/settings?profile_updated=true", { scroll: false });
     } catch (error) {
       console.error("Failed to update name:", error);
     } finally {
@@ -37,6 +43,7 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-white p-6 md:p-12 max-w-5xl mx-auto">
+      <ProfileUpdatedPopup />
       {/* Back Button */}
       <div className="mb-6">
         <Link href="/dashboard">
