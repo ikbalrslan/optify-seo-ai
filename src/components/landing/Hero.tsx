@@ -37,7 +37,7 @@ export function Hero() {
                         className="pl-20 h-12 text-base bg-white border-gray-300 focus-visible:ring-gray-400 rounded-lg"
                     />
                 </div>
-                <Button className="h-12 px-8 text-base font-medium bg-[#bc5338] hover:bg-[#a64730] text-white rounded-lg transition-colors">
+                <Button className="h-12 px-8 text-base font-medium bg-[#1DB954] hover:bg-[#1ed760] text-white rounded-lg transition-colors">
                     Audit my website
                 </Button>
             </div>

@@ -55,9 +55,9 @@ export default function SignInPage() {
                     {/* Logo */}
                     <div className="flex items-center gap-2">
                         <div className="flex items-end gap-[3px]">
-                            <div className="w-1.5 h-5 bg-[#E57B5E] rounded-full"></div>
-                            <div className="w-1.5 h-7 bg-[#E55F37] rounded-full"></div>
-                            <div className="w-1.5 h-3 bg-[#E57B5E]/60 rounded-full"></div>
+                            <div className="w-1.5 h-5 bg-[#1DB954] rounded-full"></div>
+                            <div className="w-1.5 h-7 bg-[#191414] rounded-full"></div>
+                            <div className="w-1.5 h-3 bg-[#1DB954]/60 rounded-full"></div>
                         </div>
                     </div>
 
@@ -98,7 +98,7 @@ export default function SignInPage() {
                                 type="email"
                                 placeholder="name@example.com"
                                 required
-                                className="h-11 text-[15px] bg-white border-slate-200 focus:border-[#E55F37] focus:ring-[#E55F37]/20 rounded-xl"
+                                className="h-11 text-[15px] bg-white border-slate-200 focus:border-[#1DB954] focus:ring-[#1DB954]/20 rounded-xl"
                             />
                         </div>
                         <div className="space-y-1.5">
@@ -111,7 +111,7 @@ export default function SignInPage() {
                                 placeholder="••••••••"
                                 required
                                 minLength={6}
-                                className="h-11 text-[15px] bg-white border-slate-200 focus:border-[#E55F37] focus:ring-[#E55F37]/20 rounded-xl"
+                                className="h-11 text-[15px] bg-white border-slate-200 focus:border-[#1DB954] focus:ring-[#1DB954]/20 rounded-xl"
                             />
                         </div>
 
@@ -126,7 +126,7 @@ export default function SignInPage() {
                         <Button
                             type="submit"
                             disabled={isLoading || !captchaToken}
-                            className="w-full h-11 text-[15px] font-semibold bg-[#E55F37] hover:bg-[#D44E28] text-white rounded-xl shadow-lg shadow-orange-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="w-full h-11 text-[15px] font-semibold bg-[#1DB954] hover:bg-[#1ed760] text-white rounded-xl shadow-lg shadow-green-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {isLoading ? "Creating account..." : "Sign up with email"}
                         </Button>

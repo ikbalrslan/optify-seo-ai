@@ -8,7 +8,7 @@ import { AccountDeletedPopup } from "@/components/shared/AccountDeletedPopup";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-white font-sans text-gray-900 selection:bg-orange-100 selection:text-orange-900">
+    <main className="min-h-screen bg-white font-sans text-gray-900 selection:bg-green-100 selection:text-green-900">
       <Navbar />
       <Hero />
       <Features />
