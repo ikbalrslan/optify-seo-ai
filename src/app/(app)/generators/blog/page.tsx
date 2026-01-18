@@ -6,8 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, Wand2, Copy, Check, ChevronDown, ChevronUp } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { Loader2, Wand2, Copy, Check, ChevronDown, ChevronUp, Globe } from "lucide-react";
 import { generateBlogPost, type BlogInput } from "@/actions/generate-blog";
+import { getWordPressSites, publishToWordPress } from "@/actions/wordpress";
 import { cn } from "@/lib/utils";
 
 export default function BlogGeneratorPage() {
@@ -20,6 +22,14 @@ export default function BlogGeneratorPage() {
     const [selectedTitle, setSelectedTitle] = useState("");
     const [selectedDescription, setSelectedDescription] = useState("");
     const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
+
+    // Publishing State
+    const [publishOpen, setPublishOpen] = useState(false);
+    const [sites, setSites] = useState<any[]>([]);
+    const [selectedSiteId, setSelectedSiteId] = useState("");
+    const [publishStatus, setPublishStatus] = useState("draft");
+    const [isPublishing, setIsPublishing] = useState(false);
+    const [publishResult, setPublishResult] = useState<string | null>(null);
 
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
@@ -65,6 +75,44 @@ export default function BlogGeneratorPage() {
         }
     };
 
+    const loadSites = async () => {
+        try {
+            const data = await getWordPressSites();
+            setSites(data);
+            if (data.length > 0) setSelectedSiteId(data[0].id);
+        } catch (e) {
+            console.error("Failed to load sites", e);
+        }
+    };
+
+    const handlePublish = async () => {
+        if (!selectedSiteId) return;
+        setIsPublishing(true);
+        setPublishResult(null);
+        try {
+            const contentHTML = generatedContent.sections.map((s: any) => `<h2>${s.h2}</h2>${s.content}`).join("");
+
+            const result = await publishToWordPress(selectedSiteId, {
+                title: selectedTitle,
+                content: contentHTML,
+                meta_description: selectedDescription,
+                focus_keyword: selectedKeywords[0] || "",
+            });
+
+            if (result.success) {
+                setPublishResult(result.link || "Success");
+                setTimeout(() => {
+                    setPublishOpen(false);
+                    setPublishResult(null);
+                }, 3000);
+            }
+        } catch (e: any) {
+            setError(e.message || "Publishing failed");
+        } finally {
+            setIsPublishing(false);
+        }
+    };
+
     const copyToClipboard = () => {
         if (!generatedContent) return;
 
@@ -99,7 +147,7 @@ export default function BlogGeneratorPage() {
         formData.length > 300;
 
     return (
-        <div className="max-w-6xl mx-auto p-6 space-y-8">
+        <div className="col-span-4 border-primary/10">
             <div className="space-y-2">
                 <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Blog Post Generator</h1>
                 <p className="text-slate-500 dark:text-slate-400">Generate SEO-optimized blog posts in seconds.</p>
@@ -122,10 +170,8 @@ export default function BlogGeneratorPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="openai/gpt-4o">GPT-4o (OpenAI)</SelectItem>
-                                    <SelectItem value="anthropic/claude-3-opus">Claude 3 Opus (Anthropic)</SelectItem>
-                                    <SelectItem value="google/gemini-pro-1.5">Gemini 1.5 Pro (Google)</SelectItem>
-                                    <SelectItem value="meta-llama/llama-3-70b-instruct">Llama 3 70B (Meta)</SelectItem>
-                                    <SelectItem value="mistralai/mistral-large">Mistral Large (Mistral)</SelectItem>
+                                    <SelectItem value="google/gemini-3-pro-preview">Gemini 3 Pro (Google)</SelectItem>
+
                                     <SelectItem value="tngtech/deepseek-r1t2-chimera:free">DeepSeek R1T2 Chimera (Free)</SelectItem>
                                 </SelectContent>
                             </Select>
@@ -371,6 +417,80 @@ export default function BlogGeneratorPage() {
                                             <Button variant="outline" size="icon" onClick={copyToClipboard} title="Copy to clipboard">
                                                 {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                                             </Button>
+
+                                            <Dialog open={publishOpen} onOpenChange={(open) => {
+                                                setPublishOpen(open);
+                                                if (open) loadSites();
+                                            }}>
+                                                <DialogTrigger asChild>
+                                                    <Button variant="default" className="bg-[#21759b] hover:bg-[#1a5c7a] text-white gap-2">
+                                                        <Globe className="h-4 w-4" />
+                                                        Publish
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent>
+                                                    <DialogHeader>
+                                                        <DialogTitle>Publish to WordPress</DialogTitle>
+                                                    </DialogHeader>
+
+                                                    {!publishResult ? (
+                                                        <div className="space-y-4 pt-4">
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Select Site</label>
+                                                                {sites.length === 0 ? (
+                                                                    <p className="text-sm text-red-500">No sites connected. Go to Settings to connect a site.</p>
+                                                                ) : (
+                                                                    <Select value={selectedSiteId} onValueChange={setSelectedSiteId}>
+                                                                        <SelectTrigger>
+                                                                            <SelectValue placeholder="Select site..." />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            {sites.map(site => (
+                                                                                <SelectItem key={site.id} value={site.id}>{site.name || site.url}</SelectItem>
+                                                                            ))}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                )}
+                                                            </div>
+
+                                                            <div className="space-y-2">
+                                                                <label className="text-sm font-medium">Post Status</label>
+                                                                <Select value={publishStatus} onValueChange={setPublishStatus}>
+                                                                    <SelectTrigger>
+                                                                        <SelectValue />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="draft">Draft</SelectItem>
+                                                                        <SelectItem value="publish">Publish Immediately</SelectItem>
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+
+                                                            <Button
+                                                                className="w-full bg-[#21759b] hover:bg-[#1a5c7a]"
+                                                                onClick={handlePublish}
+                                                                disabled={isPublishing || sites.length === 0}
+                                                            >
+                                                                {isPublishing ? (
+                                                                    <>
+                                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Publishing...
+                                                                    </>
+                                                                ) : "Publish Now"}
+                                                            </Button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex flex-col items-center justify-center py-6 space-y-4">
+                                                            <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                                                                <Check className="h-6 w-6 text-green-600" />
+                                                            </div>
+                                                            <p className="text-lg font-medium text-center">Published Successfully!</p>
+                                                            <a href={publishResult} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">
+                                                                View Post
+                                                            </a>
+                                                        </div>
+                                                    )}
+                                                </DialogContent>
+                                            </Dialog>
                                         </div>
                                     </div>
 
@@ -427,6 +547,6 @@ export default function BlogGeneratorPage() {
                     )}
                 </div>
             </div>
-        </div>
+        </div >
     );
 }
