@@ -5,16 +5,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowLeft, LogOut, Trash, User } from "lucide-react";
+import { ArrowLeft, LogOut, Trash, User, Key } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ProfileUpdatedPopup } from "@/components/shared/ProfileUpdatedPopup";
 
+import { ErrorPopup } from "@/components/shared/ErrorPopup";
+import { SuccessPopup } from "@/components/shared/SuccessPopup";
+
 export default function SettingsPage() {
   const { data: session } = useSession();
   const [name, setName] = useState("");
+  const [apiKey, setApiKey] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingKey, setIsSavingKey] = useState(false);
+  const [errorOpen, setErrorOpen] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [successOpen, setSuccessOpen] = useState(false);
   const { update } = useSession();
   const router = useRouter();
 
@@ -41,9 +49,40 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSaveApiKey = async () => {
+    setIsSavingKey(true);
+    try {
+      const { updateApiKey } = await import("@/actions/settings");
+      await updateApiKey(apiKey);
+      setApiKey(""); // Clear after save for security
+      setSuccessOpen(true);
+    } catch (error) {
+      console.error("Failed to update API key:", error);
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Failed to save API Key");
+      }
+      setErrorOpen(true);
+    } finally {
+      setIsSavingKey(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white p-6 md:p-12 max-w-5xl mx-auto">
       <ProfileUpdatedPopup />
+      <SuccessPopup
+        isOpen={successOpen}
+        onClose={() => setSuccessOpen(false)}
+        message="Your OpenAI API Key has been saved securely."
+      />
+      <ErrorPopup
+        isOpen={errorOpen}
+        onClose={() => setErrorOpen(false)}
+        message={errorMessage}
+        title="Invalid API Key"
+      />
       {/* Back Button */}
       <div className="mb-6">
         <Link href="/dashboard">
@@ -118,13 +157,50 @@ export default function SettingsPage() {
             </CardContent>
           </Card>
 
+          {/* API Key Card */}
+          <Card className="rounded-2xl border-slate-100 shadow-sm overflow-hidden">
+            <CardHeader className="pb-4 pt-6 px-6">
+              <CardTitle className="text-lg font-bold text-[#1a1a1a]">OpenAI API Key</CardTitle>
+            </CardHeader>
+            <CardContent className="px-6 pb-6">
+              <div className="flex items-start gap-6">
+                <div className="flex-shrink-0">
+                  <div className="h-20 w-20 rounded-full bg-slate-100 flex items-center justify-center border border-slate-200">
+                    <Key className="h-8 w-8 text-slate-400" />
+                  </div>
+                </div>
+                <div className="flex-1 space-y-4">
+                  <div className="flex gap-3">
+                    <Input
+                      type="password"
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      className="h-10 text-[15px] rounded-lg border-slate-200"
+                      placeholder="sk-..."
+                    />
+                    <Button
+                      onClick={handleSaveApiKey}
+                      disabled={isSavingKey || !apiKey}
+                      className="bg-[#d4d4d4] hover:bg-[#c0c0c0] text-slate-700 font-medium px-5 h-10 rounded-lg shadow-none disabled:opacity-50"
+                    >
+                      {isSavingKey ? "Saving..." : "Save"}
+                    </Button>
+                  </div>
+                  <div className="text-[13px] text-slate-500 pl-1">
+                    Your key is encrypted and stored securely.
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Theme Card */}
           <Card className="rounded-2xl border-slate-100 shadow-sm">
             <CardHeader className="pb-4 pt-6 px-6">
               <CardTitle className="text-lg font-bold text-[#1a1a1a]">Theme</CardTitle>
             </CardHeader>
             <CardContent className="px-6 pb-6">
-              <select className="flex h-10 w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#E55F37]/20 focus:border-[#E55F37] disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1">
+              <select className="flex h-10 w-full items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#1DB954]/20 focus:border-[#1DB954] disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1">
                 <option value="system">🧁 System</option>
                 <option value="light">☀️ Light</option>
                 <option value="dark">🌙 Dark</option>

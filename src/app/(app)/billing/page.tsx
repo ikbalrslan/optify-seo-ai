@@ -101,7 +101,7 @@ export default function BillingPage() {
                             {billingCycle === "monthly" && (
                                 <motion.div
                                     layoutId="activeCycle"
-                                    className="absolute inset-0 bg-white dark:bg-slate-950 shadow-sm rounded-md -z-10 ring-2 ring-[#E55F37] ring-offset-2 dark:ring-offset-slate-900"
+                                    className="absolute inset-0 bg-white dark:bg-slate-950 shadow-sm rounded-md -z-10 ring-2 ring-[#1DB954] ring-offset-2 dark:ring-offset-slate-900"
                                     transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                 />
                             )}
@@ -117,7 +117,7 @@ export default function BillingPage() {
                             {billingCycle === "yearly" && (
                                 <motion.div
                                     layoutId="activeCycle"
-                                    className="absolute inset-0 bg-white dark:bg-slate-950 shadow-sm rounded-md -z-10 ring-2 ring-[#E55F37] ring-offset-2 dark:ring-offset-slate-900"
+                                    className="absolute inset-0 bg-white dark:bg-slate-950 shadow-sm rounded-md -z-10 ring-2 ring-[#1DB954] ring-offset-2 dark:ring-offset-slate-900"
                                     transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                 />
                             )}
@@ -125,7 +125,7 @@ export default function BillingPage() {
                     </div>
                     {/* Handwritten annotation effect */}
                     <div className="absolute -top-8 -right-16 hidden md:block">
-                        <div className="relative text-[#E55F37] rotate-6">
+                        <div className="relative text-[#1DB954] rotate-6">
                             <span
                                 className="text-sm font-medium whitespace-nowrap absolute -top-4 left-4"
                                 style={{ fontFamily: '"Comic Sans MS", "Comic Sans", cursive' }}
@@ -151,7 +151,7 @@ export default function BillingPage() {
                                 <span className="text-muted-foreground">/{billingCycle === "yearly" ? "year" : "month"}</span>
                             </div>
                             {billingCycle === "yearly" && (
-                                <p className="text-[#E55F37] text-sm font-medium mt-2">✓ Save $18</p>
+                                <p className="text-[#1DB954] text-sm font-medium mt-2">✓ Save $18</p>
                             )}
                         </div>
 
@@ -174,7 +174,7 @@ export default function BillingPage() {
                             </li>
                         </ul>
 
-                        <Button className="w-full bg-[#E55F37] hover:bg-[#D44E28] text-white font-medium">
+                        <Button className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-white font-medium">
                             Pick Starter plan
                         </Button>
                     </div>
@@ -188,7 +188,7 @@ export default function BillingPage() {
                                 <span className="text-muted-foreground">/{billingCycle === "yearly" ? "year" : "month"}</span>
                             </div>
                             {billingCycle === "yearly" && (
-                                <p className="text-[#E55F37] text-sm font-medium mt-2">✓ Save $38</p>
+                                <p className="text-[#1DB954] text-sm font-medium mt-2">✓ Save $38</p>
                             )}
                         </div>
 
@@ -211,7 +211,7 @@ export default function BillingPage() {
                             </li>
                         </ul>
 
-                        <Button className="w-full bg-[#E55F37] hover:bg-[#D44E28] text-white font-medium">
+                        <Button className="w-full bg-[#1DB954] hover:bg-[#1ed760] text-white font-medium">
                             Pick Growth plan
                         </Button>
                     </div>

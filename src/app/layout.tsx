@@ -14,7 +14,7 @@ const fontSans = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "SEO Engine - Premium SEO Analysis",
+  title: "Optify - Premium SEO Analysis",
   description: "Advanced SEO analysis tool for modern websites",
 };
 

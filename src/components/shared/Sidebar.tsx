@@ -58,20 +58,20 @@ export function Sidebar({ collapsed = false, toggle }: SidebarProps) {
 
     return (
         <div className={cn(
-            "flex flex-col h-full bg-[#E55F37] text-white shadow-xl transition-all duration-300 w-full"
+            "flex flex-col h-full bg-[#FDFBF7] text-slate-900 shadow-xl transition-all duration-300 w-full border-r border-[#EAECC6]"
         )}>
             {/* Header */}
-            <div className={cn("flex items-center h-16 px-4 border-b border-white/10", collapsed ? "justify-center" : "justify-between")}>
+            <div className={cn("flex items-center h-16 px-4 border-b border-[#EAECC6]", collapsed ? "justify-center" : "justify-between")}>
                 <Link href="/dashboard" className={cn("flex items-center", collapsed && "justify-center")}>
-                    <div className="bg-[#9a3412] p-1.5 rounded-lg">
+                    <div className="bg-[#1DB954] p-1.5 rounded-lg">
                         <BarChart className="w-5 h-5 text-white" />
                     </div>
                     {!collapsed && (
-                        <span className="ml-2 text-lg font-bold tracking-tight text-white">SEO<span className="text-white/90">Engine</span></span>
+                        <span className="ml-2 text-lg font-bold tracking-tight text-slate-900">Optify</span>
                     )}
                 </Link>
                 {!collapsed && toggle && (
-                    <Button variant="ghost" size="icon" onClick={toggle} className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10 md:flex hidden">
+                    <Button variant="ghost" size="icon" onClick={toggle} className="h-8 w-8 text-slate-500 hover:text-slate-900 hover:bg-[#EAECC6]/50 md:flex hidden">
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
                 )}
@@ -79,7 +79,7 @@ export function Sidebar({ collapsed = false, toggle }: SidebarProps) {
 
             {collapsed && toggle && (
                 <div className="flex justify-center my-2 md:flex hidden">
-                    <Button variant="ghost" size="icon" onClick={toggle} className="h-8 w-8 text-white/70 hover:text-white hover:bg-white/10">
+                    <Button variant="ghost" size="icon" onClick={toggle} className="h-8 w-8 text-slate-500 hover:text-slate-900 hover:bg-[#EAECC6]/50">
                         <ChevronRight className="h-4 w-4" />
                     </Button>
                 </div>
@@ -89,7 +89,7 @@ export function Sidebar({ collapsed = false, toggle }: SidebarProps) {
                 {menuGroups.map((group, groupIndex) => (
                     <div key={groupIndex} className="mb-6 px-3">
                         {!collapsed && (
-                            <h3 className="mb-2 px-3 text-xs font-semibold text-white/60 uppercase tracking-wider">
+                            <h3 className="mb-2 px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
                                 {group.header}
                             </h3>
                         )}
@@ -101,13 +101,13 @@ export function Sidebar({ collapsed = false, toggle }: SidebarProps) {
                                     className={cn(
                                         "flex items-center px-3 py-2 text-[13px] font-medium rounded-md transition-all duration-200 group",
                                         pathname === route.href
-                                            ? "bg-white/20 text-white shadow-sm"
-                                            : "text-white/70 hover:bg-white/5 hover:text-white",
+                                            ? "bg-[#1DB954] text-white shadow-sm"
+                                            : "text-slate-600 hover:bg-[#EAECC6]/50 hover:text-slate-900",
                                         collapsed && "justify-center px-2"
                                     )}
                                     title={collapsed ? route.label : undefined}
                                 >
-                                    <route.icon className={cn("h-4 w-4 flex-shrink-0", !collapsed && "mr-3", (pathname === route.href || "group-hover:text-white"))} />
+                                    <route.icon className={cn("h-4 w-4 flex-shrink-0", !collapsed && "mr-3", (pathname === route.href ? "text-white" : "text-slate-500 group-hover:text-slate-900"))} />
                                     {!collapsed && <span className="truncate">{route.label}</span>}
                                 </Link>
                             ))}

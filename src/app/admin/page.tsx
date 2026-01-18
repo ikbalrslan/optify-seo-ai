@@ -29,20 +29,20 @@ export default function AdminDashboardPage() {
                         <p className="text-xs text-muted-foreground">+20% new users</p>
                     </CardContent>
                 </Card>
-                <Card className="border-l-4 border-[#E55F37] shadow-sm">
+                <Card className="border-l-4 border-green-500 shadow-sm">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">Active Users</CardTitle>
-                        <Users className="h-4 w-4 text-[#E55F37]" />
+                        <Users className="h-4 w-4 text-green-500" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold text-slate-900 dark:text-white">1,543</div>
                         <p className="text-xs text-muted-foreground">+180 this week</p>
                     </CardContent>
                 </Card>
-                <Card className="border-l-4 border-amber-500 shadow-sm">
+                <Card className="border-l-4 border-lime-500 shadow-sm">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">Churn Rate</CardTitle>
-                        <Activity className="h-4 w-4 text-amber-500" />
+                        <Activity className="h-4 w-4 text-lime-500" />
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold text-slate-900 dark:text-white">2.4%</div>
