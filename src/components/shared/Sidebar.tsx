@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { cn, getAppUrl } from "@/lib/utils";
 import {
     BarChart,
     Settings,
@@ -162,7 +162,7 @@ export function Sidebar({ collapsed = false, toggle }: SidebarProps) {
             {/* Footer Section: Documentation, Feedback, Profile */}
             <div className="p-4 border-t border-[#EAECC6] dark:border-sidebar-border space-y-1">
                 <Link
-                    href="http://localhost:3000/docs"
+                    href={`${getAppUrl()}/docs`}
                     target="_blank"
                     className={cn(
                         "flex items-center px-3 py-2 text-[13px] font-medium rounded-md transition-all duration-200 text-slate-600 dark:text-muted-foreground hover:bg-[#EAECC6]/50 dark:hover:bg-sidebar-accent/50 hover:text-slate-900 dark:hover:text-sidebar-foreground active:scale-95 group",
