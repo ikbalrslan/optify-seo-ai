@@ -28,6 +28,10 @@ model User {
   projects  Project[]
   subscription Subscription?
   encryptedOpenAiKey String?
+  encryptedWordpressKey String?
+  wordPressSites WordPressSite[]
+  feedback      Feedback[]
+  feedbackUpvotes FeedbackUpvote[]
 }
 
 model Account {
@@ -137,4 +141,40 @@ model Subscription {
   stripeSubscriptionId String?
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
+}
+
+model WordPressSite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  url       String
+  username  String
+  encryptedAppPassword String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Feedback {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        String   // "FEATURE" or "BUG"
+  title       String
+  description String
+  status      String   @default("OPEN") // OPEN, IN_PROGRESS, CLOSED
+  upvotes     Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  userUpvotes FeedbackUpvote[]
+}
+
+model FeedbackUpvote {
+  id         String   @id @default(cuid())
+  feedbackId String
+  userId     String
+  feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([feedbackId, userId])
 }

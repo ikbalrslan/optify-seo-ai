@@ -11,8 +11,8 @@ export function createOpenAIClient(encryptedKey: string) {
         apiKey: apiKey,
         baseURL: "https://openrouter.ai/api/v1",
         defaultHeaders: {
-            "HTTP-Referer": "https://seo-engine.com", // Replace with your actual site URL
-            "X-Title": "SEO Engine", // Replace with your actual site name
+            "HTTP-Referer": "http://localhost:3000/",
+            "X-Title": "SEO Engine",
         }
     });
 }
