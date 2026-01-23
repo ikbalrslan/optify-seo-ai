@@ -14,7 +14,6 @@ export default function Home() {
       <Features />
       <Testimonials />
       <Pricing />
-      <Pricing />
       <Footer />
       <AccountDeletedPopup />
     </main>

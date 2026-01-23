@@ -60,6 +60,26 @@ export default function SettingsPage() {
     }
   }, [session, isDidFetchSites]);
 
+  // Subscription state
+  const [subscription, setSubscription] = useState<any>(null);
+  const [upgradeOpen, setUpgradeOpen] = useState(false);
+
+  // Fetch subscription
+  useEffect(() => {
+    if (session?.user?.email) {
+      const fetchSub = async () => {
+        try {
+          const { getSubscription } = await import("@/actions/subscription");
+          const sub = await getSubscription();
+          setSubscription(sub);
+        } catch (e) {
+          console.error("Failed to load subscription", e);
+        }
+      };
+      fetchSub();
+    }
+  }, [session]);
+
   const loadSites = async () => {
     try {
       const { getWordPressSites } = await import("@/actions/wordpress");
@@ -272,6 +292,53 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
 
+            {/* Subscription Card */}
+            <Card className="rounded-xl border-none shadow-xl bg-card/50 backdrop-blur-sm overflow-hidden">
+              <CardHeader className="pb-4 pt-4 px-6 flex flex-row items-center justify-between">
+                <CardTitle className="text-lg font-bold text-foreground">Subscription</CardTitle>
+                {subscription?.isPro && (
+                  <span className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-xs font-bold uppercase tracking-wide">
+                    Active
+                  </span>
+                )}
+              </CardHeader>
+              <CardContent className="px-6 pb-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Current Plan</p>
+                    <div className="text-2xl font-bold text-foreground">
+                      {subscription ? subscription.planName : "Loading..."}
+                    </div>
+                  </div>
+
+                  <Dialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
+                    <DialogTrigger asChild>
+                      <Button className="bg-[#1DB954] hover:bg-[#1ed760] text-white font-bold shadow-md">
+                        {subscription?.isPro ? "Manage Plan" : "Upgrade Plan"}
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-6xl w-full h-[90vh] overflow-y-auto p-0 bg-white">
+                      {/* Import dynamic to avoid huge bundle or just standard import */}
+                      <div className="p-4">
+                        {/* We reuse the Pricing component here! */}
+                        {/* Note: Pricing component has padding, we might want to adjust it or wrap it */}
+                        <div className="relative">
+                          <button
+                            onClick={() => setUpgradeOpen(false)}
+                            className="absolute top-4 right-4 z-50 p-2 bg-white rounded-full shadow hover:bg-gray-100"
+                          >
+                            <ArrowLeft className="h-4 w-4" />
+                          </button>
+                          {/* We need to import Pricing at top */}
+                          <PricingModalContent />
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Theme Card */}
             <Card className="rounded-xl border-none shadow-xl bg-card/50 backdrop-blur-sm">
               <CardHeader className="pb-4 pt-6 px-6">
@@ -409,6 +476,18 @@ export default function SettingsPage() {
           </TabsContent>
         </div>
       </Tabs>
+    </div>
+  );
+}
+
+// Wrapper for usage in Dialog avoids SSR issues with Importing directly inside?
+// Actually simpler:
+import { Pricing } from "@/components/landing/Pricing";
+
+function PricingModalContent() {
+  return (
+    <div className="pt-8">
+      <Pricing />
     </div>
   );
 }

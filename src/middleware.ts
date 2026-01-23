@@ -21,6 +21,10 @@ export default auth((req) => {
 
     if (isOnSignIn) {
         if (isLoggedIn) {
+            const callbackUrl = req.nextUrl.searchParams.get('callbackUrl')
+            if (callbackUrl) {
+                return Response.redirect(new URL(callbackUrl, req.nextUrl))
+            }
             return Response.redirect(new URL('/dashboard', req.nextUrl))
         }
         return // Allow access to signin page

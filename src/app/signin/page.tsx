@@ -7,32 +7,73 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { register } from "@/actions/register";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import ReCAPTCHA from "react-google-recaptcha";
+import { Suspense } from 'react';
 
-export default function SignInPage() {
+function SignInContent() {
+    const [view, setView] = useState<"login" | "signup">("login"); // Default to login or check param
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
     const [captchaToken, setCaptchaToken] = useState<string | null>(null);
     const router = useRouter();
+    const searchParams = useSearchParams();
 
-    async function handleSubmit(formData: FormData) {
+    // Effect to set view based on URL param if needed, or default to login
+    // Ideally we might want ?view=signup
+
+    async function handleLogin(formData: FormData) {
+        setIsLoading(true);
+        setError("");
+
+        const email = formData.get("email") as string;
+        const password = formData.get("password") as string;
+
+        try {
+            const res = await signIn("credentials", {
+                email,
+                password,
+                redirect: false
+            });
+
+            if (res?.error) {
+                setError("Invalid email or password");
+            } else {
+                const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+                router.push(callbackUrl);
+            }
+        } catch (error) {
+            setError("Something went wrong");
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    async function handleSignup(formData: FormData) {
         setIsLoading(true);
         setError("");
 
         try {
-            // Check if we are logging in or registering based on user intent?
-            // For now, let's assume this form acts as a "Sign Up / Sign In" hybrid or just register.
-            // User requested "normal signup".
-
-            // Try to register first
             await register(formData);
-            // Register action handles redirect on success
+
+            // Auto login after register
+            const email = formData.get("email") as string;
+            const password = formData.get("password") as string;
+
+            const res = await signIn("credentials", {
+                email,
+                password,
+                redirect: false
+            });
+
+            if (res?.ok) {
+                const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+                router.push(callbackUrl);
+            } else {
+                router.push("/signin");
+            }
         } catch (err) {
-            // If registration fails (e.g. user exists), try determining if it's a login attempt or just show error.
-            // For simplicity based on prompt "signup not working", we'll just show the error.
-            // Ideally we'd have separate forms or a "smart" check.
             if (err instanceof Error) {
                 setError(err.message);
             } else {
@@ -43,10 +84,14 @@ export default function SignInPage() {
         }
     }
 
-    // Wrap the server action in a client handler to manage state
-    const clientAction = async (formData: FormData) => {
-        await handleSubmit(formData);
-    };
+    // Client wrapper is less needed if we separate handlers, but let's keep it simple
+    const handleSubmit = async (formData: FormData) => {
+        if (view === "login") {
+            await handleLogin(formData);
+        } else {
+            await handleSignup(formData);
+        }
+    }
 
     return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-[#F9FAFB] p-4">
@@ -64,15 +109,20 @@ export default function SignInPage() {
                     {/* Header */}
                     <div className="space-y-1.5">
                         <h1 className="text-2xl font-bold tracking-tight text-[#1a1a1a]">
-                            Welcome to Optify
+                            {view === "login" ? "Welcome back" : "Welcome to Optify"}
                         </h1>
                         <p className="text-[#4a4a4a] text-[15px] leading-relaxed">
-                            Create a free account to discover your business&apos;s best seo strategy.
+                            {view === "login"
+                                ? "Sign in to continue to your dashboard."
+                                : "Create a free account to discover your business's best seo strategy."}
                         </p>
                     </div>
 
                     {/* Google Button */}
-                    <SignInButton />
+                    <SignInButton
+                        callbackUrl={searchParams.get("callbackUrl") || "/dashboard"}
+                        text={view === "login" ? "Sign in with Google" : "Sign up with Google"}
+                    />
 
                     {/* Divider */}
                     <div className="relative flex items-center py-2">
@@ -81,14 +131,16 @@ export default function SignInPage() {
                         <div className="flex-grow border-t border-slate-200"></div>
                     </div>
 
-                    {/* Email Sign Up Form */}
-                    <form action={clientAction} className="space-y-4">
+                    {/* Email Form */}
+                    <form action={handleSubmit} className="space-y-4">
                         {error && (
                             <div className="p-3 text-sm text-red-500 bg-red-50 rounded-lg">
                                 {error}
                             </div>
                         )}
-                        <input type="hidden" name="captchaToken" value={captchaToken || ""} />
+                        {view === "signup" && (
+                            <input type="hidden" name="captchaToken" value={captchaToken || ""} />
+                        )}
                         <div className="space-y-1.5">
                             <label className="text-[15px] font-medium text-[#1a1a1a]">
                                 Email
@@ -115,22 +167,53 @@ export default function SignInPage() {
                             />
                         </div>
 
-                        <div className="flex justify-center scale-90 origin-center py-2">
-                            <ReCAPTCHA
-                                sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
-                                onChange={setCaptchaToken}
-                                theme="light"
-                            />
-                        </div>
+                        {view === "signup" && (
+                            <div className="flex justify-center scale-90 origin-center py-2">
+                                <ReCAPTCHA
+                                    sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
+                                    onChange={setCaptchaToken}
+                                    theme="light"
+                                />
+                            </div>
+                        )}
 
                         <Button
                             type="submit"
-                            disabled={isLoading || !captchaToken}
+                            disabled={isLoading || (view === "signup" && !captchaToken)}
                             className="w-full h-11 text-[15px] font-semibold bg-[#1DB954] hover:bg-[#1ed760] text-white rounded-xl shadow-lg shadow-green-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            {isLoading ? "Creating account..." : "Sign up with email"}
+                            {isLoading
+                                ? (view === "login" ? "Signing in..." : "Creating account...")
+                                : (view === "login" ? "Sign in with email" : "Sign up with email")}
                         </Button>
                     </form>
+
+                    {/* Footer Toggle */}
+                    <div className="mt-6 text-center space-y-3">
+                        <div className="text-sm text-slate-500">
+                            {view === "login" ? (
+                                <>
+                                    Don&apos;t have an account?{" "}
+                                    <button
+                                        onClick={() => setView("signup")}
+                                        className="font-semibold text-[#1DB954] hover:underline"
+                                    >
+                                        Sign up
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    Already have an account?{" "}
+                                    <button
+                                        onClick={() => setView("login")}
+                                        className="font-semibold text-[#1DB954] hover:underline"
+                                    >
+                                        Log in
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
 
                 </div>
             </div>
@@ -145,5 +228,13 @@ export default function SignInPage() {
                 </Link>
             </div>
         </div>
+    );
+}
+
+export default function SignInPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <SignInContent />
+        </Suspense>
     );
 }
