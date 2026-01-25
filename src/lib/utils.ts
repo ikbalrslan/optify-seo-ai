@@ -4,7 +4,7 @@ import { twMerge } from "tailwind-merge"
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
-export function absoluteUrl(path: string = "") {
+export function getAppUrl(path: string = "") {
   let baseUrl = "http://localhost:3000";
 
   if (process.env.NEXT_PUBLIC_APP_URL) {
