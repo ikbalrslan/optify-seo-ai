@@ -242,7 +242,7 @@ export function Sidebar({ collapsed = false, toggle }: SidebarProps) {
                             <DropdownMenuSeparator />
                             <DropdownMenuItem
                                 className="text-destructive cursor-pointer"
-                                onClick={() => signOut({ callbackUrl: "/" })}
+                                onClick={() => signOut({ callbackUrl: window.location.origin })}
                             >
                                 <LogOut className="mr-2 h-4 w-4" />
                                 Log out

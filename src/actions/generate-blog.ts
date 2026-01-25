@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { createOpenAIClient } from "@/lib/openai";
+import { createGeminiClient } from "@/lib/gemini";
 import { z } from "zod";
 
 // Input Schema
@@ -13,7 +13,6 @@ const BlogInputSchema = z.object({
     length: z.number().min(300).max(5000),
     tone: z.string().min(1, "Tone is required"),
     competitors: z.string().optional(),
-    model: z.string().optional(),
 });
 
 export type BlogInput = z.infer<typeof BlogInputSchema>;
@@ -35,10 +34,45 @@ const GeneratorResponseSchema = z.object({
 });
 
 export async function generateBlogPost(input: BlogInput) {
-    const session = await auth();
+    console.log("Starting generateBlogPost with input:", JSON.stringify(input));
+    let session;
+    try {
+        session = await auth();
+        console.log("Session retrieved:", session?.user?.email);
+    } catch (e: any) {
+        console.error("Auth error:", e);
+        throw new Error("Authentication failed: " + e.message);
+    }
 
     if (!session?.user?.email) {
+        console.error("No session found");
         throw new Error("Not authenticated");
+    }
+
+    const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { lastBlogGeneratedAt: true }
+    });
+
+    if (user?.lastBlogGeneratedAt) {
+        const now = new Date();
+        const diff = now.getTime() - user.lastBlogGeneratedAt.getTime();
+        const twoMinutes = 2 * 60 * 1000;
+
+        if (diff < twoMinutes) {
+            const remaining = Math.ceil((twoMinutes - diff) / 1000);
+            throw new Error(`Rate limit exceeded. Please wait ${remaining} seconds.`);
+        }
+    }
+
+    try {
+        await prisma.user.update({
+            where: { email: session.user.email },
+            data: { lastBlogGeneratedAt: new Date() }
+        });
+    } catch (e) {
+        console.error("Failed to update lastBlogGeneratedAt", e);
+        // Continue anyway, don't fail generation for this
     }
 
     const result = BlogInputSchema.safeParse(input);
@@ -46,7 +80,12 @@ export async function generateBlogPost(input: BlogInput) {
         throw new Error("Invalid input: " + result.error.message);
     }
 
-    const openai = createOpenAIClient();
+    console.log("Creating Gemini client...");
+    const genAI = createGeminiClient();
+    const model = genAI.getGenerativeModel({
+        model: "gemini-3-flash-preview",
+        generationConfig: { responseMimeType: "application/json" }
+    });
 
     const systemPrompt = `You are an expert SEO content writer. Generate a comprehensive blog post based on the user's input.
     
@@ -76,21 +115,21 @@ export async function generateBlogPost(input: BlogInput) {
     `;
 
     try {
-        const completion = await openai.chat.completions.create({
-            model: input.model || "tngtech/deepseek-r1t2-chimera:free",
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: `Generate blog post for keyword: ${input.keyword}` }
-            ],
-            response_format: { type: "json_object" },
-        });
+        console.log("Calling Gemini API...");
+        const result = await model.generateContent([
+            systemPrompt,
+            `Generate blog post for keyword: ${input.keyword}`
+        ]);
 
-        let content = completion.choices[0].message.content;
+        console.log("Gemini Response received");
+        const response = result.response;
+        let content = response.text();
+
         if (!content) {
             throw new Error("No content generated");
         }
 
-        // Sanitize content: remove markdown code blocks if present
+        // Sanitize content: remove markdown code blocks if present (Gemini might add them even with JSON mode sometimes, though responseMimeType usually parses it)
         content = content.trim();
         if (content.startsWith("```")) {
             content = content.replace(/^```(json)?/, "").replace(/```$/, "");
@@ -103,7 +142,7 @@ export async function generateBlogPost(input: BlogInput) {
         return { success: true, data: validated };
 
     } catch (error: any) {
-        console.error("OpenAI Error:", error);
+        console.error("Gemini Error Detail:", error);
         throw new Error(error.message || "Failed to generate blog post");
     }
 }
