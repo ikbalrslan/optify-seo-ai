@@ -1,0 +1,32 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci
+        - echo "AUTH_SECRET=$AUTH_SECRET" >> .env.production
+        - echo "AUTH_TRUST_HOST=$AUTH_TRUST_HOST" >> .env.production
+        - echo "OPENROUTER_API_KEY=$OPENROUTER_API_KEY" >> .env.production
+        - echo "DATABASE_URL=$DATABASE_URL" >> .env.production
+        - echo "AUTH_GOOGLE_ID=$AUTH_GOOGLE_ID" >> .env.production
+        - echo "AUTH_GOOGLE_SECRET=$AUTH_GOOGLE_SECRET" >> .env.production
+        - echo "STRIPE_SECRET_KEY=$STRIPE_SECRET_KEY" >> .env.production
+        - echo "STRIPE_WEBHOOK_SECRET=$STRIPE_WEBHOOK_SECRET" >> .env.production
+        - echo "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY" >> .env.production
+        - |
+          if [ "${AWS_BRANCH}" = "master" ]; then
+            echo "NEXT_PUBLIC_APP_URL=https://optifyseo.com" >> .env.production
+          else
+            SAFE_BRANCH=$(echo "${AWS_BRANCH}" | sed 's/\//-/g')
+            echo "NEXT_PUBLIC_APP_URL=https://${SAFE_BRANCH}.${AWS_APP_ID}.amplifyapp.com" >> .env.production
+          fi
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
