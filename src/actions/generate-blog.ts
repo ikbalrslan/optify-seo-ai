@@ -13,7 +13,6 @@ const BlogInputSchema = z.object({
     length: z.number().min(300).max(5000),
     tone: z.string().min(1, "Tone is required"),
     competitors: z.string().optional(),
-    model: z.string().optional(),
 });
 
 export type BlogInput = z.infer<typeof BlogInputSchema>;
@@ -77,7 +76,7 @@ export async function generateBlogPost(input: BlogInput) {
 
     try {
         const completion = await openai.chat.completions.create({
-            model: input.model || "tngtech/deepseek-r1t2-chimera:free",
+            model: "gpt-5.2",
             messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: `Generate blog post for keyword: ${input.keyword}` }

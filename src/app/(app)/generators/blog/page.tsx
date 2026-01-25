@@ -40,7 +40,6 @@ export default function BlogGeneratorPage() {
         length: 1500,
         tone: "professional",
         competitors: "",
-        model: "tngtech/deepseek-r1t2-chimera:free",
     });
 
     const validateForm = () => {
@@ -157,25 +156,7 @@ export default function BlogGeneratorPage() {
                 {/* Input Form */}
                 <Card className="h-fit">
                     <CardContent className="p-6 space-y-6">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-900 dark:text-slate-200">
-                                AI Model
-                            </label>
-                            <Select
-                                value={formData.model}
-                                onValueChange={(val: any) => setFormData({ ...formData, model: val })}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="openai/gpt-4o">GPT-4o (OpenAI)</SelectItem>
-                                    <SelectItem value="google/gemini-3-pro-preview">Gemini 3 Pro (Google)</SelectItem>
 
-                                    <SelectItem value="tngtech/deepseek-r1t2-chimera:free">DeepSeek R1T2 Chimera (Free)</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
 
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-slate-900 dark:text-slate-200">
