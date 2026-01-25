@@ -1,0 +1,22 @@
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci
+        - |
+          if [ "${AWS_BRANCH}" = "master" ]; then
+            echo "NEXT_PUBLIC_APP_URL=https://optifyseo.com" >> .env.production
+          else
+            echo "NEXT_PUBLIC_APP_URL=https://${AWS_BRANCH}.${AWS_APP_ID}.amplifyapp.com" >> .env.production
+          fi
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
