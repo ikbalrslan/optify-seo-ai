@@ -34,10 +34,10 @@ export default function BlogGeneratorPage() {
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
     const [formData, setFormData] = useState<BlogInput>({
-        keyword: "",
+        keyword: "okul",
         intent: "informational",
-        audience: "",
-        length: 1500,
+        audience: "insanlar",
+        length: 350,
         tone: "professional",
         competitors: "",
     });
@@ -232,7 +232,7 @@ export default function BlogGeneratorPage() {
                                 </label>
                                 <Input
                                     type="number"
-                                    placeholder="1500"
+                                    placeholder="350"
                                     value={formData.length}
                                     onChange={(e) => {
                                         setFormData({ ...formData, length: parseInt(e.target.value) || 0 });
