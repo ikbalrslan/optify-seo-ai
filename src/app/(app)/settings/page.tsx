@@ -294,7 +294,7 @@ export default function SettingsPage() {
             {/* Footer Actions */}
             <div className="flex justify-end gap-6 pt-2">
               <button
-                onClick={() => signOut({ callbackUrl: "/" })}
+                onClick={() => signOut({ callbackUrl: window.location.origin })}
                 className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 <LogOut className="h-4 w-4" />
