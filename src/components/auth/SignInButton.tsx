@@ -4,10 +4,10 @@ import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard } from "lucide-react";
 
-export function SignInButton() {
+export function SignInButton({ callbackUrl = "/dashboard", text = "Sign up with Google" }: { callbackUrl?: string, text?: string }) {
     return (
         <Button
-            onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+            onClick={() => signIn("google", { callbackUrl })}
             className="w-full h-11 text-[15px] font-medium bg-[#1a1a1a] hover:bg-black text-white rounded-xl flex items-center justify-center gap-2.5 transition-all"
         >
             <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
@@ -28,7 +28,7 @@ export function SignInButton() {
                     fill="#EA4335"
                 />
             </svg>
-            Sign up with Google
+            {text}
         </Button>
     );
 }

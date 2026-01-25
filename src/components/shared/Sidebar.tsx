@@ -235,9 +235,7 @@ export function Sidebar({ collapsed = false, toggle }: SidebarProps) {
                                 </div>
                             </DropdownMenuLabel>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem asChild>
-                                <Link href="/billing">Billing</Link>
-                            </DropdownMenuItem>
+
                             <DropdownMenuItem asChild>
                                 <Link href="/settings">Settings</Link>
                             </DropdownMenuItem>

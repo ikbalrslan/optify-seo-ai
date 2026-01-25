@@ -46,16 +46,7 @@ export async function generateBlogPost(input: BlogInput) {
         throw new Error("Invalid input: " + result.error.message);
     }
 
-    const user = await prisma.user.findUnique({
-        where: { email: session.user.email },
-        select: { encryptedOpenAiKey: true }
-    });
-
-    if (!user?.encryptedOpenAiKey) {
-        throw new Error("OpenAI API Key not found. Please add it in Settings.");
-    }
-
-    const openai = createOpenAIClient(user.encryptedOpenAiKey);
+    const openai = createOpenAIClient();
 
     const systemPrompt = `You are an expert SEO content writer. Generate a comprehensive blog post based on the user's input.
     
