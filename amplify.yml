@@ -15,9 +15,9 @@ frontend:
         - echo "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=$NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY" >> .env
         - |
           if [ "${AWS_BRANCH}" = "master" ]; then
-            echo "NEXT_PUBLIC_APP_URL=https://optifyseo.com" >> .env
-            echo "NEXTAUTH_URL=https://optifyseo.com" >> .env
-            echo "AUTH_URL=https://optifyseo.com" >> .env
+            echo "NEXT_PUBLIC_APP_URL=https://optifyseo.ai" >> .env
+            echo "NEXTAUTH_URL=https://optifyseo.ai" >> .env
+            echo "AUTH_URL=https://optifyseo.ai" >> .env
 
           else
             SAFE_BRANCH=$(echo "${AWS_BRANCH}" | sed 's/\//-/g')
