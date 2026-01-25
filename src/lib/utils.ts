@@ -4,14 +4,14 @@ import { twMerge } from "tailwind-merge"
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
-export function getAppUrl() {
+export function absoluteUrl(path: string = "") {
+  let baseUrl = "http://localhost:3000";
+
   if (process.env.NEXT_PUBLIC_APP_URL) {
-    return process.env.NEXT_PUBLIC_APP_URL;
+    baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+  } else if (typeof window !== "undefined") {
+    baseUrl = window.location.origin;
   }
 
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-
-  return "http://localhost:3000";
+  return `${baseUrl}${path}`;
 }
