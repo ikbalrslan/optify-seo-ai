@@ -33,6 +33,9 @@ model User {
   wordPressSites WordPressSite[]
   feedback      Feedback[]
   feedbackUpvotes FeedbackUpvote[]
+  scheduledPosts ScheduledPost[]
+  keywords      Keyword[]
+  backlinkExchangeEnabled Boolean @default(false)
 }
 
 model Account {
@@ -127,6 +130,7 @@ model Plan {
   slug          String   @unique // e.g., 'basic', 'pro'
   price         Float
   limits        String?  // Stored as JSON string
+  autopilotPostsPerMonth Int @default(0) // 0 = disabled, -1 = unlimited
   subscriptions Subscription[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -154,6 +158,7 @@ model WordPressSite {
   url       String
   username  String
   encryptedAppPassword String
+  scheduledPosts ScheduledPost[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -180,4 +185,58 @@ model FeedbackUpvote {
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([feedbackId, userId])
+}
+
+model ScheduledPost {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @db.ObjectId
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // WordPress target
+  wordPressSiteId String   @db.ObjectId
+  wordPressSite   WordPressSite @relation(fields: [wordPressSiteId], references: [id], onDelete: Cascade)
+  
+  // Content configuration
+  keyword         String
+  intent          String   @default("informational")
+  tone            String
+  length          Int      @default(1500)
+  language        String   @default("en")
+  
+  // Scheduling
+  scheduledDate   DateTime
+  publishStatus   String   @default("draft") // draft or publish
+  
+  // Execution status
+  status          String   @default("SCHEDULED") // SCHEDULED, GENERATING, PUBLISHED, FAILED
+  
+  // Generated content (populated after generation)
+  generatedTitle       String?
+  generatedContent     String?
+  generatedDescription String?
+  publishedPostUrl     String?
+  errorMessage         String?
+  
+  executedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Keyword {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String   @db.ObjectId
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  keyword         String
+  opportunity     String   @default("Medium") // High, Medium, Low
+  difficulty      Int      @default(50)       // 0-100
+  volume          Int      @default(0)        // Search volume
+  cpc             Float    @default(0)        // Cost per click
+  
+  isStarred       Boolean  @default(false)
+  isQueued        Boolean  @default(false)
+  isGenerated     Boolean  @default(false)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
