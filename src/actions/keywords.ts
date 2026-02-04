@@ -134,10 +134,12 @@ export async function bulkCreateKeywords(keywords: string[]) {
         throw new Error("No valid keywords provided");
     }
 
+    const userId = session.user.id;
+
     // Create all keywords
     const created = await prisma.keyword.createMany({
         data: uniqueKeywords.map(keyword => ({
-            userId: session.user.id,
+            userId,
             keyword,
             opportunity: "Medium" as const,
             difficulty: 50,
