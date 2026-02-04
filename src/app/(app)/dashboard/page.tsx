@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Activity, Globe, Search, TrendingUp } from "lucide-react";
-import { UsageChart } from "@/components/dashboard/UsageChart";
+import { OverviewChart } from "@/components/dashboard/OverviewChart";
 import { AutopilotStatsCard } from "@/components/dashboard/AutopilotStatsCard";
 
 export default function DashboardPage() {
@@ -75,13 +75,13 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-4 border-primary/10">
           <CardHeader>
-            <CardTitle>Usage Activity</CardTitle>
+            <CardTitle>Organic Traffic</CardTitle>
             <CardDescription>
-              Analyses performed over the last 7 days.
+              Clicks and impressions from Google Search over the last 30 days.
             </CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            <UsageChart />
+            <OverviewChart />
           </CardContent>
         </Card>
 

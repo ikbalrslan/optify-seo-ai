@@ -4,7 +4,15 @@ import Credentials from "next-auth/providers/credentials"
 
 export default {
     providers: [
-        Google,
+        Google({
+            authorization: {
+                params: {
+                    scope: "openid email profile https://www.googleapis.com/auth/webmasters.readonly",
+                    access_type: "offline",
+                    prompt: "consent",
+                }
+            }
+        }),
         Credentials({
             async authorize(credentials) {
                 return null

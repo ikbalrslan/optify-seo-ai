@@ -136,3 +136,72 @@ export async function publishToWordPress(siteId: string, postData: { title: stri
         throw new Error(error.message || "Failed to publish post");
     }
 }
+
+// Get the user's active/selected WordPress site
+export async function getActiveWordPressSite() {
+    const session = await auth();
+    if (!session?.user?.id) return null;
+
+    const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { activeWordPressSiteId: true }
+    });
+
+    if (user?.activeWordPressSiteId) {
+        const site = await prisma.wordPressSite.findUnique({
+            where: { id: user.activeWordPressSiteId, userId: session.user.id }
+        });
+        if (site) {
+            return {
+                id: site.id,
+                name: site.name,
+                url: site.url,
+            };
+        }
+    }
+
+    // Fallback to first site if no active site set
+    const firstSite = await prisma.wordPressSite.findFirst({
+        where: { userId: session.user.id },
+        orderBy: { createdAt: "desc" }
+    });
+
+    if (firstSite) {
+        // Auto-set as active
+        await prisma.user.update({
+            where: { id: session.user.id },
+            data: { activeWordPressSiteId: firstSite.id }
+        });
+        return {
+            id: firstSite.id,
+            name: firstSite.name,
+            url: firstSite.url,
+        };
+    }
+
+    return null;
+}
+
+// Set the user's active/selected WordPress site
+export async function setActiveWordPressSite(siteId: string) {
+    const session = await auth();
+    if (!session?.user?.id) throw new Error("Not authenticated");
+
+    // Verify the site belongs to the user
+    const site = await prisma.wordPressSite.findUnique({
+        where: { id: siteId, userId: session.user.id }
+    });
+
+    if (!site) throw new Error("Site not found");
+
+    await prisma.user.update({
+        where: { id: session.user.id },
+        data: { activeWordPressSiteId: siteId }
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/settings");
+    revalidatePath("/autopilot");
+
+    return { success: true };
+}

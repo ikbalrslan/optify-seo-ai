@@ -1,6 +1,7 @@
 "use client";
 
 import { ScrollReveal } from "./ScrollReveal";
+import { ApexChart } from "@/components/shared/ApexChart";
 
 export function ClientSuccess() {
     return (
@@ -39,59 +40,65 @@ export function ClientSuccess() {
                         </div>
 
                         {/* Chart Visualization */}
-                        <div className="relative h-64 md:h-80">
-                            <svg className="w-full h-full" viewBox="0 0 800 300" preserveAspectRatio="none">
-                                {/* Grid lines */}
-                                {[0, 1, 2, 3, 4].map((i) => (
-                                    <line
-                                        key={i}
-                                        x1="0"
-                                        y1={60 + i * 60}
-                                        x2="800"
-                                        y2={60 + i * 60}
-                                        stroke="#e5e7eb"
-                                        strokeWidth="1"
-                                    />
-                                ))}
-
-                                {/* Comparison line (without Optify) */}
-                                <path
-                                    d="M 0 250 Q 200 245 400 240 T 800 235"
-                                    fill="none"
-                                    stroke="#d1d5db"
-                                    strokeWidth="2"
-                                    strokeDasharray="8 4"
-                                />
-
-                                {/* Growth line (with Optify) */}
-                                <defs>
-                                    <linearGradient id="greenGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                                        <stop offset="0%" stopColor="#1DB954" stopOpacity="0.3" />
-                                        <stop offset="100%" stopColor="#1DB954" stopOpacity="0" />
-                                    </linearGradient>
-                                </defs>
-                                <path
-                                    d="M 0 250 Q 100 240 200 200 T 400 120 T 600 60 T 800 20"
-                                    fill="none"
-                                    stroke="#1DB954"
-                                    strokeWidth="3"
-                                />
-                                {/* Fill under curve */}
-                                <path
-                                    d="M 0 250 Q 100 240 200 200 T 400 120 T 600 60 T 800 20 L 800 300 L 0 300 Z"
-                                    fill="url(#greenGradient)"
-                                />
-                            </svg>
-
-                            {/* Month labels */}
-                            <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-gray-400 pt-2">
-                                <span>Jan</span>
-                                <span>Feb</span>
-                                <span>Mar</span>
-                                <span>Apr</span>
-                                <span>May</span>
-                                <span>Jun</span>
-                            </div>
+                        <div className="relative h-64 md:h-80 w-full">
+                            <ApexChart
+                                type="area"
+                                height="100%"
+                                width="100%"
+                                options={{
+                                    chart: {
+                                        type: 'area',
+                                        toolbar: { show: false },
+                                        fontFamily: 'inherit',
+                                        animations: {
+                                            enabled: true,
+                                            speed: 800,
+                                            animateGradually: { enabled: true, delay: 150 },
+                                            dynamicAnimation: { enabled: true, speed: 350 }
+                                        }
+                                    },
+                                    colors: ['#1DB954', '#9ca3af'], // Green, Gray
+                                    stroke: { curve: 'smooth', width: 3 },
+                                    fill: {
+                                        type: ['gradient', 'solid'],
+                                        gradient: {
+                                            shadeIntensity: 1,
+                                            opacityFrom: 0.4,
+                                            opacityTo: 0.05,
+                                            stops: [0, 90, 100]
+                                        },
+                                        solid: { opacity: 0.1 }
+                                    },
+                                    dataLabels: { enabled: false },
+                                    xaxis: {
+                                        categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                                        axisBorder: { show: false },
+                                        axisTicks: { show: false },
+                                        labels: { style: { colors: '#9ca3af', fontSize: '12px' } }
+                                    },
+                                    yaxis: { show: false },
+                                    grid: {
+                                        show: true,
+                                        borderColor: '#f3f4f6',
+                                        strokeDashArray: 4,
+                                        padding: { top: 0, right: 0, bottom: 0, left: 10 }
+                                    },
+                                    legend: { show: false },
+                                    tooltip: {
+                                        y: { formatter: (val: number) => `${val}%` }
+                                    }
+                                }}
+                                series={[
+                                    {
+                                        name: 'With Optify',
+                                        data: [30, 45, 80, 160, 230, 312]
+                                    },
+                                    {
+                                        name: 'Without',
+                                        data: [20, 25, 30, 35, 38, 42]
+                                    }
+                                ]}
+                            />
                         </div>
                     </div>
                 </ScrollReveal>

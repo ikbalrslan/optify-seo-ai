@@ -3,15 +3,11 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarDays, Clock, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { CalendarDays, Loader2 } from "lucide-react";
 import { getAutopilotStats, type AutopilotStats, type StatsPeriod } from "@/actions/dashboard";
-import { useAnimatedCounter } from "@/hooks/useAnimatedCounter";
 import Link from "next/link";
-
-function AnimatedNumber({ value, isLoading }: { value: number; isLoading: boolean }) {
-    const animatedValue = useAnimatedCounter(value, 800, !isLoading);
-    return <>{animatedValue}</>;
-}
+import { ApexChart } from "@/components/shared/ApexChart";
+import { ApexOptions } from "apexcharts";
 
 export function AutopilotStatsCard() {
     const [period, setPeriod] = useState<StatsPeriod>("month");
@@ -32,6 +28,66 @@ export function AutopilotStatsCard() {
         };
         loadStats();
     }, [period]);
+
+    const total = stats.scheduled + stats.published + stats.failed;
+    const hasData = total > 0;
+
+    const chartOptions: ApexOptions = {
+        chart: {
+            type: "donut",
+            fontFamily: "inherit",
+        },
+        labels: ["Scheduled", "Published", "Failed"],
+        colors: ["#3B82F6", "#22C55E", "#EF4444"], // blue, green, red
+        legend: {
+            position: "bottom",
+            fontFamily: "inherit",
+        },
+        dataLabels: {
+            enabled: true,
+            formatter: (val: number, opts: { seriesIndex: number; w: { config: { series: number[] } } }) => {
+                return opts.w.config.series[opts.seriesIndex].toString();
+            },
+        },
+        plotOptions: {
+            pie: {
+                donut: {
+                    size: "65%",
+                    labels: {
+                        show: true,
+                        name: {
+                            show: true,
+                            fontSize: "14px",
+                            fontWeight: 600,
+                        },
+                        value: {
+                            show: true,
+                            fontSize: "24px",
+                            fontWeight: 700,
+                        },
+                        total: {
+                            show: true,
+                            label: "Total",
+                            fontSize: "14px",
+                            fontWeight: 600,
+                            formatter: () => total.toString(),
+                        },
+                    },
+                },
+            },
+        },
+        stroke: {
+            width: 2,
+        },
+        tooltip: {
+            enabled: true,
+            y: {
+                formatter: (val: number) => `${val} posts`,
+            },
+        },
+    };
+
+    const series = [stats.scheduled, stats.published, stats.failed];
 
     return (
         <Card className="col-span-3 border-primary/10">
@@ -68,41 +124,22 @@ export function AutopilotStatsCard() {
                     <div className="flex items-center justify-center py-8">
                         <Loader2 className="h-6 w-6 animate-spin text-[#1DB954]" />
                     </div>
+                ) : !hasData ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-center">
+                        <div className="text-muted-foreground mb-2">No autopilot activity yet.</div>
+                        <Link href="/autopilot" className="text-sm text-primary hover:underline">
+                            Schedule your first post →
+                        </Link>
+                    </div>
                 ) : (
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-full">
-                                    <Clock className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                                </div>
-                                <span className="font-medium">Scheduled</span>
-                            </div>
-                            <span className="text-2xl font-bold text-blue-600 dark:text-blue-400 tabular-nums">
-                                <AnimatedNumber value={stats.scheduled} isLoading={isLoading} />
-                            </span>
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-green-100 dark:bg-green-900/40 rounded-full">
-                                    <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
-                                </div>
-                                <span className="font-medium">Published</span>
-                            </div>
-                            <span className="text-2xl font-bold text-green-600 dark:text-green-400 tabular-nums">
-                                <AnimatedNumber value={stats.published} isLoading={isLoading} />
-                            </span>
-                        </div>
-                        <div className="flex items-center justify-between p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-red-100 dark:bg-red-900/40 rounded-full">
-                                    <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
-                                </div>
-                                <span className="font-medium">Failed</span>
-                            </div>
-                            <span className="text-2xl font-bold text-red-600 dark:text-red-400 tabular-nums">
-                                <AnimatedNumber value={stats.failed} isLoading={isLoading} />
-                            </span>
-                        </div>
+                    <div className="flex items-center justify-center">
+                        <ApexChart
+                            options={chartOptions}
+                            series={series}
+                            type="donut"
+                            height={280}
+                            width="100%"
+                        />
                     </div>
                 )}
             </CardContent>

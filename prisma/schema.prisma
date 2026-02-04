@@ -31,6 +31,7 @@ model User {
   encryptedWordpressKey String?
   lastBlogGeneratedAt DateTime?
   wordPressSites WordPressSite[]
+  activeWordPressSiteId String? @db.ObjectId // Currently selected website
   feedback      Feedback[]
   feedbackUpvotes FeedbackUpvote[]
   scheduledPosts ScheduledPost[]

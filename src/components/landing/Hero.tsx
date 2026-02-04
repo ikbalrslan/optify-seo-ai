@@ -48,15 +48,15 @@ export function Hero() {
                     <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-gray-900 mb-6 max-w-5xl mx-auto leading-tight">
                         Grow Organic Traffic{" "}
                         <br className="hidden md:block" />
-                        <span className="relative inline-flex h-[1.1em] w-auto overflow-hidden align-bottom">
+                        <span className="relative inline-flex h-[1.14em] w-auto overflow-hidden align-baseline translate-y-1">
                             <span
-                                className="flex flex-col transition-transform duration-500 ease-in-out"
-                                style={{ transform: `translateY(-${currentKeywordIndex * 100}%)` }}
+                                className="flex flex-col transition-transform duration-500 ease-in-out items-center w-full"
+                                style={{ transform: `translateY(calc(-${currentKeywordIndex} * 1.14em))` }}
                             >
                                 {rotatingKeywords.map((keyword, index) => (
                                     <span
                                         key={index}
-                                        className="bg-gradient-to-r from-[#1DB954] to-[#0fa968] bg-clip-text text-transparent whitespace-nowrap h-[1.1em] flex items-center"
+                                        className="bg-gradient-to-r from-[#1DB954] to-[#0fa968] bg-clip-text text-transparent whitespace-nowrap h-[1.14em] flex items-center justify-center"
                                     >
                                         {keyword}
                                     </span>
@@ -117,12 +117,12 @@ export function Hero() {
                             </p>
                         </div>
                     </div>
-                </div>
+                </div >
 
                 {/* Floating UI Elements */}
-                <div className="relative mt-16 hidden lg:block">
+                < div className="relative mt-16 hidden lg:block" >
                     {/* SEO Content Score Card - Left */}
-                    <div className="absolute -left-4 top-0 bg-white rounded-xl shadow-xl border border-gray-100 p-4 w-48 transform -rotate-6 hover:rotate-0 transition-transform duration-300">
+                    < div className="absolute -left-4 top-0 bg-white rounded-xl shadow-xl border border-gray-100 p-4 w-48 transform -rotate-6 hover:rotate-0 transition-transform duration-300" >
                         <p className="text-xs text-gray-500 font-medium mb-2">SEO Content Score</p>
                         <div className="flex items-center gap-3">
                             <div className="relative w-14 h-14">
@@ -155,10 +155,10 @@ export function Hero() {
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    </div >
 
                     {/* Power Keywords Card - Left Bottom */}
-                    <div className="absolute left-8 top-40 bg-white rounded-xl shadow-xl border border-gray-100 p-3 transform rotate-3 hover:rotate-0 transition-transform duration-300">
+                    < div className="absolute left-8 top-40 bg-white rounded-xl shadow-xl border border-gray-100 p-3 transform rotate-3 hover:rotate-0 transition-transform duration-300" >
                         <div className="flex items-center gap-2">
                             <div className="w-8 h-8 bg-[#1DB954]/10 rounded-lg flex items-center justify-center">
                                 <svg className="w-4 h-4 text-[#1DB954]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -167,10 +167,10 @@ export function Hero() {
                             </div>
                             <span className="text-sm font-medium text-gray-700">Power Keywords</span>
                         </div>
-                    </div>
+                    </div >
 
                     {/* Personal Images Tag - Right Top */}
-                    <div className="absolute right-8 top-0 bg-white rounded-xl shadow-xl border border-gray-100 p-3 transform rotate-6 hover:rotate-0 transition-transform duration-300">
+                    < div className="absolute right-8 top-0 bg-white rounded-xl shadow-xl border border-gray-100 p-3 transform rotate-6 hover:rotate-0 transition-transform duration-300" >
                         <div className="flex items-center gap-2">
                             <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
                                 <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -179,21 +179,21 @@ export function Hero() {
                             </div>
                             <span className="text-sm font-medium text-gray-700">Personal Images</span>
                         </div>
-                    </div>
+                    </div >
 
                     {/* Blog Post Card - Right */}
-                    <div className="absolute -right-4 top-20 bg-white rounded-xl shadow-xl border border-gray-100 p-4 w-56 transform -rotate-3 hover:rotate-0 transition-transform duration-300">
+                    < div className="absolute -right-4 top-20 bg-white rounded-xl shadow-xl border border-gray-100 p-4 w-56 transform -rotate-3 hover:rotate-0 transition-transform duration-300" >
                         <div className="flex items-center justify-between mb-2">
                             <span className="text-[10px] font-medium text-[#1DB954] bg-[#1DB954]/10 px-2 py-0.5 rounded-full">Published</span>
                             <span className="text-[10px] text-gray-400">Just now</span>
                         </div>
                         <p className="text-sm font-semibold text-gray-900 mb-1 line-clamp-2">How to write blog posts that rank on Google</p>
                         <p className="text-xs text-gray-500 line-clamp-2">Complete guide to SEO content writing...</p>
-                    </div>
-                </div>
+                    </div >
+                </div >
 
                 {/* Video/Demo Section */}
-                <div className="mt-20 lg:mt-32 relative max-w-4xl mx-auto">
+                < div className="mt-20 lg:mt-32 relative max-w-4xl mx-auto" >
                     <div className="absolute -inset-4 bg-gradient-to-r from-[#1DB954]/20 via-[#1ed760]/10 to-[#1DB954]/20 rounded-2xl blur-2xl" />
                     <div className="relative rounded-xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
                         <div className="h-8 bg-gray-50 border-b border-gray-100 flex items-center px-4 gap-2">
@@ -212,14 +212,14 @@ export function Hero() {
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
+                </div >
+            </div >
 
             <AuthModal
                 isOpen={isAuthModalOpen}
                 onClose={() => setIsAuthModalOpen(false)}
                 initialView="login"
             />
-        </section>
+        </section >
     );
 }
