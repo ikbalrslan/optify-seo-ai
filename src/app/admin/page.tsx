@@ -1,7 +1,7 @@
+import { OverviewChart } from "@/components/dashboard/OverviewChart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, CreditCard, Activity, DollarSign } from "lucide-react";
 
-import { RevenueChart } from "@/components/dashboard/RevenueChart";
 
 export default function AdminDashboardPage() {
     return (
@@ -57,7 +57,7 @@ export default function AdminDashboardPage() {
                         <CardTitle>Revenue Overview</CardTitle>
                     </CardHeader>
                     <CardContent className="pl-2">
-                        <RevenueChart />
+                        <OverviewChart />
                     </CardContent>
                 </Card>
                 <Card className="col-span-3">
