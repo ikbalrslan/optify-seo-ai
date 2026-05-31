@@ -8,22 +8,16 @@ import {
     Settings,
     Home,
     FileText,
-    Users,
     LogOut,
     ChevronLeft,
     ChevronRight,
     ChevronDown,
-    ScrollText,
-    Shield,
-    PenTool,
-    Type,
-    ShoppingBag,
     MessageSquare,
-    Search,
-    Globe,
     Newspaper,
     BookOpen,
-    User
+    User,
+    CalendarDays,
+    Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -36,13 +30,28 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface SidebarProps {
     collapsed?: boolean;
     toggle?: () => void;
+    onLinkClick?: () => void;
+    subscription?: { isPro: boolean; planName: string } | null;
+    quota?: { used: number; limit: number; remaining: number };
 }
 
-export function Sidebar({ collapsed = false, toggle }: SidebarProps) {
+export function Sidebar({
+    collapsed = false,
+    toggle,
+    onLinkClick,
+    subscription = null,
+    quota = { used: 0, limit: 0, remaining: 0 }
+}: SidebarProps) {
     const pathname = usePathname();
     const { data: session } = useSession();
 
@@ -52,23 +61,18 @@ export function Sidebar({ collapsed = false, toggle }: SidebarProps) {
     // Translated reference menu structure separated by headers
     const menuGroups = [
         {
-            header: "Dashboard",
+            header: null,
             items: [
                 { label: "Dashboard", icon: Home, href: "/dashboard" },
-                { label: "Settings", icon: Settings, href: "/settings" },
+                { label: "Autopilot", icon: CalendarDays, href: "/autopilot" },
                 { label: "Keywords", icon: FileText, href: "/keywords" },
-                { label: "Logs", icon: ScrollText, href: "/logs" },
-                { label: "License", icon: Shield, href: "/license" },
+                { label: "Settings", icon: Settings, href: "/settings" },
             ]
         },
         {
             header: "Generators",
             items: [
                 { label: "Blog Gen", icon: Newspaper, href: "/generators/blog" },
-                { label: "Keyword Gen", icon: PenTool, href: "/generators/keyword" },
-                { label: "Title Gen", icon: Type, href: "/generators/title" },
-                { label: "Product Desc", icon: ShoppingBag, href: "/generators/product" },
-                { label: "Comment Gen", icon: MessageSquare, href: "/generators/comment" },
             ]
         }
     ];
@@ -83,7 +87,7 @@ export function Sidebar({ collapsed = false, toggle }: SidebarProps) {
         )}>
             {/* Header */}
             <div className={cn("flex items-center h-16 px-4 border-b border-[#EAECC6] dark:border-sidebar-border", collapsed ? "justify-center" : "justify-between")}>
-                <Link href="/dashboard" className={cn("flex items-center", collapsed && "justify-center")}>
+                <Link href="/dashboard" onClick={onLinkClick} className={cn("flex items-center", collapsed && "justify-center")}>
                     <div className="bg-[#1DB954] p-1.5 rounded-lg">
                         <BarChart className="w-5 h-5 text-white" />
                     </div>
@@ -139,6 +143,7 @@ export function Sidebar({ collapsed = false, toggle }: SidebarProps) {
                                         <Link
                                             key={route.href}
                                             href={route.href}
+                                            onClick={onLinkClick}
                                             className={cn(
                                                 "flex items-center px-3 py-2 text-[13px] font-medium rounded-md transition-all duration-200 group",
                                                 pathname === route.href
@@ -159,11 +164,58 @@ export function Sidebar({ collapsed = false, toggle }: SidebarProps) {
                 })}
             </div>
 
-            {/* Footer Section: Documentation, Feedback, Profile */}
-            <div className="p-4 border-t border-[#EAECC6] dark:border-sidebar-border space-y-1">
+            {/* Footer Section: Quota, Documentation, Feedback, Profile */}
+            <div className="p-4 border-t border-[#EAECC6] space-y-3">
+                {/* Monthly Quota */}
+                {!collapsed && (
+                    <div className="p-3 bg-slate-100 rounded-lg mb-2">
+                        <div className="flex items-center gap-2 mb-2">
+                            <Zap className="h-4 w-4 text-yellow-500" />
+                            <span className="text-xs font-semibold text-slate-700">Monthly Quota</span>
+                        </div>
+                        {quota.limit === -1 ? (
+                            <p className="text-sm font-bold text-[#1DB954]">Unlimited</p>
+                        ) : quota.limit === 0 ? (
+                            <p className="text-xs text-slate-500">Not available on your plan</p>
+                        ) : (
+                            <TooltipProvider delayDuration={100}>
+                                <div className="flex justify-between text-xs mb-1">
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <span className="text-slate-500 cursor-help">{quota.used} / {quota.limit}</span>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Generated articles this month</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <span className="text-slate-500 cursor-help">{quota.remaining} left</span>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Remaining quota this month</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </div>
+                                <div className="w-full bg-slate-200 rounded-full h-1.5">
+                                    <div
+                                        className="bg-[#1DB954] h-1.5 rounded-full transition-all"
+                                        style={{ width: `${Math.min(100, (quota.remaining / quota.limit) * 100)}%` }}
+                                    />
+                                </div>
+                            </TooltipProvider>
+                        )}
+                    </div>
+                )}
+                {collapsed && (
+                    <div className="flex justify-center mb-2" title="Monthly Quota">
+                        <Zap className="h-4 w-4 text-yellow-500" />
+                    </div>
+                )}
                 <Link
                     href={`${getAppUrl()}/docs`}
                     target="_blank"
+                    onClick={onLinkClick}
                     className={cn(
                         "flex items-center px-3 py-2 text-[13px] font-medium rounded-md transition-all duration-200 text-slate-600 dark:text-muted-foreground hover:bg-[#EAECC6]/50 dark:hover:bg-sidebar-accent/50 hover:text-slate-900 dark:hover:text-sidebar-foreground active:scale-95 group",
                         collapsed && "justify-center px-2"
@@ -175,6 +227,7 @@ export function Sidebar({ collapsed = false, toggle }: SidebarProps) {
                 </Link>
                 <Link
                     href="/feedback"
+                    onClick={onLinkClick}
                     className={cn(
                         "flex items-center px-3 py-2 text-[13px] font-medium rounded-md transition-all duration-200 group active:scale-95",
                         pathname === "/feedback"
@@ -203,14 +256,21 @@ export function Sidebar({ collapsed = false, toggle }: SidebarProps) {
                                         <img
                                             src={session.user.image}
                                             alt="Profile"
-                                            className="h-9 w-9 rounded-full object-cover border border-[#EAECC6] dark:border-sidebar-border"
+                                            className="h-9 w-9 rounded-full object-cover border border-[#EAECC6]"
                                         />
                                     ) : (
-                                        <div className="flex items-center justify-center h-9 w-9 bg-slate-100 dark:bg-sidebar-accent rounded-full border border-slate-200 dark:border-sidebar-border">
-                                            <User className="h-5 w-5 text-slate-400 dark:text-muted-foreground" />
+                                        <div className="flex items-center justify-center h-9 w-9 bg-slate-100 rounded-full border border-slate-200">
+                                            <User className="h-5 w-5 text-slate-400" />
                                         </div>
                                     )}
-                                    <div className="absolute bottom-0 right-0 h-2.5 w-2.5 bg-green-500 border-2 border-white dark:border-sidebar rounded-full"></div>
+                                    {/* Pro Badge */}
+                                    {subscription?.isPro ? (
+                                        <div className="absolute -bottom-0.5 -right-0.5 bg-gradient-to-r from-[#1DB954] to-[#1ed760] text-white text-[7px] font-bold px-1 py-0.5 rounded-full shadow-sm uppercase">
+                                            Pro
+                                        </div>
+                                    ) : (
+                                        <div className="absolute bottom-0 right-0 h-2.5 w-2.5 bg-green-500 border-2 border-white rounded-full"></div>
+                                    )}
                                 </div>
 
                                 {!collapsed && (
@@ -237,7 +297,7 @@ export function Sidebar({ collapsed = false, toggle }: SidebarProps) {
                             <DropdownMenuSeparator />
 
                             <DropdownMenuItem asChild>
-                                <Link href="/settings">Settings</Link>
+                                <Link href="/settings" onClick={onLinkClick}>Settings</Link>
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem

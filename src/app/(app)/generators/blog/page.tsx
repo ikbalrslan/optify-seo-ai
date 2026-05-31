@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Wand2, Copy, Check, ChevronDown, ChevronUp, Globe } from "lucide-react";
+import { Loader2, Wand2, Copy, Check, Globe } from "lucide-react";
 import { generateBlogPost, type BlogInput } from "@/actions/generate-blog";
 import { getWordPressSites, publishToWordPress } from "@/actions/wordpress";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,7 @@ export default function BlogGeneratorPage() {
     const [generatedContent, setGeneratedContent] = useState<any>(null);
     const [copied, setCopied] = useState(false);
     const [error, setError] = useState("");
-    const [isExpanded, setIsExpanded] = useState(true);
+
 
     const [selectedTitle, setSelectedTitle] = useState("");
     const [selectedDescription, setSelectedDescription] = useState("");
@@ -36,7 +36,6 @@ export default function BlogGeneratorPage() {
     const [formData, setFormData] = useState<BlogInput>({
         keyword: "okul",
         intent: "informational",
-        audience: "insanlar",
         length: 350,
         tone: "professional",
         competitors: "",
@@ -45,7 +44,6 @@ export default function BlogGeneratorPage() {
     const validateForm = () => {
         const errors: Record<string, string> = {};
         if (!formData.keyword.trim()) errors.keyword = "Primary keyword is required";
-        if (!formData.audience.trim()) errors.audience = "Target audience is required";
         if (!formData.tone.trim()) errors.tone = "Tone & Voice is required";
         if (formData.length <= 300) errors.length = "Word count must be greater than 300";
 
@@ -141,7 +139,6 @@ export default function BlogGeneratorPage() {
 
     const isFormValid =
         formData.keyword.trim().length > 0 &&
-        formData.audience.trim().length > 0 &&
         formData.tone.trim().length > 0 &&
         formData.length > 300;
 
@@ -192,21 +189,6 @@ export default function BlogGeneratorPage() {
                                         <SelectItem value="navigational">Navigational</SelectItem>
                                     </SelectContent>
                                 </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-900 dark:text-slate-200">
-                                    Target Audience <span className="text-red-500">*</span>
-                                </label>
-                                <Input
-                                    placeholder="e.g. small business owners"
-                                    value={formData.audience}
-                                    onChange={(e) => {
-                                        setFormData({ ...formData, audience: e.target.value });
-                                        if (formErrors.audience) setFormErrors({ ...formErrors, audience: "" });
-                                    }}
-                                    className={cn(formErrors.audience && "border-red-500")}
-                                />
-                                {formErrors.audience && <p className="text-xs text-red-500 font-medium">{formErrors.audience}</p>}
                             </div>
                         </div>
 
@@ -298,184 +280,162 @@ export default function BlogGeneratorPage() {
                         </div>
                     ) : (
                         <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <Card className="h-full flex flex-col">
-                                <CardContent className="p-6 space-y-6 flex-1 flex flex-col">
-                                    <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
-                                        {isExpanded && (
-                                            <div className="space-y-4 w-full">
-                                                <div>
-                                                    <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">SEO Title Options (Select One)</h3>
-                                                    <ul className="space-y-2">
-                                                        {generatedContent.titles.map((title: string, i: number) => (
-                                                            <li
-                                                                key={i}
-                                                                onClick={() => setSelectedTitle(title)}
-                                                                className={cn(
-                                                                    "text-lg font-bold p-3 rounded-lg border-2 cursor-pointer transition-all",
-                                                                    selectedTitle === title
-                                                                        ? "border-indigo-500 bg-indigo-50 text-indigo-900"
-                                                                        : "border-transparent bg-slate-50 text-slate-900 hover:bg-slate-100"
-                                                                )}
-                                                            >
-                                                                {title}
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
+                            <Card className="h-[700px] flex flex-col">
+                                <CardContent className="p-6 space-y-6 flex-1 flex flex-col overflow-hidden">
+                                    <div className="flex items-center justify-end gap-2 border-b border-slate-100 pb-4 shrink-0">
+                                        <Button variant="outline" size="icon" onClick={copyToClipboard} title="Copy to clipboard">
+                                            {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                                        </Button>
 
-                                                <div>
-                                                    <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Meta Description Options (Select One)</h3>
-                                                    <ul className="space-y-2">
-                                                        {generatedContent.meta_descriptions.map((desc: string, i: number) => (
-                                                            <li
-                                                                key={i}
-                                                                onClick={() => setSelectedDescription(desc)}
-                                                                className={cn(
-                                                                    "p-3 rounded-lg border-2 cursor-pointer transition-all",
-                                                                    selectedDescription === desc
-                                                                        ? "border-indigo-500 bg-indigo-50 text-indigo-900"
-                                                                        : "border-transparent bg-slate-50 text-slate-600 hover:bg-slate-100"
-                                                                )}
-                                                            >
-                                                                {desc}
-                                                            </li>
-                                                        ))}
-                                                    </ul>
-                                                </div>
+                                        <Dialog open={publishOpen} onOpenChange={(open) => {
+                                            setPublishOpen(open);
+                                            if (open) loadSites();
+                                        }}>
+                                            <DialogTrigger asChild>
+                                                <Button variant="default" className="bg-[#21759b] hover:bg-[#1a5c7a] text-white gap-2">
+                                                    <Globe className="h-4 w-4" />
+                                                    Publish
+                                                </Button>
+                                            </DialogTrigger>
+                                            <DialogContent>
+                                                <DialogHeader>
+                                                    <DialogTitle>Publish to WordPress</DialogTitle>
+                                                </DialogHeader>
 
-                                                <div>
-                                                    <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Meta Keywords (Click to Toggle)</h3>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {generatedContent.meta_keywords.map((keyword: string, i: number) => {
-                                                            const isSelected = selectedKeywords.includes(keyword);
-                                                            return (
-                                                                <span
-                                                                    key={i}
-                                                                    onClick={() => {
-                                                                        if (isSelected) {
-                                                                            setSelectedKeywords(prev => prev.filter(k => k !== keyword));
-                                                                        } else {
-                                                                            setSelectedKeywords(prev => [...prev, keyword]);
-                                                                        }
-                                                                    }}
-                                                                    className={cn(
-                                                                        "px-3 py-1.5 text-sm rounded-full border cursor-pointer transition-colors select-none",
-                                                                        isSelected
-                                                                            ? "bg-indigo-600 text-white border-indigo-600"
-                                                                            : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"
-                                                                    )}
-                                                                >
-                                                                    {keyword}
-                                                                </span>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                        {!isExpanded && (
-                                            <div className="w-full">
-                                                <h2 className="text-2xl font-bold text-slate-900 mb-2">{selectedTitle}</h2>
-                                                <p className="text-slate-500 italic mb-4">{selectedDescription}</p>
-                                            </div>
-                                        )}
-                                        <div className="flex gap-2 shrink-0">
-                                            <Button
-                                                variant="outline"
-                                                onClick={() => setIsExpanded(!isExpanded)}
-                                                className="flex items-center gap-2"
-                                            >
-                                                {isExpanded ? (
-                                                    <>
-                                                        Collapse <ChevronUp className="h-4 w-4" />
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        Expand <ChevronDown className="h-4 w-4" />
-                                                    </>
-                                                )}
-                                            </Button>
-                                            <Button variant="outline" size="icon" onClick={copyToClipboard} title="Copy to clipboard">
-                                                {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                                            </Button>
-
-                                            <Dialog open={publishOpen} onOpenChange={(open) => {
-                                                setPublishOpen(open);
-                                                if (open) loadSites();
-                                            }}>
-                                                <DialogTrigger asChild>
-                                                    <Button variant="default" className="bg-[#21759b] hover:bg-[#1a5c7a] text-white gap-2">
-                                                        <Globe className="h-4 w-4" />
-                                                        Publish
-                                                    </Button>
-                                                </DialogTrigger>
-                                                <DialogContent>
-                                                    <DialogHeader>
-                                                        <DialogTitle>Publish to WordPress</DialogTitle>
-                                                    </DialogHeader>
-
-                                                    {!publishResult ? (
-                                                        <div className="space-y-4 pt-4">
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Select Site</label>
-                                                                {sites.length === 0 ? (
-                                                                    <p className="text-sm text-red-500">No sites connected. Go to Settings to connect a site.</p>
-                                                                ) : (
-                                                                    <Select value={selectedSiteId} onValueChange={setSelectedSiteId}>
-                                                                        <SelectTrigger>
-                                                                            <SelectValue placeholder="Select site..." />
-                                                                        </SelectTrigger>
-                                                                        <SelectContent>
-                                                                            {sites.map(site => (
-                                                                                <SelectItem key={site.id} value={site.id}>{site.name || site.url}</SelectItem>
-                                                                            ))}
-                                                                        </SelectContent>
-                                                                    </Select>
-                                                                )}
-                                                            </div>
-
-                                                            <div className="space-y-2">
-                                                                <label className="text-sm font-medium">Post Status</label>
-                                                                <Select value={publishStatus} onValueChange={setPublishStatus}>
+                                                {!publishResult ? (
+                                                    <div className="space-y-4 pt-4">
+                                                        <div className="space-y-2">
+                                                            <label className="text-sm font-medium">Select Site</label>
+                                                            {sites.length === 0 ? (
+                                                                <p className="text-sm text-red-500">No sites connected. Go to Settings to connect a site.</p>
+                                                            ) : (
+                                                                <Select value={selectedSiteId} onValueChange={setSelectedSiteId}>
                                                                     <SelectTrigger>
-                                                                        <SelectValue />
+                                                                        <SelectValue placeholder="Select site..." />
                                                                     </SelectTrigger>
                                                                     <SelectContent>
-                                                                        <SelectItem value="draft">Draft</SelectItem>
-                                                                        <SelectItem value="publish">Publish Immediately</SelectItem>
+                                                                        {sites.map(site => (
+                                                                            <SelectItem key={site.id} value={site.id}>{site.name || site.url}</SelectItem>
+                                                                        ))}
                                                                     </SelectContent>
                                                                 </Select>
-                                                            </div>
+                                                            )}
+                                                        </div>
 
-                                                            <Button
-                                                                className="w-full bg-[#21759b] hover:bg-[#1a5c7a]"
-                                                                onClick={handlePublish}
-                                                                disabled={isPublishing || sites.length === 0}
-                                                            >
-                                                                {isPublishing ? (
-                                                                    <>
-                                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Publishing...
-                                                                    </>
-                                                                ) : "Publish Now"}
-                                                            </Button>
+                                                        <div className="space-y-2">
+                                                            <label className="text-sm font-medium">Post Status</label>
+                                                            <Select value={publishStatus} onValueChange={setPublishStatus}>
+                                                                <SelectTrigger>
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="draft">Draft</SelectItem>
+                                                                    <SelectItem value="publish">Publish Immediately</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
                                                         </div>
-                                                    ) : (
-                                                        <div className="flex flex-col items-center justify-center py-6 space-y-4">
-                                                            <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                                                                <Check className="h-6 w-6 text-green-600" />
-                                                            </div>
-                                                            <p className="text-lg font-medium text-center">Published Successfully!</p>
-                                                            <a href={publishResult} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">
-                                                                View Post
-                                                            </a>
+
+                                                        <Button
+                                                            className="w-full bg-[#21759b] hover:bg-[#1a5c7a]"
+                                                            onClick={handlePublish}
+                                                            disabled={isPublishing || sites.length === 0}
+                                                        >
+                                                            {isPublishing ? (
+                                                                <>
+                                                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Publishing...
+                                                                </>
+                                                            ) : "Publish Now"}
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="flex flex-col items-center justify-center py-6 space-y-4">
+                                                        <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                                                            <Check className="h-6 w-6 text-green-600" />
                                                         </div>
-                                                    )}
-                                                </DialogContent>
-                                            </Dialog>
-                                        </div>
+                                                        <p className="text-lg font-medium text-center">Published Successfully!</p>
+                                                        <a href={publishResult} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">
+                                                            View Post
+                                                        </a>
+                                                    </div>
+                                                )}
+                                            </DialogContent>
+                                        </Dialog>
                                     </div>
 
-                                    {isExpanded ? (
+                                    <div className="flex-1 overflow-y-auto pr-2">
+                                        {/* SEO Options */}
+                                        <div className="space-y-4 mb-6 pb-6 border-b border-slate-100">
+                                            <div>
+                                                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">SEO Title Options (Select One)</h3>
+                                                <ul className="space-y-2">
+                                                    {generatedContent.titles.map((title: string, i: number) => (
+                                                        <li
+                                                            key={i}
+                                                            onClick={() => setSelectedTitle(title)}
+                                                            className={cn(
+                                                                "text-lg font-bold p-3 rounded-lg border-2 cursor-pointer transition-all",
+                                                                selectedTitle === title
+                                                                    ? "border-indigo-500 bg-indigo-50 text-indigo-900"
+                                                                    : "border-transparent bg-slate-50 text-slate-900 hover:bg-slate-100"
+                                                            )}
+                                                        >
+                                                            {title}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+
+                                            <div>
+                                                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Meta Description Options (Select One)</h3>
+                                                <ul className="space-y-2">
+                                                    {generatedContent.meta_descriptions.map((desc: string, i: number) => (
+                                                        <li
+                                                            key={i}
+                                                            onClick={() => setSelectedDescription(desc)}
+                                                            className={cn(
+                                                                "p-3 rounded-lg border-2 cursor-pointer transition-all",
+                                                                selectedDescription === desc
+                                                                    ? "border-indigo-500 bg-indigo-50 text-indigo-900"
+                                                                    : "border-transparent bg-slate-50 text-slate-600 hover:bg-slate-100"
+                                                            )}
+                                                        >
+                                                            {desc}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+
+                                            <div>
+                                                <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2">Meta Keywords (Click to Toggle)</h3>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {generatedContent.meta_keywords.map((keyword: string, i: number) => {
+                                                        const isSelected = selectedKeywords.includes(keyword);
+                                                        return (
+                                                            <span
+                                                                key={i}
+                                                                onClick={() => {
+                                                                    if (isSelected) {
+                                                                        setSelectedKeywords(prev => prev.filter(k => k !== keyword));
+                                                                    } else {
+                                                                        setSelectedKeywords(prev => [...prev, keyword]);
+                                                                    }
+                                                                }}
+                                                                className={cn(
+                                                                    "px-3 py-1.5 text-sm rounded-full border cursor-pointer transition-colors select-none",
+                                                                    isSelected
+                                                                        ? "bg-indigo-600 text-white border-indigo-600"
+                                                                        : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"
+                                                                )}
+                                                            >
+                                                                {keyword}
+                                                            </span>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Blog Content */}
                                         <div className="prose prose-slate max-w-none animate-in fade-in zoom-in-95 duration-300">
                                             {generatedContent.sections.map((section: any, idx: number) => (
                                                 <div key={idx} className="mb-6">
@@ -511,17 +471,7 @@ export default function BlogGeneratorPage() {
                                                 </div>
                                             )}
                                         </div>
-                                    ) : (
-                                        <div className="prose prose-slate max-w-none relative flex-1 overflow-hidden min-h-[300px]">
-                                            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-white pointer-events-none z-10" />
-                                            {generatedContent.sections.slice(0, 2).map((section: any, idx: number) => (
-                                                <div key={idx} className="mb-6">
-                                                    <h3 className="text-lg font-semibold mb-2">{section.h2}</h3>
-                                                    <div dangerouslySetInnerHTML={{ __html: section.content }} />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
+                                    </div>
                                 </CardContent>
                             </Card>
                         </div>

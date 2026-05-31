@@ -51,31 +51,5 @@ export const SUBSCRIPTION_PLANS = [
             "Dedicated Account Manager",
             "API Access"
         ]
-    },
-    {
-        name: "EXTRA",
-        price: 570,
-        articles: 150,
-        features: [
-            "150 articles/mo",
-            "All Enterprise features",
-            "Bulk generation tools",
-            "Advanced Analytics",
-            "White-label reports",
-            "1-hr monthly strategy call"
-        ]
-    },
-    {
-        name: "MEGA",
-        price: 1050,
-        articles: 300,
-        features: [
-            "300 articles/mo",
-            "All Extra features",
-            "Unlimited directory listings",
-            "Custom AI model fine-tuning",
-            "SLA Support",
-            "Custom Contract"
-        ]
     }
 ];

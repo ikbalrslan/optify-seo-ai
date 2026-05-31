@@ -11,12 +11,16 @@ import { createCheckoutSession } from "@/actions/stripe";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
+
+
 export function Pricing() {
     const { data: session } = useSession();
     const router = useRouter();
     const [selectedPlanName, setSelectedPlanName] = useState("PRO");
 
     const selectedPlan = SUBSCRIPTION_PLANS.find(p => p.name === selectedPlanName) || SUBSCRIPTION_PLANS[0];
+
+
 
     const handleSubscribe = async () => {
         if (!session?.user) {
@@ -40,7 +44,10 @@ export function Pricing() {
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="text-center mb-16">
                     <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-6">
-                        Choose the right plan for you
+                        Organic Traffic Growth{" "}
+                        <span className="bg-gradient-to-r from-[#1DB954] to-[#0fa968] bg-clip-text text-transparent">
+                            on Autopilot
+                        </span>
                     </h2>
                     <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-12">
                         Scale your content production with plans tailored to your needs.

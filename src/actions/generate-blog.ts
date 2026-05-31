@@ -9,7 +9,6 @@ import { z } from "zod";
 const BlogInputSchema = z.object({
     keyword: z.string().min(1, "Keyword is required"),
     intent: z.enum(["informational", "commercial", "navigational"]),
-    audience: z.string().min(1, "Target audience is required"),
     length: z.number().min(300).max(5000),
     tone: z.string().min(1, "Tone is required"),
     competitors: z.string().optional(),
@@ -105,7 +104,6 @@ export async function generateBlogPost(input: BlogInput) {
     
     Ensure the content is optimized for the keyword: "${input.keyword}".
     Search Intent: ${input.intent}.
-    Target Audience: ${input.audience}.
     Tone: ${input.tone}.
     Approx Word Count: ${input.length}.
     ${input.competitors ? "Competitors to analyze/outrank: " + input.competitors : ""}

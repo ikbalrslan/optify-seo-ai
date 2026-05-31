@@ -14,9 +14,35 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         signIn: "/signin",
     },
     callbacks: {
-        async jwt({ token, trigger, session }) {
+        async signIn({ user, account }) {
+            // When signing in with Google, ensure the tokens are saved
+            if (account?.provider === "google" && user.id) {
+                try {
+                    // Update the account with the latest tokens
+                    await prisma.account.updateMany({
+                        where: {
+                            userId: user.id,
+                            provider: "google"
+                        },
+                        data: {
+                            access_token: account.access_token,
+                            refresh_token: account.refresh_token,
+                            expires_at: account.expires_at,
+                        }
+                    });
+                } catch (error) {
+                    console.error("Error updating Google tokens:", error);
+                }
+            }
+            return true;
+        },
+        async jwt({ token, trigger, session, account }) {
             if (trigger === "update" && session?.name) {
                 token.name = session.name
+            }
+            // Store account info in token on initial sign in
+            if (account) {
+                token.accessToken = account.access_token;
             }
             return token
         },

@@ -37,3 +37,39 @@ export async function updateWordpressKey(key: string) {
         throw new Error("Failed to update WordPress Key");
     }
 }
+
+export async function getBacklinkExchangeStatus(): Promise<boolean> {
+    const session = await auth();
+
+    if (!session?.user?.email) {
+        return false;
+    }
+
+    const user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { backlinkExchangeEnabled: true },
+    });
+
+    return user?.backlinkExchangeEnabled ?? false;
+}
+
+export async function updateBacklinkExchange(enabled: boolean): Promise<{ success: boolean }> {
+    const session = await auth();
+
+    if (!session?.user?.email) {
+        throw new Error("Not authenticated");
+    }
+
+    try {
+        await prisma.user.update({
+            where: { email: session.user.email },
+            data: { backlinkExchangeEnabled: enabled },
+        });
+
+        revalidatePath("/settings");
+        return { success: true };
+    } catch (error) {
+        console.error("Error updating backlink exchange setting:", error);
+        throw new Error("Failed to update backlink exchange setting");
+    }
+}
