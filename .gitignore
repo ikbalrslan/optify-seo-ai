@@ -36,6 +36,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# sqlite (local/dev only - runtime db lives on a Docker volume in prod)
+prisma/*.db
+prisma/*.db-journal
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

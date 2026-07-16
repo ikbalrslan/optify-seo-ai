@@ -3,14 +3,14 @@ generator client {
 }
 
 datasource db {
-  provider = "mongodb"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 // User & Auth Models
 
 model User {
-  id            String          @id @default(auto()) @map("_id") @db.ObjectId
+  id            String          @id @default(cuid())
   name          String?
   email         String?         @unique
   emailVerified DateTime?
@@ -31,7 +31,7 @@ model User {
   encryptedWordpressKey String?
   lastBlogGeneratedAt DateTime?
   wordPressSites WordPressSite[]
-  activeWordPressSiteId String? @db.ObjectId // Currently selected website
+  activeWordPressSiteId String?  // Currently selected website
   feedback      Feedback[]
   feedbackUpvotes FeedbackUpvote[]
   scheduledPosts ScheduledPost[]
@@ -40,8 +40,8 @@ model User {
 }
 
 model Account {
-  id                String  @id @default(auto()) @map("_id") @db.ObjectId
-  userId            String  @db.ObjectId
+  id                String  @id @default(cuid())
+  userId            String  
   type              String
   provider          String
   providerAccountId String
@@ -62,9 +62,9 @@ model Account {
 }
  
 model Session {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  id           String   @id @default(cuid())
   sessionToken String   @unique
-  userId       String   @db.ObjectId
+  userId       String   
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
  
@@ -73,7 +73,7 @@ model Session {
 }
  
 model VerificationToken {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  id         String   @id @default(cuid())
   identifier String
   token      String
   expires    DateTime
@@ -82,9 +82,9 @@ model VerificationToken {
 }
  
 model Authenticator {
-  id                   String  @id @default(auto()) @map("_id") @db.ObjectId
+  id                   String  @id @default(cuid())
   credentialID         String  @unique
-  userId               String  @db.ObjectId
+  userId               String  
   providerAccountId    String
   credentialPublicKey  String
   counter              Int
@@ -100,10 +100,10 @@ model Authenticator {
 // App Models
 
 model Project {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  id        String   @id @default(cuid())
   name      String
   domain    String
-  userId    String   @db.ObjectId
+  userId    String   
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   analyses  Analysis[]
   createdAt DateTime @default(now())
@@ -111,8 +111,8 @@ model Project {
 }
 
 model Analysis {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
-  projectId     String   @db.ObjectId
+  id            String   @id @default(cuid())
+  projectId     String   
   project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   url           String
   score         Int
@@ -126,7 +126,7 @@ model Analysis {
 }
 
 model Plan {
-  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  id            String   @id @default(cuid())
   name          String
   slug          String   @unique // e.g., 'basic', 'pro'
   price         Float
@@ -138,10 +138,10 @@ model Plan {
 }
 
 model Subscription {
-  id            String             @id @default(auto()) @map("_id") @db.ObjectId
-  userId        String             @unique @db.ObjectId
+  id            String             @id @default(cuid())
+  userId        String             @unique 
   user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  planId        String             @db.ObjectId
+  planId        String             
   plan          Plan               @relation(fields: [planId], references: [id])
   status        String             @default("ACTIVE")
   startDate     DateTime           @default(now())
@@ -152,8 +152,8 @@ model Subscription {
 }
 
 model WordPressSite {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String   @db.ObjectId
+  id        String   @id @default(cuid())
+  userId    String   
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   name      String
   url       String
@@ -165,8 +165,8 @@ model WordPressSite {
 }
 
 model Feedback {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String   @db.ObjectId
+  id          String   @id @default(cuid())
+  userId      String   
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   type        String   // "FEATURE" or "BUG"
   title       String
@@ -179,9 +179,9 @@ model Feedback {
 }
 
 model FeedbackUpvote {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  feedbackId String   @db.ObjectId
-  userId     String   @db.ObjectId
+  id         String   @id @default(cuid())
+  feedbackId String   
+  userId     String   
   feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -189,12 +189,12 @@ model FeedbackUpvote {
 }
 
 model ScheduledPost {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId          String   @db.ObjectId
+  id              String   @id @default(cuid())
+  userId          String   
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   // WordPress target
-  wordPressSiteId String   @db.ObjectId
+  wordPressSiteId String   
   wordPressSite   WordPressSite @relation(fields: [wordPressSiteId], references: [id], onDelete: Cascade)
   
   // Content configuration
@@ -224,8 +224,8 @@ model ScheduledPost {
 }
 
 model Keyword {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId          String   @db.ObjectId
+  id              String   @id @default(cuid())
+  userId          String   
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   keyword         String

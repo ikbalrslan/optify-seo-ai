@@ -1,0 +1,7 @@
+http://optifyseo.ai {
+    reverse_proxy prod:3000
+}
+
+http://acceptance.optifyseo.ai {
+    reverse_proxy acceptance:3000
+}
