@@ -7,9 +7,6 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
-    depends_on:
-      - prod
-      - acceptance
 
   prod:
     image: ghcr.io/ikbalrslan/optify-seo-ai:latest
