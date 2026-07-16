@@ -51,19 +51,23 @@ GHCR image visibility doesn't matter — the deploy step logs in to `ghcr.io` on
 
 Cloudflare dashboard → R2 → Create bucket (e.g. `optifyseo`) → Manage API tokens → create a token scoped to that bucket with read/write. You'll get an Account ID, Access Key ID, and Secret Access Key — those become the four `R2_*` secrets above.
 
-### 3. Cloudflare DNS
+### 3. DNS (Porkbun — not Cloudflare)
 
-Add these records (proxied / orange-cloud), both pointing at the same VPS:
-- `optifyseo.ai`: `A` → `89.167.18.180`, `AAAA` → `2a01:4f9:c013:240c::1`
-- `acceptance.optifyseo.ai`: `A` → `89.167.18.180`, `AAAA` → `2a01:4f9:c013:240c::1`
+`optifyseo.ai`'s nameservers are Porkbun's own (`*.ns.porkbun.com`), confirmed via `dig NS optifyseo.ai` — despite R2 living on Cloudflare, this domain's DNS is unrelated to that account. Porkbun is plain DNS with no reverse-proxy/CDN layer, so there's nothing like Cloudflare's "Flexible SSL" here — Caddy handles real TLS itself via automatic Let's Encrypt certificates (`Caddyfile` has no `http://` prefix, which is what enables this).
 
-Confirm SSL/TLS mode is **Flexible** (SSL/TLS → Overview) — the VPS serves plain HTTP on port 80 (Caddy) and Cloudflare terminates TLS at the edge. If it's set to Full/Strict instead, the origin will need its own certificate, which this setup doesn't provide.
+In the [Porkbun dashboard](https://porkbun.com/account/domains) → DNS records for `optifyseo.ai`, add:
+- `A` record, host `acceptance`, answer `89.167.18.180`
+- `AAAA` record, host `acceptance`, answer `2a01:4f9:c013:240c::1`
 
-The `acceptance.optifyseo.ai` DNS record is safe to add anytime — nothing currently serves that hostname, so there's no cutover risk. The `optifyseo.ai` record is the one to hold off on until prod is verified (see step 4).
+No "proxied" toggle to worry about — it's a direct record to the VPS.
+
+The `acceptance.optifyseo.ai` record is safe to add anytime — nothing currently serves that hostname, so there's no cutover risk. Don't touch the apex `optifyseo.ai` record until prod is verified (see step 4) — note the apex currently has **no** A/AAAA record at all; only `www.optifyseo.ai` is live (CNAME to a CloudFront distribution via AWS Amplify).
+
+⚠️ **Hetzner Cloud Firewall**: this VPS is Hetzner Cloud. If the server has a Cloud Firewall attached (configured in the Hetzner console, separate from anything on the OS itself), it can block inbound ports regardless of what's listening — check that ports 80 and 443 (TCP, and 443/UDP for HTTP/3) are allowed inbound before assuming a connectivity failure is a DNS or Caddy problem.
 
 ### 4. Cut over (prod only)
 
-Once you've added the secrets and pushed to `master`, watch the Actions tab go green, then verify (`curl -H "Host: optifyseo.ai" http://89.167.18.180/api/health`). Only then update the `optifyseo.ai` DNS record — until you do, it keeps serving from AWS Amplify, so this is safe to rehearse. Once confirmed live, delete `amplify.yml` and retire the Amplify app.
+Once you've added the secrets and pushed to `master`, watch the Actions tab go green, then verify from the VPS itself (`curl -H "Host: optifyseo.ai" http://localhost/api/health`). Only then add the `optifyseo.ai` A/AAAA records at Porkbun — until you do, nothing serves that hostname (the apex has no current record; `www.optifyseo.ai` keeps serving from AWS Amplify separately, unaffected either way), so this is safe to rehearse. Once confirmed live and Caddy has provisioned a real cert for it, delete `amplify.yml` and retire the Amplify app.
 
 Pushing to `acceptance` has no such gate — merge the acceptance PR whenever, and once its DNS record exists it deploys and updates immediately, independent of prod.
 
