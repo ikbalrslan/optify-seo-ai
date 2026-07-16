@@ -2,7 +2,7 @@
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { generateBlogPost, type BlogInput } from "@/actions/generate-blog";
+import { generateBlogPost, generateBlogContent, type BlogInput } from "@/actions/generate-blog";
 import { decrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 
@@ -437,7 +437,7 @@ export async function processDueScheduledPosts() {
 
             // Note: We call the generation logic directly here
             // We need to bypass auth since this is a cron job
-            const result = await generateBlogPostInternal(blogInput);
+            const result = await generateBlogContent(blogInput);
 
             if (!result.success || !result.data) {
                 throw new Error("Blog generation failed");
@@ -544,80 +544,3 @@ export async function retryScheduledPost(id: string) {
     return { success: true };
 }
 
-// ============================================
-// INTERNAL HELPERS (for cron - bypasses auth)
-// ============================================
-
-import { createGeminiClient } from "@/lib/gemini";
-import { z } from "zod";
-
-const GeneratorResponseSchema = z.object({
-    titles: z.array(z.string()),
-    meta_descriptions: z.array(z.string()),
-    meta_keywords: z.array(z.string()),
-    sections: z.array(z.object({
-        h2: z.string(),
-        content: z.string(),
-    })),
-    faq: z.array(z.object({
-        question: z.string(),
-        answer: z.string(),
-    })).optional(),
-    internal_links: z.array(z.string()).optional(),
-});
-
-async function generateBlogPostInternal(input: BlogInput) {
-    const genAI = createGeminiClient();
-    const model = genAI.getGenerativeModel({
-        model: "gemini-3-flash-preview",
-        generationConfig: { responseMimeType: "application/json" }
-    });
-
-    const systemPrompt = `You are an expert SEO content writer. Generate a comprehensive blog post based on the user's input.
-    
-    Output JSON format only:
-    {
-      "titles": ["Option 1", "Option 2", "Option 3"],
-      "meta_descriptions": ["Option 1 (150-160 chars)", "Option 2", "Option 3"],
-      "meta_keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
-      "sections": [
-        { "h2": "Section Heading", "content": "Section content in HTML format (paragraphs, lists only, no h1/h2 tags within content)" }
-      ],
-      "faq": [
-        { "question": "...", "answer": "..." }
-      ],
-      "internal_links": ["suggested anchor text 1", "suggested anchor text 2"]
-    }
-    
-    Ensure the content is optimized for the keyword: "${input.keyword}".
-    Search Intent: ${input.intent}.
-    Tone: ${input.tone}.
-    Approx Word Count: ${input.length}.
-    ${input.competitors ? "Competitors to analyze/outrank: " + input.competitors : ""}
-    
-    Provide 3 distinct options for "titles" and "meta_descriptions".
-    Provide 5-8 relevant "meta_keywords".
-    `;
-
-    const result = await model.generateContent([
-        systemPrompt,
-        `Generate blog post for keyword: ${input.keyword}`
-    ]);
-
-    const response = result.response;
-    let content = response.text();
-
-    if (!content) {
-        throw new Error("No content generated");
-    }
-
-    content = content.trim();
-    if (content.startsWith("```")) {
-        content = content.replace(/^```(json)?/, "").replace(/```$/, "");
-    }
-
-    const parsed = JSON.parse(content);
-    const validated = GeneratorResponseSchema.parse(parsed);
-
-    return { success: true, data: validated };
-}

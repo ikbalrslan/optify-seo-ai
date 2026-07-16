@@ -13,7 +13,9 @@ Also fixed while auditing: `src/lib/encryption.ts` and `src/app/api/cron/autopil
 
 # Deployment
 
-`optifyseo.ai` deploys via GitHub Actions (`.github/workflows/deploy.yml`) to a self-managed VPS running Docker Compose, using SQLite for the database and Cloudflare R2 for file storage. Push to `master` deploys prod; push to `acceptance` deploys the acceptance/UAT environment. Both live on the same VPS behind a shared Caddy reverse proxy (`Caddyfile`) that routes by hostname — `optifyseo.ai` → the `prod` container, `acceptance.optifyseo.ai` → the `acceptance` container — each with its own SQLite volume, so test data never touches prod. All three (`caddy`, `prod`, `acceptance`) are services in the one `docker-compose.yml`, sharing a single `.env` of third-party secrets (Stripe, Google, OpenAI, R2 — same accounts for both environments; only the per-environment URL/DB values differ, set directly in the compose file).
+`optifyseo.ai` deploys via GitHub Actions (`.github/workflows/deploy.yml`) to a self-managed VPS running Docker Compose, using SQLite for the database and Cloudflare R2 for file storage. Push to `master` deploys prod; push to `acceptance` deploys the acceptance/UAT environment. Both live on the same VPS behind a shared Caddy reverse proxy (`Caddyfile`) that routes by hostname — `optifyseo.ai` → the `prod` container, `acceptance.optifyseo.ai` → the `acceptance` container — each with its own SQLite volume, so test data never touches prod. All three (`caddy`, `prod`, `acceptance`) are services in the one `docker-compose.yml`, sharing a single `.env` of third-party secrets (Anthropic, Stripe, Google, R2 — same accounts for both environments; only the per-environment URL/DB values differ, set directly in the compose file).
+
+AI content generation (blog posts, in `src/actions/generate-blog.ts`) uses the **Anthropic API** (`claude-sonnet-5`) — this requires an API key from [console.anthropic.com](https://console.anthropic.com), a separate product from a personal claude.ai/Claude Code subscription; there's no way to point application code at a personal subscription. `GOOGLE_PAGESPEED_API_KEY` is unrelated to this — it powers the Analyzer feature's Lighthouse/performance scoring (Google PageSpeed Insights API), not any LLM.
 
 ## One-time manual setup
 
@@ -35,9 +37,8 @@ Repo → Settings → Secrets and variables → Actions → New repository secre
 
 **You need to supply these** (existing values from the old Amplify deployment, or new ones):
 - `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` — Google OAuth client (Google Cloud Console)
-- `GOOGLE_API_KEY` — Gemini API key
-- `GOOGLE_PAGESPEED_API_KEY` — PageSpeed Insights API key
-- `OPENAI_API_KEY` — OpenAI API key
+- `ANTHROPIC_API_KEY` — [console.anthropic.com](https://console.anthropic.com) API key (not a claude.ai/Claude Code subscription — see note above). Powers blog-post generation via `claude-sonnet-5`.
+- `GOOGLE_PAGESPEED_API_KEY` — PageSpeed Insights API key (Analyzer feature, unrelated to the AI provider)
 - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — Stripe dashboard
 - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` — see step 2
 - `RECAPTCHA_SECRET_KEY`, `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` — [reCAPTCHA admin console](https://www.google.com/recaptcha/admin). **Use a newly regenerated secret key, not the old leaked one** — see the warning at the top of this file

@@ -2,7 +2,8 @@
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { createGeminiClient } from "@/lib/gemini";
+import { createAnthropicClient } from "@/lib/anthropic";
+import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
 
 // Input Schema
@@ -31,6 +32,40 @@ const GeneratorResponseSchema = z.object({
     })).optional(),
     internal_links: z.array(z.string()).optional(),
 });
+
+export async function generateBlogContent(input: BlogInput) {
+    const client = createAnthropicClient();
+
+    const systemPrompt = `You are an expert SEO content writer. Generate a comprehensive blog post based on the user's input.
+
+    Ensure the content is optimized for the keyword: "${input.keyword}".
+    Search Intent: ${input.intent}.
+    Tone: ${input.tone}.
+    Approx Word Count: ${input.length}.
+    ${input.competitors ? "Competitors to analyze/outrank: " + input.competitors : ""}
+
+    Provide 3 distinct options for "titles" and "meta_descriptions" (150-160 chars each).
+    Provide 5-8 relevant "meta_keywords".
+    Each section's "content" should be HTML (paragraphs and lists only, no h1/h2 tags within it).`;
+
+    const response = await client.messages.parse({
+        model: "claude-sonnet-5",
+        max_tokens: 16000,
+        system: systemPrompt,
+        messages: [
+            { role: "user", content: `Generate blog post for keyword: ${input.keyword}` },
+        ],
+        output_config: {
+            format: zodOutputFormat(GeneratorResponseSchema),
+        },
+    });
+
+    if (!response.parsed_output) {
+        throw new Error("No content generated");
+    }
+
+    return { success: true, data: response.parsed_output };
+}
 
 export async function generateBlogPost(input: BlogInput) {
     console.log("Starting generateBlogPost with input:", JSON.stringify(input));
@@ -79,68 +114,11 @@ export async function generateBlogPost(input: BlogInput) {
         throw new Error("Invalid input: " + result.error.message);
     }
 
-    console.log("Creating Gemini client...");
-    const genAI = createGeminiClient();
-    const model = genAI.getGenerativeModel({
-        model: "gemini-3-flash-preview",
-        generationConfig: { responseMimeType: "application/json" }
-    });
-
-    const systemPrompt = `You are an expert SEO content writer. Generate a comprehensive blog post based on the user's input.
-    
-    Output JSON format only:
-    {
-      "titles": ["Option 1", "Option 2", "Option 3"],
-      "meta_descriptions": ["Option 1 (150-160 chars)", "Option 2", "Option 3"],
-      "meta_keywords": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
-      "sections": [
-        { "h2": "Section Heading", "content": "Section content in HTML format (paragraphs, lists only, no h1/h2 tags within content)" }
-      ],
-      "faq": [
-        { "question": "...", "answer": "..." }
-      ],
-      "internal_links": ["suggested anchor text 1", "suggested anchor text 2"]
-    }
-    
-    Ensure the content is optimized for the keyword: "${input.keyword}".
-    Search Intent: ${input.intent}.
-    Tone: ${input.tone}.
-    Approx Word Count: ${input.length}.
-    ${input.competitors ? "Competitors to analyze/outrank: " + input.competitors : ""}
-    
-    Provide 3 distinct options for "titles" and "meta_descriptions".
-    Provide 5-8 relevant "meta_keywords".
-    `;
-
     try {
-        console.log("Calling Gemini API...");
-        const result = await model.generateContent([
-            systemPrompt,
-            `Generate blog post for keyword: ${input.keyword}`
-        ]);
-
-        console.log("Gemini Response received");
-        const response = result.response;
-        let content = response.text();
-
-        if (!content) {
-            throw new Error("No content generated");
-        }
-
-        // Sanitize content: remove markdown code blocks if present (Gemini might add them even with JSON mode sometimes, though responseMimeType usually parses it)
-        content = content.trim();
-        if (content.startsWith("```")) {
-            content = content.replace(/^```(json)?/, "").replace(/```$/, "");
-        }
-
-        const parsed = JSON.parse(content);
-        // Basic validation
-        const validated = GeneratorResponseSchema.parse(parsed);
-
-        return { success: true, data: validated };
-
+        console.log("Calling Claude API...");
+        return await generateBlogContent(input);
     } catch (error: any) {
-        console.error("Gemini Error Detail:", error);
+        console.error("Claude Error Detail:", error);
         throw new Error(error.message || "Failed to generate blog post");
     }
 }
