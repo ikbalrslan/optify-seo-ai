@@ -57,6 +57,7 @@ jobs:
           build-args: |
             NEXT_PUBLIC_APP_URL=${{ steps.vars.outputs.app_url }}
             NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY }}
+            NEXT_PUBLIC_RECAPTCHA_SITE_KEY=${{ secrets.NEXT_PUBLIC_RECAPTCHA_SITE_KEY }}
           cache-from: type=gha,scope=${{ steps.vars.outputs.service }}
           cache-to: type=gha,mode=max,scope=${{ steps.vars.outputs.service }}
 
@@ -103,6 +104,8 @@ jobs:
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
           R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
+          RECAPTCHA_SECRET_KEY: ${{ secrets.RECAPTCHA_SECRET_KEY }}
+          NEXT_PUBLIC_RECAPTCHA_SITE_KEY: ${{ secrets.NEXT_PUBLIC_RECAPTCHA_SITE_KEY }}
         run: |
           ssh "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" "cat > /opt/optifyseo/.env" <<EOF
           AUTH_SECRET=$AUTH_SECRET
@@ -120,6 +123,8 @@ jobs:
           R2_ACCESS_KEY_ID=$R2_ACCESS_KEY_ID
           R2_SECRET_ACCESS_KEY=$R2_SECRET_ACCESS_KEY
           R2_BUCKET_NAME=$R2_BUCKET_NAME
+          RECAPTCHA_SECRET_KEY=$RECAPTCHA_SECRET_KEY
+          NEXT_PUBLIC_RECAPTCHA_SITE_KEY=$NEXT_PUBLIC_RECAPTCHA_SITE_KEY
           EOF
 
           ssh "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" "GH_TOKEN='$GH_TOKEN' GH_ACTOR='$GH_ACTOR' SERVICE='$SERVICE' bash -s" <<'EOF'

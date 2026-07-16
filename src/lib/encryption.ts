@@ -1,15 +1,23 @@
 import crypto from 'crypto';
 
 const ALGORITHM = 'aes-256-cbc';
-// Ensure this key is 32 bytes. In production, this must be set in .env
-// For development, we fallback to a hardcoded key if not present (NOT RECOMMENDED for prod)
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || '12345678901234567890123456789012';
 const IV_LENGTH = 16; // For AES, this is always 16
+
+// Must be exactly 32 bytes. No fallback: a hardcoded default here would mean any data
+// encrypted while ENCRYPTION_KEY is unset (e.g. misconfigured deploy) could be decrypted
+// by anyone who has ever read this file's source, including in git history.
+function getKey(): Buffer {
+    const key = process.env.ENCRYPTION_KEY;
+    if (!key) {
+        throw new Error('Missing ENCRYPTION_KEY environment variable');
+    }
+    return Buffer.from(key);
+}
 
 export function encrypt(text: string): string {
     if (!text) return '';
     const iv = crypto.randomBytes(IV_LENGTH);
-    const cipher = crypto.createCipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY), iv);
+    const cipher = crypto.createCipheriv(ALGORITHM, getKey(), iv);
     let encrypted = cipher.update(text);
     encrypted = Buffer.concat([encrypted, cipher.final()]);
     return iv.toString('hex') + ':' + encrypted.toString('hex');
@@ -22,7 +30,7 @@ export function decrypt(text: string): string {
     if (!ivPart) return '';
     const iv = Buffer.from(ivPart, 'hex');
     const encryptedText = Buffer.from(textParts.join(':'), 'hex');
-    const decipher = crypto.createDecipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY), iv);
+    const decipher = crypto.createDecipheriv(ALGORITHM, getKey(), iv);
     let decrypted = decipher.update(encryptedText);
     decrypted = Buffer.concat([decrypted, decipher.final()]);
     return decrypted.toString();

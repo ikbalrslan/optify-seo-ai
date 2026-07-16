@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { processDueScheduledPosts } from '@/actions/autopilot';
 
-// Secret key for protecting the cron endpoint
-const CRON_SECRET = process.env.CRON_SECRET || 'default-dev-secret';
+// Secret key for protecting the cron endpoint. No hardcoded fallback: if this isn't
+// configured, the endpoint must reject every request rather than accept a fixed,
+// publicly-known default value.
+const CRON_SECRET = process.env.CRON_SECRET;
 
 /**
  * Manual trigger endpoint for autopilot cron job
  * Protected by CRON_SECRET header to prevent unauthorized access
- * 
+ *
  * Usage:
  * curl -X POST http://localhost:3000/api/cron/autopilot \
  *   -H "Authorization: Bearer YOUR_CRON_SECRET"
@@ -17,7 +19,7 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get('authorization');
     const token = authHeader?.replace('Bearer ', '');
 
-    if (token !== CRON_SECRET) {
+    if (!CRON_SECRET || token !== CRON_SECRET) {
         console.log('[API/Cron] Unauthorized access attempt');
         return NextResponse.json(
             { error: 'Unauthorized' },

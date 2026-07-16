@@ -170,7 +170,7 @@ function SignInContent() {
                         {view === "signup" && (
                             <div className="flex justify-center scale-90 origin-center py-2">
                                 <ReCAPTCHA
-                                    sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
+                                    sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
                                     onChange={setCaptchaToken}
                                     theme="light"
                                 />

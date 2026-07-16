@@ -179,7 +179,7 @@ export function AuthModal({ isOpen, onClose, initialView = "login" }: AuthModalP
                             <div className="flex justify-center scale-90 origin-center">
                                 <ReCAPTCHA
                                     key="login-captcha"
-                                    sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
+                                    sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
                                     onChange={setCaptchaToken}
                                     theme="light"
                                 />
@@ -222,7 +222,7 @@ export function AuthModal({ isOpen, onClose, initialView = "login" }: AuthModalP
                             <div className="flex justify-center scale-90 origin-center">
                                 <ReCAPTCHA
                                     key="signup-captcha"
-                                    sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
+                                    sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
                                     onChange={setCaptchaToken}
                                     theme="light"
                                 />

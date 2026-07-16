@@ -1,3 +1,16 @@
+## ⚠ Leaked secret — rotate before going further
+
+`src/actions/register.ts` had a hardcoded reCAPTCHA **secret** key (`6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe`), committed in `00633e8` and merged into `master` — it's already on GitHub in commit history, not just something removed from the current files. Moving it to `RECAPTCHA_SECRET_KEY` (done) stops it leaking further but does **not** undo the exposure; the old value is still readable by anyone with repo access via `git log`/`git blame`. Go to the [reCAPTCHA admin console](https://www.google.com/recaptcha/admin) and **regenerate the secret key** for this site, then use the new value for the `RECAPTCHA_SECRET_KEY` GitHub secret below. Rewriting git history (`git filter-repo`/BFG) to scrub the old commit is usually not worth it once the key is rotated — the exposed value becomes worthless — and it would force-rewrite shared history, so only do that if you have a specific reason to (e.g. a public repo you want fully clean).
+
+The reCAPTCHA **site** key was also hardcoded but that one is meant to be public (it ships to the browser regardless) — moved to an env var for consistency, not because it was a real leak.
+
+Also fixed while auditing: `src/lib/encryption.ts` and `src/app/api/cron/autopilot/route.ts` had hardcoded *fallback* values (`ENCRYPTION_KEY`/`CRON_SECRET`) that silently activated if the real env var was ever unset — effectively a hardcoded master key/credential sitting in source. Both now fail closed (throw / reject) instead of falling back to a known value.
+
+## Ongoing secret-leak prevention
+
+- `.github/workflows/secret-scan.yml` runs [gitleaks](https://github.com/gitleaks/gitleaks) on every push to `master`/`acceptance` and every PR, scoped to just the newly introduced commits (not full history — see the workflow's comments for why). A real finding fails the build.
+- A local pre-commit hook is installed on this VPS at `.git/hooks/pre-commit` (not version-controlled, so it only protects commits made from here — everyone else relies on the CI check above). It blocks any commit whose staged changes contain a likely secret; override with `git commit --no-verify` for false positives.
+
 # Deployment
 
 `optifyseo.ai` deploys via GitHub Actions (`.github/workflows/deploy.yml`) to a self-managed VPS running Docker Compose, using SQLite for the database and Cloudflare R2 for file storage. Push to `master` deploys prod; push to `acceptance` deploys the acceptance/UAT environment. Both live on the same VPS behind a shared Caddy reverse proxy (`Caddyfile`) that routes by hostname — `optifyseo.ai` → the `prod` container, `acceptance.optifyseo.ai` → the `acceptance` container — each with its own SQLite volume, so test data never touches prod. All three (`caddy`, `prod`, `acceptance`) are services in the one `docker-compose.yml`, sharing a single `.env` of third-party secrets (Stripe, Google, OpenAI, R2 — same accounts for both environments; only the per-environment URL/DB values differ, set directly in the compose file).
@@ -27,6 +40,7 @@ Repo → Settings → Secrets and variables → Actions → New repository secre
 - `OPENAI_API_KEY` — OpenAI API key
 - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — Stripe dashboard
 - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` — see step 2
+- `RECAPTCHA_SECRET_KEY`, `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` — [reCAPTCHA admin console](https://www.google.com/recaptcha/admin). **Use a newly regenerated secret key, not the old leaked one** — see the warning at the top of this file
 
 Note: since this is a fresh SQLite database (no data migrated from the old MongoDB), a new `ENCRYPTION_KEY` is fine — there's no old encrypted data it needs to match.
 
