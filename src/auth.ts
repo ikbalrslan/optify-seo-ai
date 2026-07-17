@@ -46,9 +46,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
             return true;
         },
-        async jwt({ token, trigger, session, account }) {
+        async jwt({ token, trigger, session, account, user }) {
             if (trigger === "update" && session?.name) {
                 token.name = session.name
+            }
+            // Only present on initial sign in - persisted in the token from then on,
+            // so a role change takes effect on the user's next sign in.
+            if (user) {
+                token.role = (user as { role?: string }).role ?? "USER";
             }
             // Store account info in token on initial sign in
             if (account) {
@@ -63,6 +68,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             // Add User ID to session if needed for other queries
             if (session.user && token.sub) {
                 session.user.id = token.sub
+            }
+            if (session.user) {
+                // `token.role` isn't a declared JWT field (next-auth's own JWT type doesn't
+                // expose custom fields in this version), so it resolves as `unknown` - cast
+                // explicitly rather than relying on `??`, which mistypes as `{}` against `unknown`.
+                session.user.role = (token.role as string | undefined) ?? "USER";
             }
             return session
         }
