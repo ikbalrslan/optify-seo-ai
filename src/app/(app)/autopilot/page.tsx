@@ -36,7 +36,7 @@ type ScheduledPost = {
     publishedPostUrl?: string | null;
     errorMessage?: string | null;
     executedAt?: Date | null;
-    wordPressSite: { name: string; url: string };
+    connectedSite: { name: string; url: string } | null;
     createdAt: Date;
 };
 
@@ -210,7 +210,7 @@ export default function AutopilotPage() {
                                 </div>
                                 <div>
                                     <p className="text-slate-500 dark:text-slate-400">Site</p>
-                                    <p className="font-medium">{selectedPost.wordPressSite.name}</p>
+                                    <p className="font-medium">{selectedPost.connectedSite?.name ?? "optifyseo.ai Blog"}</p>
                                 </div>
                                 <div>
                                     <p className="text-slate-500 dark:text-slate-400">Tone</p>

@@ -18,9 +18,10 @@ import { Download, Plus, Globe, Trash2, CheckCircle2 } from "lucide-react";
 
 interface WPSite {
   id: string;
+  type: string;
   name: string;
   url: string;
-  username: string;
+  username?: string;
   createdAt: Date;
 }
 
@@ -76,8 +77,8 @@ export default function SettingsPageClient({ initialSubscription, initialName }:
 
   const loadSites = async () => {
     try {
-      const { getWordPressSites } = await import("@/actions/wordpress");
-      const data = await getWordPressSites();
+      const { getConnectedSites } = await import("@/actions/wordpress");
+      const data = await getConnectedSites();
       setSites(data);
       setIsDidFetchSites(true);
     } catch (e) {
@@ -125,8 +126,8 @@ export default function SettingsPageClient({ initialSubscription, initialName }:
   const handleDeleteSite = async (id: string) => {
     if (!confirm("Are you sure you want to disconnect this site?")) return;
     try {
-      const { deleteWordPressSite } = await import("@/actions/wordpress");
-      await deleteWordPressSite(id);
+      const { deleteConnectedSite } = await import("@/actions/wordpress");
+      await deleteConnectedSite(id);
       await loadSites();
     } catch (e) {
       console.error(e);
@@ -592,8 +593,8 @@ function SearchConsoleCard() {
         setIsConnected(true);
 
         // Load WordPress sites
-        const { getWordPressSites } = await import("@/actions/wordpress");
-        const wpData = await getWordPressSites();
+        const { getConnectedSites } = await import("@/actions/wordpress");
+        const wpData = await getConnectedSites();
         setWpSites(wpData.map(s => ({ url: s.url, name: s.name })));
       } catch (e: any) {
         console.error("Failed to load sites", e);
@@ -708,8 +709,8 @@ function ActiveWebsiteCard({ sites }: { sites: WPSite[] }) {
   useEffect(() => {
     const loadActiveSite = async () => {
       try {
-        const { getActiveWordPressSite } = await import("@/actions/wordpress");
-        const activeSite = await getActiveWordPressSite();
+        const { getActiveConnectedSite } = await import("@/actions/wordpress");
+        const activeSite = await getActiveConnectedSite();
         if (activeSite) {
           setActiveId(activeSite.id);
         }
@@ -725,8 +726,8 @@ function ActiveWebsiteCard({ sites }: { sites: WPSite[] }) {
   const handleChange = async (siteId: string) => {
     setIsSaving(true);
     try {
-      const { setActiveWordPressSite } = await import("@/actions/wordpress");
-      await setActiveWordPressSite(siteId);
+      const { setActiveConnectedSite } = await import("@/actions/wordpress");
+      await setActiveConnectedSite(siteId);
       setActiveId(siteId);
     } catch (e) {
       console.error("Failed to set active site", e);

@@ -6,8 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Calendar as CalendarIcon } from "lucide-react";
-import { getWordPressSites } from "@/actions/wordpress";
+import { getConnectedSites } from "@/actions/wordpress";
 import { createScheduledPost } from "@/actions/autopilot";
+import { getProjects } from "@/actions/projects";
+import { getKeywordsForProject } from "@/actions/keywords";
+
+const BLOG_TARGET = "BLOG";
 
 interface SchedulePostModalProps {
     isOpen: boolean;
@@ -23,8 +27,17 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState("");
 
+    // Publish target: BLOG_TARGET or a connected site id
+    const [publishTarget, setPublishTarget] = useState<string>(BLOG_TARGET);
+
+    // Project/keyword picker (optional - fills the free-text keyword field below)
+    const [projects, setProjects] = useState<any[]>([]);
+    const [selectedProjectId, setSelectedProjectId] = useState("");
+    const [projectKeywords, setProjectKeywords] = useState<any[]>([]);
+    const [isLoadingKeywords, setIsLoadingKeywords] = useState(false);
+
     const [formData, setFormData] = useState({
-        wordPressSiteId: "",
+        keywordId: "",
         keyword: "",
         intent: "informational" as "informational" | "commercial" | "navigational",
         tone: "professional",
@@ -36,6 +49,7 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
     useEffect(() => {
         if (isOpen) {
             loadSites();
+            loadProjects();
             setError("");
             // Pre-fill keyword if provided
             if (defaultKeyword) {
@@ -44,14 +58,19 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
         }
     }, [isOpen, defaultKeyword]);
 
+    useEffect(() => {
+        if (selectedProjectId) {
+            loadProjectKeywords(selectedProjectId);
+        } else {
+            setProjectKeywords([]);
+        }
+    }, [selectedProjectId]);
+
     const loadSites = async () => {
         setIsLoadingSites(true);
         try {
-            const data = await getWordPressSites();
+            const data = await getConnectedSites();
             setSites(data);
-            if (data.length > 0 && !formData.wordPressSiteId) {
-                setFormData(prev => ({ ...prev, wordPressSiteId: data[0].id }));
-            }
         } catch (e) {
             console.error("Failed to load sites", e);
         } finally {
@@ -59,8 +78,39 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
         }
     };
 
+    const loadProjects = async () => {
+        try {
+            const data = await getProjects();
+            setProjects(data);
+            if (data.length > 0 && !selectedProjectId) {
+                setSelectedProjectId(data[0].id);
+            }
+        } catch (e) {
+            console.error("Failed to load projects", e);
+        }
+    };
+
+    const loadProjectKeywords = async (projectId: string) => {
+        setIsLoadingKeywords(true);
+        try {
+            const data = await getKeywordsForProject(projectId);
+            setProjectKeywords(data);
+        } catch (e) {
+            console.error("Failed to load keywords", e);
+        } finally {
+            setIsLoadingKeywords(false);
+        }
+    };
+
+    const handlePickKeyword = (keywordId: string) => {
+        const kw = projectKeywords.find(k => k.id === keywordId);
+        if (kw) {
+            setFormData(prev => ({ ...prev, keywordId: kw.id, keyword: kw.keyword }));
+        }
+    };
+
     const handleSubmit = async () => {
-        if (!selectedDate || !formData.wordPressSiteId || !formData.keyword.trim() || !formData.tone.trim()) {
+        if (!selectedDate || !formData.keyword.trim() || !formData.tone.trim()) {
             setError("Please fill in all required fields");
             return;
         }
@@ -71,13 +121,15 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
         try {
             await createScheduledPost({
                 ...formData,
+                connectedSiteId: publishTarget === BLOG_TARGET ? undefined : publishTarget,
+                keywordId: formData.keywordId || undefined,
                 scheduledDate: selectedDate,
             });
             onSuccess();
             onClose();
             // Reset form
             setFormData({
-                wordPressSiteId: sites[0]?.id || "",
+                keywordId: "",
                 keyword: "",
                 intent: "informational",
                 tone: "professional",
@@ -125,25 +177,21 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
                         </div>
                     )}
 
-                    {/* WordPress Site */}
+                    {/* Publish Target */}
                     <div className="space-y-2">
-                        <label className="text-sm font-medium">WordPress Site *</label>
+                        <label className="text-sm font-medium">Publish To *</label>
                         {isLoadingSites ? (
                             <div className="flex items-center gap-2 text-sm text-slate-500">
                                 <Loader2 className="h-4 w-4 animate-spin" />
                                 Loading sites...
                             </div>
-                        ) : sites.length === 0 ? (
-                            <p className="text-sm text-red-500">No WordPress sites connected. Please add one in Settings.</p>
                         ) : (
-                            <Select
-                                value={formData.wordPressSiteId}
-                                onValueChange={(val) => setFormData(prev => ({ ...prev, wordPressSiteId: val }))}
-                            >
+                            <Select value={publishTarget} onValueChange={setPublishTarget}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Select site..." />
+                                    <SelectValue placeholder="Select where to publish..." />
                                 </SelectTrigger>
                                 <SelectContent>
+                                    <SelectItem value={BLOG_TARGET}>optifyseo.ai Blog</SelectItem>
                                     {sites.map(site => (
                                         <SelectItem key={site.id} value={site.id}>
                                             {site.name || site.url}
@@ -154,13 +202,45 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
                         )}
                     </div>
 
+                    {/* Optional: pick from tracked site's keywords */}
+                    {projects.length > 0 && (
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Site (for keyword picker)</label>
+                                <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select site..." />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {projects.map(p => (
+                                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">Your Keywords</label>
+                                <Select value={formData.keywordId} onValueChange={handlePickKeyword} disabled={isLoadingKeywords || projectKeywords.length === 0}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={isLoadingKeywords ? "Loading..." : projectKeywords.length === 0 ? "No keywords yet" : "Pick a keyword..."} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {projectKeywords.map(kw => (
+                                            <SelectItem key={kw.id} value={kw.id}>{kw.keyword}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Keyword */}
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Target Keyword *</label>
                         <Input
                             placeholder="e.g. best email marketing tools"
                             value={formData.keyword}
-                            onChange={(e) => setFormData(prev => ({ ...prev, keyword: e.target.value }))}
+                            onChange={(e) => setFormData(prev => ({ ...prev, keyword: e.target.value, keywordId: "" }))}
                         />
                     </div>
 
@@ -244,7 +324,7 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
                     {/* Submit Button */}
                     <Button
                         onClick={handleSubmit}
-                        disabled={isSubmitting || sites.length === 0}
+                        disabled={isSubmitting}
                         className="w-full bg-[#1DB954] hover:bg-[#1aa34a] text-white"
                     >
                         {isSubmitting ? (

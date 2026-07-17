@@ -1,25 +1,7 @@
 import { BlogNavbar } from "@/components/blog/BlogNavbar";
 import Link from "next/link";
 import { ArrowLeft, BarChart } from "lucide-react";
-
-// This would normally fetch from a database or CMS
-const blogPosts: Record<string, { title: string; description: string; content: string }> = {
-    "best-seo-tools-small-business": {
-        title: "10 Best SEO Tools for Small Businesses (2025)",
-        description: "Discover the top SEO tools that help small businesses rank higher. Compare features, pricing, and find the perfect tool for your needs.",
-        content: `
-            <p>Finding the right SEO tools can make or break your small business's online presence. In 2025, there are more options than ever, but not all of them are worth your investment.</p>
-            
-            <h2>Why Small Businesses Need SEO Tools</h2>
-            <p>SEO tools help you understand what's working, what's not, and where to focus your efforts. For small businesses with limited resources, having the right tools can level the playing field against larger competitors.</p>
-            
-            <h2>Top 10 SEO Tools for 2025</h2>
-            <p>We've evaluated dozens of tools based on pricing, features, ease of use, and value for small businesses. Here are our top picks...</p>
-            
-            <p>Stay tuned for our full in-depth analysis of each tool!</p>
-        `
-    },
-};
+import { prisma } from "@/lib/db";
 
 export default async function BlogPostPage({
     params
@@ -27,7 +9,10 @@ export default async function BlogPostPage({
     params: Promise<{ slug: string }>
 }) {
     const { slug } = await params;
-    const post = blogPosts[slug];
+    const post = await prisma.blogPost.findFirst({
+        where: { slug, status: "PUBLISHED" },
+        select: { title: true, metaDescription: true, content: true },
+    });
 
     if (!post) {
         return (
@@ -68,7 +53,7 @@ export default async function BlogPostPage({
                         {post.title}
                     </h1>
                     <p className="text-lg text-gray-600">
-                        {post.description}
+                        {post.metaDescription}
                     </p>
                 </div>
             </div>

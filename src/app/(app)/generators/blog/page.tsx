@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Loader2, Wand2, Copy, Check, Globe } from "lucide-react";
 import { generateBlogPost, type BlogInput } from "@/actions/generate-blog";
-import { getWordPressSites, publishToWordPress } from "@/actions/wordpress";
+import { getConnectedSites, publishToWordPress } from "@/actions/wordpress";
 import { cn } from "@/lib/utils";
 
 export default function BlogGeneratorPage() {
@@ -74,7 +74,7 @@ export default function BlogGeneratorPage() {
 
     const loadSites = async () => {
         try {
-            const data = await getWordPressSites();
+            const data = await getConnectedSites();
             setSites(data);
             if (data.length > 0) setSelectedSiteId(data[0].id);
         } catch (e) {

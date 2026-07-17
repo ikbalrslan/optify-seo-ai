@@ -4,11 +4,16 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { generateBlogPost, generateBlogContent, type BlogInput } from "@/actions/generate-blog";
 import { decrypt } from "@/lib/encryption";
+import { slugify } from "@/lib/slug";
 import { revalidatePath } from "next/cache";
 
 // Types
+// A scheduled post either targets a connected external site (connectedSiteId set - the site's
+// own `type` field, e.g. WORDPRESS, determines which publish adapter runs) or, when
+// connectedSiteId is omitted, this app's own internal /blog.
 export type ScheduledPostInput = {
-    wordPressSiteId: string;
+    connectedSiteId?: string;
+    keywordId?: string;
     keyword: string;
     intent: "informational" | "commercial" | "navigational";
     tone: string;
@@ -17,6 +22,17 @@ export type ScheduledPostInput = {
     scheduledDate: Date;
     publishStatus: "draft" | "publish";
 };
+
+async function uniqueBlogSlug(title: string): Promise<string> {
+    const base = slugify(title) || "post";
+    let slug = base;
+    let suffix = 2;
+    while (await prisma.blogPost.findUnique({ where: { slug } })) {
+        slug = `${base}-${suffix}`;
+        suffix++;
+    }
+    return slug;
+}
 
 export type AutopilotQuota = {
     used: number;
@@ -119,16 +135,18 @@ export async function createScheduledPost(input: ScheduledPostInput) {
         throw new Error("Monthly autopilot limit reached. Please upgrade or wait until next month.");
     }
 
-    // Verify the WordPress site belongs to this user
-    const site = await prisma.wordPressSite.findFirst({
-        where: {
-            id: input.wordPressSiteId,
-            userId: session.user.id
-        }
-    });
+    if (input.connectedSiteId) {
+        // Verify the connected site belongs to this user
+        const site = await prisma.connectedSite.findFirst({
+            where: {
+                id: input.connectedSiteId,
+                userId: session.user.id
+            }
+        });
 
-    if (!site) {
-        throw new Error("WordPress site not found or does not belong to you.");
+        if (!site) {
+            throw new Error("Connected site not found or does not belong to you.");
+        }
     }
 
     // Validate scheduled date is today or in the future (compare dates only, not time)
@@ -143,7 +161,8 @@ export async function createScheduledPost(input: ScheduledPostInput) {
     const post = await prisma.scheduledPost.create({
         data: {
             userId: session.user.id,
-            wordPressSiteId: input.wordPressSiteId,
+            connectedSiteId: input.connectedSiteId,
+            keywordId: input.keywordId,
             keyword: input.keyword,
             intent: input.intent,
             tone: input.tone,
@@ -176,13 +195,13 @@ export async function quickScheduleKeyword(keyword: string) {
             : "You have reached your monthly Autopilot limit.");
     }
 
-    // Get user's first WordPress site (or throw if none)
-    const site = await prisma.wordPressSite.findFirst({
+    // Get user's first connected site (or throw if none)
+    const site = await prisma.connectedSite.findFirst({
         where: { userId: session.user.id }
     });
 
     if (!site) {
-        throw new Error("No WordPress site found. Please add one in Settings first.");
+        throw new Error("No connected site found. Please add one in Settings first.");
     }
 
     // Find the next available date (starting from today)
@@ -192,7 +211,7 @@ export async function quickScheduleKeyword(keyword: string) {
     const post = await prisma.scheduledPost.create({
         data: {
             userId: session.user.id,
-            wordPressSiteId: site.id,
+            connectedSiteId: site.id,
             keyword: keyword,
             intent: "informational",
             tone: "professional",
@@ -270,20 +289,20 @@ export async function updateScheduledPost(id: string, input: Partial<ScheduledPo
         throw new Error("Cannot edit a post that has already been processed.");
     }
 
-    // If changing WordPress site, verify ownership
-    if (input.wordPressSiteId && input.wordPressSiteId !== existing.wordPressSiteId) {
-        const site = await prisma.wordPressSite.findFirst({
-            where: { id: input.wordPressSiteId, userId: session.user.id }
+    // If changing connected site, verify ownership
+    if (input.connectedSiteId && input.connectedSiteId !== existing.connectedSiteId) {
+        const site = await prisma.connectedSite.findFirst({
+            where: { id: input.connectedSiteId, userId: session.user.id }
         });
         if (!site) {
-            throw new Error("WordPress site not found or does not belong to you.");
+            throw new Error("Connected site not found or does not belong to you.");
         }
     }
 
     await prisma.scheduledPost.update({
         where: { id },
         data: {
-            ...(input.wordPressSiteId && { wordPressSiteId: input.wordPressSiteId }),
+            ...(input.connectedSiteId && { connectedSiteId: input.connectedSiteId }),
             ...(input.keyword && { keyword: input.keyword }),
             ...(input.intent && { intent: input.intent }),
             ...(input.tone && { tone: input.tone }),
@@ -344,8 +363,8 @@ export async function getScheduledPosts(month: number, year: number) {
             }
         },
         include: {
-            wordPressSite: {
-                select: { name: true, url: true }
+            connectedSite: {
+                select: { name: true, url: true, type: true }
             }
         },
         orderBy: { scheduledDate: "asc" }
@@ -365,7 +384,7 @@ export async function getScheduledPosts(month: number, year: number) {
         publishedPostUrl: post.publishedPostUrl,
         errorMessage: post.errorMessage,
         executedAt: post.executedAt,
-        wordPressSite: post.wordPressSite,
+        connectedSite: post.connectedSite,
         createdAt: post.createdAt,
     }));
 }
@@ -382,8 +401,8 @@ export async function getScheduledPostById(id: string) {
     const post = await prisma.scheduledPost.findFirst({
         where: { id, userId: session.user.id },
         include: {
-            wordPressSite: {
-                select: { id: true, name: true, url: true }
+            connectedSite: {
+                select: { id: true, name: true, url: true, type: true }
             }
         }
     });
@@ -409,7 +428,7 @@ export async function processDueScheduledPosts() {
             status: "SCHEDULED"
         },
         include: {
-            wordPressSite: true,
+            connectedSite: true,
             user: true
         }
     });
@@ -450,30 +469,65 @@ export async function processDueScheduledPosts() {
                 .map((s: { h2: string; content: string }) => `<h2>${s.h2}</h2>${s.content}`)
                 .join("");
 
-            // Publish to WordPress
-            const appPassword = decrypt(post.wordPressSite.encryptedAppPassword);
-            const credentials = btoa(`${post.wordPressSite.username}:${appPassword}`);
-            const endpoint = `${post.wordPressSite.url}/wp-json/optify/v1/publish`;
+            let publishedPostUrl: string;
 
-            const wpResponse = await fetch(endpoint, {
-                method: "POST",
-                headers: {
-                    "Authorization": `Basic ${credentials}`,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    title: selectedTitle,
-                    content: contentHTML,
-                    meta_description: selectedDescription,
-                    focus_keyword: post.keyword,
-                    status: post.publishStatus
-                })
-            });
+            if (!post.connectedSite) {
+                // No connected site - publish directly into this app's own /blog
+                const slug = await uniqueBlogSlug(selectedTitle);
+                const isPublished = post.publishStatus === "publish";
 
-            const wpResult = await wpResponse.json();
+                await prisma.blogPost.create({
+                    data: {
+                        slug,
+                        title: selectedTitle,
+                        metaDescription: selectedDescription,
+                        metaKeywords: JSON.stringify(generated.meta_keywords ?? []),
+                        content: contentHTML,
+                        status: isPublished ? "PUBLISHED" : "DRAFT",
+                        publishedAt: isPublished ? new Date() : null,
+                        scheduledPostId: post.id,
+                    },
+                });
 
-            if (!wpResponse.ok) {
-                throw new Error(wpResult.message || `WordPress publishing failed: ${wpResponse.status}`);
+                publishedPostUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/blog/${slug}`;
+            } else {
+                // Publish to a connected external site - dispatch on its type.
+                // Add a new case here (plus a matching credential shape in ConnectedSite.credentials)
+                // when a new site type is added.
+                switch (post.connectedSite.type) {
+                    case "WORDPRESS": {
+                        const creds = JSON.parse(post.connectedSite.credentials) as { username: string; encryptedAppPassword: string };
+                        const appPassword = decrypt(creds.encryptedAppPassword);
+                        const credentials = btoa(`${creds.username}:${appPassword}`);
+                        const endpoint = `${post.connectedSite.url}/wp-json/optify/v1/publish`;
+
+                        const wpResponse = await fetch(endpoint, {
+                            method: "POST",
+                            headers: {
+                                "Authorization": `Basic ${credentials}`,
+                                "Content-Type": "application/json"
+                            },
+                            body: JSON.stringify({
+                                title: selectedTitle,
+                                content: contentHTML,
+                                meta_description: selectedDescription,
+                                focus_keyword: post.keyword,
+                                status: post.publishStatus
+                            })
+                        });
+
+                        const wpResult = await wpResponse.json();
+
+                        if (!wpResponse.ok) {
+                            throw new Error(wpResult.message || `WordPress publishing failed: ${wpResponse.status}`);
+                        }
+
+                        publishedPostUrl = wpResult.permalink;
+                        break;
+                    }
+                    default:
+                        throw new Error(`Unsupported connected site type: ${post.connectedSite.type}`);
+                }
             }
 
             // Mark as published
@@ -484,7 +538,7 @@ export async function processDueScheduledPosts() {
                     generatedTitle: selectedTitle,
                     generatedContent: contentHTML,
                     generatedDescription: selectedDescription,
-                    publishedPostUrl: wpResult.permalink,
+                    publishedPostUrl,
                     executedAt: new Date()
                 }
             });

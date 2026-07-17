@@ -24,6 +24,16 @@ async function resolveProjectId(userId: string, projectId?: string): Promise<str
     return project.id;
 }
 
+export async function getKeywordsForProject(projectId: string) {
+    const session = await auth();
+    if (!session?.user?.id) return [];
+
+    return prisma.keyword.findMany({
+        where: { userId: session.user.id, projectId },
+        orderBy: { createdAt: "desc" },
+    });
+}
+
 export type KeywordFilter = "all" | "recommended" | "starred" | "queued" | "generated";
 
 export type KeywordStats = {

@@ -30,8 +30,8 @@ model User {
   encryptedOpenAiKey String?
   encryptedWordpressKey String?
   lastBlogGeneratedAt DateTime?
-  wordPressSites WordPressSite[]
-  activeWordPressSiteId String?  // Currently selected website
+  connectedSites ConnectedSite[]
+  activeConnectedSiteId String?  // Currently selected website
   feedback      Feedback[]
   feedbackUpvotes FeedbackUpvote[]
   scheduledPosts ScheduledPost[]
@@ -109,6 +109,7 @@ model Project {
   analyses  Analysis[]
   keywords  Keyword[]
   keywordSnapshots KeywordSnapshot[]
+  scheduledPosts ScheduledPost[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -154,14 +155,14 @@ model Subscription {
   updatedAt     DateTime           @updatedAt
 }
 
-model WordPressSite {
+model ConnectedSite {
   id        String   @id @default(cuid())
-  userId    String   
+  userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   @default("WORDPRESS") // WORDPRESS today; more site types can be added later
   name      String
   url       String
-  username  String
-  encryptedAppPassword String
+  credentials String // JSON string, shape depends on `type` (WordPress: {username, encryptedAppPassword})
   scheduledPosts ScheduledPost[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -193,37 +194,62 @@ model FeedbackUpvote {
 
 model ScheduledPost {
   id              String   @id @default(cuid())
-  userId          String   
+  userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // WordPress target
-  wordPressSiteId String   
-  wordPressSite   WordPressSite @relation(fields: [wordPressSiteId], references: [id], onDelete: Cascade)
-  
+
+  // Publish target: a connected external site (connectedSiteId set, type read off ConnectedSite.type),
+  // or this app's own internal /blog when connectedSiteId is null.
+  connectedSiteId String?
+  connectedSite   ConnectedSite? @relation(fields: [connectedSiteId], references: [id], onDelete: Cascade)
+  blogPost        BlogPost?
+
+  // Optional links back to the site/keyword this post is for (not required - keyword can still be free text)
+  projectId       String?
+  project         Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  keywordId       String?
+  keywordRef      Keyword? @relation(fields: [keywordId], references: [id], onDelete: SetNull)
+
   // Content configuration
   keyword         String
   intent          String   @default("informational")
   tone            String
   length          Int      @default(1500)
   language        String   @default("en")
-  
+
   // Scheduling
   scheduledDate   DateTime
   publishStatus   String   @default("draft") // draft or publish
-  
+
   // Execution status
   status          String   @default("SCHEDULED") // SCHEDULED, GENERATING, PUBLISHED, FAILED
-  
+
   // Generated content (populated after generation)
   generatedTitle       String?
   generatedContent     String?
   generatedDescription String?
   publishedPostUrl     String?
   errorMessage         String?
-  
+
   executedAt      DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model BlogPost {
+  id              String    @id @default(cuid())
+  slug            String    @unique
+  title           String
+  metaDescription String?
+  metaKeywords    String?   // Stored as JSON array string
+  content         String    // HTML
+  status          String    @default("DRAFT") // DRAFT | PUBLISHED
+  publishedAt     DateTime?
+
+  scheduledPostId String?        @unique
+  scheduledPost   ScheduledPost? @relation(fields: [scheduledPostId], references: [id], onDelete: SetNull)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model Keyword {
@@ -242,6 +268,8 @@ model Keyword {
   isStarred       Boolean  @default(false)
   isQueued        Boolean  @default(false)
   isGenerated     Boolean  @default(false)
+
+  scheduledPosts  ScheduledPost[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

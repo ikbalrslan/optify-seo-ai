@@ -1,60 +1,18 @@
 import { BlogNavbar } from "@/components/blog/BlogNavbar";
 import Link from "next/link";
 import { BarChart } from "lucide-react";
+import { prisma } from "@/lib/db";
 
-// Sample blog posts data
-const blogPosts = [
-    {
-        title: "10 Best SEO Tools for Small Businesses (2025)",
-        description: "Discover the top SEO tools that help small businesses rank higher. Compare features, pricing, and find the perfect tool for your needs.",
-        slug: "best-seo-tools-small-business",
-        featured: true,
-    },
-    {
-        title: "How AI Content Can Boost Your SEO Rankings",
-        description: "Learn how AI-generated content can improve your search rankings while maintaining quality and authenticity.",
-        slug: "ai-content-seo-rankings",
-    },
-    {
-        title: "The Complete Guide to Keyword Research",
-        description: "Master keyword research with this comprehensive guide. Find high-value keywords that drive traffic to your website.",
-        slug: "keyword-research-guide",
-    },
-    {
-        title: "On-Page SEO Best Practices for 2025",
-        description: "Optimize your pages for search engines with these proven on-page SEO techniques that actually work.",
-        slug: "on-page-seo-best-practices",
-    },
-    {
-        title: "How to Create SEO-Optimized Blog Content",
-        description: "Step-by-step guide to writing blog posts that rank. Learn the secrets of creating content that search engines love.",
-        slug: "seo-optimized-blog-content",
-    },
-    {
-        title: "Understanding Search Intent for Better Rankings",
-        description: "Learn how to match your content with user search intent to improve your rankings and engagement.",
-        slug: "understanding-search-intent",
-    },
-    {
-        title: "Link Building Strategies That Work in 2025",
-        description: "Discover effective link building techniques that boost your domain authority without risking penalties.",
-        slug: "link-building-strategies",
-    },
-    {
-        title: "Technical SEO Checklist for Beginners",
-        description: "Essential technical SEO elements every website needs. Fix common issues and improve your site's performance.",
-        slug: "technical-seo-checklist",
-    },
-    {
-        title: "Local SEO: How to Rank in Your City",
-        description: "Dominate local search results with these proven local SEO strategies for businesses targeting specific areas.",
-        slug: "local-seo-guide",
-    },
-];
+export default async function BlogPage() {
+    const posts = await prisma.blogPost.findMany({
+        where: { status: "PUBLISHED" },
+        orderBy: { publishedAt: "desc" },
+        select: { slug: true, title: true, metaDescription: true },
+    });
+    const blogPosts = posts.map(p => ({ slug: p.slug, title: p.title, description: p.metaDescription ?? "" }));
 
-export default function BlogPage() {
-    const featuredPost = blogPosts.find(post => post.featured);
-    const regularPosts = blogPosts.filter(post => !post.featured);
+    const featuredPost = blogPosts[0];
+    const regularPosts = blogPosts.slice(1);
 
     return (
         <div className="min-h-screen bg-white">
@@ -74,6 +32,11 @@ export default function BlogPage() {
 
             {/* Blog Posts Grid */}
             <div className="max-w-6xl mx-auto px-4 pb-20">
+                {blogPosts.length === 0 && (
+                    <div className="text-center py-16 text-gray-500">
+                        No posts published yet. Check back soon.
+                    </div>
+                )}
                 {/* Featured Post */}
                 {featuredPost && (
                     <Link

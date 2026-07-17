@@ -5,6 +5,11 @@ import { prisma } from "@/lib/db";
 import { encrypt, decrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 
+type WordPressCredentials = {
+    username: string;
+    encryptedAppPassword: string;
+};
+
 export async function addWordPressSite(url: string, username: string, appPassword: string) {
     const session = await auth();
     if (!session?.user?.id) throw new Error("Not authenticated");
@@ -37,19 +42,21 @@ export async function addWordPressSite(url: string, username: string, appPasswor
         throw new Error("Could not verify WordPress connection. Please checks URL and credentials.");
     }
 
-    // Save to DB
-    const encryptedPassword = encrypt(appPassword);
-
     // Extract site name from URL or generic
     const siteName = cleanUrl.replace(/^https?:\/\//, "");
 
-    await prisma.wordPressSite.create({
+    const credentials: WordPressCredentials = {
+        username,
+        encryptedAppPassword: encrypt(appPassword),
+    };
+
+    await prisma.connectedSite.create({
         data: {
             userId: session.user.id,
+            type: "WORDPRESS",
             name: siteName,
             url: cleanUrl,
-            username: username,
-            encryptedAppPassword: encryptedPassword,
+            credentials: JSON.stringify(credentials),
         }
     });
 
@@ -57,30 +64,34 @@ export async function addWordPressSite(url: string, username: string, appPasswor
     return { success: true };
 }
 
-export async function getWordPressSites() {
+export async function getConnectedSites() {
     const session = await auth();
     if (!session?.user?.id) return [];
 
-    const sites = await prisma.wordPressSite.findMany({
+    const sites = await prisma.connectedSite.findMany({
         where: { userId: session.user.id },
         orderBy: { createdAt: "desc" }
     });
 
-    // Return without sensitive data
-    return sites.map(site => ({
-        id: site.id,
-        name: site.name,
-        url: site.url,
-        username: site.username,
-        createdAt: site.createdAt,
-    }));
+    // Return without sensitive credentials
+    return sites.map(site => {
+        const creds = JSON.parse(site.credentials) as Partial<WordPressCredentials>;
+        return {
+            id: site.id,
+            type: site.type,
+            name: site.name,
+            url: site.url,
+            username: creds.username,
+            createdAt: site.createdAt,
+        };
+    });
 }
 
-export async function deleteWordPressSite(id: string) {
+export async function deleteConnectedSite(id: string) {
     const session = await auth();
     if (!session?.user?.id) throw new Error("Not authenticated");
 
-    await prisma.wordPressSite.delete({
+    await prisma.connectedSite.delete({
         where: {
             id: id,
             userId: session.user.id
@@ -95,14 +106,16 @@ export async function publishToWordPress(siteId: string, postData: { title: stri
     const session = await auth();
     if (!session?.user?.id) throw new Error("Not authenticated");
 
-    const site = await prisma.wordPressSite.findUnique({
+    const site = await prisma.connectedSite.findUnique({
         where: { id: siteId, userId: session.user.id }
     });
 
     if (!site) throw new Error("Site not found");
+    if (site.type !== "WORDPRESS") throw new Error(`Unsupported site type for this action: ${site.type}`);
 
-    const appPassword = decrypt(site.encryptedAppPassword);
-    const credentials = btoa(`${site.username}:${appPassword}`);
+    const creds = JSON.parse(site.credentials) as WordPressCredentials;
+    const appPassword = decrypt(creds.encryptedAppPassword);
+    const credentials = btoa(`${creds.username}:${appPassword}`);
 
     // Use our custom endpoint
     const endpoint = `${site.url}/wp-json/optify/v1/publish`;
@@ -137,19 +150,19 @@ export async function publishToWordPress(siteId: string, postData: { title: stri
     }
 }
 
-// Get the user's active/selected WordPress site
-export async function getActiveWordPressSite() {
+// Get the user's active/selected connected site
+export async function getActiveConnectedSite() {
     const session = await auth();
     if (!session?.user?.id) return null;
 
     const user = await prisma.user.findUnique({
         where: { id: session.user.id },
-        select: { activeWordPressSiteId: true }
+        select: { activeConnectedSiteId: true }
     });
 
-    if (user?.activeWordPressSiteId) {
-        const site = await prisma.wordPressSite.findUnique({
-            where: { id: user.activeWordPressSiteId, userId: session.user.id }
+    if (user?.activeConnectedSiteId) {
+        const site = await prisma.connectedSite.findUnique({
+            where: { id: user.activeConnectedSiteId, userId: session.user.id }
         });
         if (site) {
             return {
@@ -161,7 +174,7 @@ export async function getActiveWordPressSite() {
     }
 
     // Fallback to first site if no active site set
-    const firstSite = await prisma.wordPressSite.findFirst({
+    const firstSite = await prisma.connectedSite.findFirst({
         where: { userId: session.user.id },
         orderBy: { createdAt: "desc" }
     });
@@ -170,7 +183,7 @@ export async function getActiveWordPressSite() {
         // Auto-set as active
         await prisma.user.update({
             where: { id: session.user.id },
-            data: { activeWordPressSiteId: firstSite.id }
+            data: { activeConnectedSiteId: firstSite.id }
         });
         return {
             id: firstSite.id,
@@ -182,13 +195,13 @@ export async function getActiveWordPressSite() {
     return null;
 }
 
-// Set the user's active/selected WordPress site
-export async function setActiveWordPressSite(siteId: string) {
+// Set the user's active/selected connected site
+export async function setActiveConnectedSite(siteId: string) {
     const session = await auth();
     if (!session?.user?.id) throw new Error("Not authenticated");
 
     // Verify the site belongs to the user
-    const site = await prisma.wordPressSite.findUnique({
+    const site = await prisma.connectedSite.findUnique({
         where: { id: siteId, userId: session.user.id }
     });
 
@@ -196,7 +209,7 @@ export async function setActiveWordPressSite(siteId: string) {
 
     await prisma.user.update({
         where: { id: session.user.id },
-        data: { activeWordPressSiteId: siteId }
+        data: { activeConnectedSiteId: siteId }
     });
 
     revalidatePath("/dashboard");

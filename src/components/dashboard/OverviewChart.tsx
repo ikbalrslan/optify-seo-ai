@@ -4,7 +4,7 @@ import { ApexChart } from "@/components/shared/ApexChart";
 import { ApexOptions } from "apexcharts";
 import { useEffect, useState } from "react";
 import { getSearchConsoleData } from "@/actions/search-console";
-import { getActiveWordPressSite } from "@/actions/wordpress";
+import { getActiveConnectedSite } from "@/actions/wordpress";
 
 interface ChartData {
   categories: string[];
@@ -27,7 +27,7 @@ export function OverviewChart() {
       setIsLoading(true);
       try {
         // Get active site
-        const site = await getActiveWordPressSite();
+        const site = await getActiveConnectedSite();
         setActiveSite(site);
 
         if (!site) {

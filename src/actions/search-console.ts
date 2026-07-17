@@ -19,18 +19,18 @@ export async function getSearchConsoleData(siteUrl?: string): Promise<SearchCons
 
     let targetSiteUrl = siteUrl;
 
-    // If no siteUrl provided, get user's first WordPress site
+    // If no siteUrl provided, get user's first connected site
     if (!targetSiteUrl) {
-        const wordPressSite = await prisma.wordPressSite.findFirst({
+        const connectedSite = await prisma.connectedSite.findFirst({
             where: { userId: session.user.id },
             orderBy: { createdAt: "desc" }
         });
 
-        if (!wordPressSite) {
-            console.warn("No WordPress site configured");
+        if (!connectedSite) {
+            console.warn("No connected site configured");
             return [];
         }
-        targetSiteUrl = wordPressSite.url;
+        targetSiteUrl = connectedSite.url;
     }
 
     // Get user's Google OAuth tokens from their account
@@ -160,18 +160,4 @@ export async function getSearchConsoleSites(): Promise<string[]> {
         console.error("Error fetching Search Console sites:", error);
         return [];
     }
-}
-
-// Get user's WordPress sites for dropdown
-export async function getUserWordPressSites(): Promise<{ id: string; name: string; url: string }[]> {
-    const session = await auth();
-    if (!session?.user?.id) return [];
-
-    const sites = await prisma.wordPressSite.findMany({
-        where: { userId: session.user.id },
-        orderBy: { createdAt: "desc" },
-        select: { id: true, name: true, url: true }
-    });
-
-    return sites;
 }
