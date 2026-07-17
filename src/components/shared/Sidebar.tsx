@@ -17,7 +17,8 @@ import {
     BookOpen,
     User,
     CalendarDays,
-    Zap
+    Zap,
+    Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -73,6 +74,7 @@ export function Sidebar({
             header: "Generators",
             items: [
                 { label: "Blog Gen", icon: Newspaper, href: "/generators/blog" },
+                { label: "Keyword Gen", icon: Sparkles, href: "/generators/keyword" },
             ]
         }
     ];
