@@ -110,6 +110,12 @@ model Project {
   keywords  Keyword[]
   keywordSnapshots KeywordSnapshot[]
   scheduledPosts ScheduledPost[]
+
+  // Fully-autonomous monthly discovery + scheduling (Phase 3)
+  autopilotEnabled Boolean @default(false)
+  autopilotSeedKeyword String? // topic fed to keyword discovery each month
+  autopilotConnectedSiteId String? // manual reference to ConnectedSite.id, no relation (matches User.activeConnectedSiteId) - null means publish to the internal blog
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

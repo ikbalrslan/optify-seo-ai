@@ -5,14 +5,20 @@ import { Sparkles, TrendingUp, Flame, Loader2, Plus, Check } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getProjects, createProject } from "@/actions/projects";
+import { getProjects, createProject, updateProjectAutopilotSettings } from "@/actions/projects";
 import { discoverKeywords, promoteSnapshotToKeyword } from "@/actions/keyword-discovery";
+import { getConnectedSites } from "@/actions/wordpress";
+
+const BLOG_TARGET = "BLOG";
 
 type Project = {
   id: string;
   name: string;
   domain: string;
   country: string;
+  autopilotEnabled: boolean;
+  autopilotSeedKeyword: string | null;
+  autopilotConnectedSiteId: string | null;
 };
 
 type Snapshot = {
@@ -55,6 +61,12 @@ export default function KeywordGeneratorPage() {
   const [promotedIds, setPromotedIds] = useState<Set<string>>(new Set());
   const [promotingId, setPromotingId] = useState<string | null>(null);
 
+  // Autopilot settings for the selected project
+  const [sites, setSites] = useState<any[]>([]);
+  const [autopilotEnabled, setAutopilotEnabled] = useState(false);
+  const [autopilotTarget, setAutopilotTarget] = useState<string>(BLOG_TARGET);
+  const [isSavingAutopilot, setIsSavingAutopilot] = useState(false);
+
   const loadProjects = useCallback(async () => {
     setIsLoadingProjects(true);
     try {
@@ -70,7 +82,37 @@ export default function KeywordGeneratorPage() {
 
   useEffect(() => {
     loadProjects();
+    getConnectedSites().then(setSites).catch(e => console.error("Failed to load sites", e));
   }, [loadProjects]);
+
+  // Sync the autopilot panel whenever the selected project changes
+  useEffect(() => {
+    const project = projects.find(p => p.id === selectedProjectId);
+    if (project) {
+      setAutopilotEnabled(project.autopilotEnabled);
+      setAutopilotTarget(project.autopilotConnectedSiteId ?? BLOG_TARGET);
+      if (project.autopilotSeedKeyword && !seedKeyword) {
+        setSeedKeyword(project.autopilotSeedKeyword);
+      }
+    }
+  }, [selectedProjectId, projects]);
+
+  const handleSaveAutopilot = async () => {
+    if (!selectedProjectId) return;
+    setIsSavingAutopilot(true);
+    try {
+      await updateProjectAutopilotSettings(selectedProjectId, {
+        autopilotEnabled,
+        autopilotSeedKeyword: seedKeyword,
+        autopilotConnectedSiteId: autopilotTarget === BLOG_TARGET ? null : autopilotTarget,
+      });
+      await loadProjects();
+    } catch (e: any) {
+      alert(e.message || "Failed to save autopilot settings");
+    } finally {
+      setIsSavingAutopilot(false);
+    }
+  };
 
   const handleCreateProject = async () => {
     if (!newProjectName.trim() || !newProjectDomain.trim()) return;
@@ -249,6 +291,56 @@ export default function KeywordGeneratorPage() {
               {error}
             </div>
           )}
+
+          {/* Fully-autonomous monthly autopilot */}
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="font-semibold text-slate-900">Monthly Autopilot</h2>
+                <p className="text-sm text-slate-500">
+                  Automatically discover rising keywords for this site every month and schedule posts, no manual picking required.
+                </p>
+              </div>
+              <button
+                role="switch"
+                aria-checked={autopilotEnabled}
+                onClick={() => setAutopilotEnabled(v => !v)}
+                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${autopilotEnabled ? "bg-[#1DB954]" : "bg-slate-200"}`}
+              >
+                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${autopilotEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
+              </button>
+            </div>
+            {autopilotEnabled && (
+              <div className="flex flex-wrap items-end gap-3 pt-2 border-t border-slate-100">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Publish to</label>
+                  <Select value={autopilotTarget} onValueChange={setAutopilotTarget}>
+                    <SelectTrigger className="w-56">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={BLOG_TARGET}>optifyseo.ai Blog</SelectItem>
+                      {sites.map(site => (
+                        <SelectItem key={site.id} value={site.id}>{site.name || site.url}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-xs text-slate-500 flex-1 min-w-[200px]">
+                  Uses the seed keyword above and this site&apos;s country. Runs on the 1st of each month, within your plan&apos;s post limit.
+                </p>
+              </div>
+            )}
+            <Button
+              onClick={handleSaveAutopilot}
+              disabled={isSavingAutopilot || (autopilotEnabled && !seedKeyword.trim())}
+              size="sm"
+              className="mt-3"
+            >
+              {isSavingAutopilot ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Save Autopilot Settings
+            </Button>
+          </div>
 
           <div>
             <h2 className="font-semibold text-slate-900 flex items-center gap-2 mb-2">

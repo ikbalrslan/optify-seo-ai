@@ -598,3 +598,82 @@ export async function retryScheduledPost(id: string) {
     return { success: true };
 }
 
+// ============================================
+// FULLY AUTONOMOUS MONTHLY DISCOVERY + SCHEDULING (called by cron)
+// ============================================
+
+const MAX_AUTO_SCHEDULED_PER_PROJECT_PER_RUN = 5; // cap per run even on unlimited plans
+
+/**
+ * For every project with autopilot enabled: discover this month's rising keywords for its
+ * seed keyword, skip ones already scheduled for that project, and auto-create scheduled
+ * posts (spaced via getNextAvailableDate) up to the user's remaining monthly quota.
+ */
+export async function runAutopilotDiscoveryAndScheduling() {
+    const { discoverKeywordsInternal } = await import("@/actions/keyword-discovery");
+
+    const projects = await prisma.project.findMany({
+        where: {
+            autopilotEnabled: true,
+            autopilotSeedKeyword: { not: null },
+        },
+    });
+
+    console.log(`[Autopilot] Monthly discovery: ${projects.length} project(s) enabled`);
+
+    let totalScheduled = 0;
+
+    for (const project of projects) {
+        try {
+            const limitCheck = await checkAutopilotLimit(project.userId);
+            if (!limitCheck.allowed) {
+                console.log(`[Autopilot] Skipping project ${project.id} - quota exhausted`);
+                continue;
+            }
+
+            const discovery = await discoverKeywordsInternal(project, project.autopilotSeedKeyword!);
+
+            const existing = await prisma.scheduledPost.findMany({
+                where: { projectId: project.id },
+                select: { keyword: true },
+            });
+            const usedKeywords = new Set(existing.map(p => p.keyword));
+
+            const slots = limitCheck.remaining === -1
+                ? MAX_AUTO_SCHEDULED_PER_PROJECT_PER_RUN
+                : Math.min(limitCheck.remaining, MAX_AUTO_SCHEDULED_PER_PROJECT_PER_RUN);
+
+            const candidates = discovery.rising
+                .filter(row => !usedKeywords.has(row.relatedQuery))
+                .slice(0, slots);
+
+            for (const candidate of candidates) {
+                const nextDate = await getNextAvailableDate(project.userId);
+                await prisma.scheduledPost.create({
+                    data: {
+                        userId: project.userId,
+                        projectId: project.id,
+                        connectedSiteId: project.autopilotConnectedSiteId,
+                        keyword: candidate.relatedQuery,
+                        intent: "informational",
+                        tone: "professional",
+                        length: 1500,
+                        language: "en",
+                        scheduledDate: nextDate,
+                        publishStatus: "draft",
+                        status: "SCHEDULED",
+                    },
+                });
+                totalScheduled++;
+            }
+
+            console.log(`[Autopilot] Project ${project.id}: scheduled ${candidates.length} post(s)`);
+        } catch (error) {
+            console.error(`[Autopilot] Discovery/scheduling failed for project ${project.id}:`, error);
+        }
+    }
+
+    revalidatePath("/autopilot");
+    return { projectsProcessed: projects.length, scheduled: totalScheduled };
+}
+

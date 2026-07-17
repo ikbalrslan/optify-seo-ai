@@ -23,6 +23,13 @@ export async function discoverKeywords(projectId: string, seedKeyword: string) {
         throw new Error("Project not found");
     }
 
+    return discoverKeywordsInternal(project, seedKeyword);
+}
+
+// Auth-free variant for the cron context (mirrors generateBlogContent vs generateBlogPost in
+// generate-blog.ts). Trusts the caller to have already resolved and scoped the project.
+export async function discoverKeywordsInternal(project: { id: string; country: string }, seedKeyword: string) {
+    const projectId = project.id;
     const period = currentPeriod();
     const trimmedSeed = seedKeyword.trim();
     if (!trimmedSeed) {
@@ -70,16 +77,10 @@ export async function discoverKeywords(projectId: string, seedKeyword: string) {
 
     revalidatePath("/generators/keyword");
 
-    return getKeywordSnapshots(projectId, trimmedSeed);
+    return getSnapshotsForPeriod(projectId, trimmedSeed, period);
 }
 
-export async function getKeywordSnapshots(projectId: string, seedKeyword: string) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        return { top: [], rising: [] };
-    }
-
-    const period = currentPeriod();
+async function getSnapshotsForPeriod(projectId: string, seedKeyword: string, period: string) {
     const snapshots = await prisma.keywordSnapshot.findMany({
         where: { projectId, seedKeyword: seedKeyword.trim(), period },
         orderBy: { relativeValue: "desc" },
@@ -89,6 +90,23 @@ export async function getKeywordSnapshots(projectId: string, seedKeyword: string
         top: snapshots.filter(s => s.type === "TOP"),
         rising: snapshots.filter(s => s.type === "RISING"),
     };
+}
+
+export async function getKeywordSnapshots(projectId: string, seedKeyword: string) {
+    const session = await auth();
+    if (!session?.user?.id) {
+        return { top: [], rising: [] };
+    }
+
+    // Verify ownership before returning another user's project data
+    const project = await prisma.project.findFirst({
+        where: { id: projectId, userId: session.user.id },
+    });
+    if (!project) {
+        return { top: [], rising: [] };
+    }
+
+    return getSnapshotsForPeriod(projectId, seedKeyword, currentPeriod());
 }
 
 export async function promoteSnapshotToKeyword(snapshotId: string) {
