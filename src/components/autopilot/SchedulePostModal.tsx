@@ -119,12 +119,16 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
         setError("");
 
         try {
-            await createScheduledPost({
+            const result = await createScheduledPost({
                 ...formData,
                 connectedSiteId: publishTarget === BLOG_TARGET ? undefined : publishTarget,
                 keywordId: formData.keywordId || undefined,
                 scheduledDate: selectedDate,
             });
+            if (!result.success) {
+                setError(result.error);
+                return;
+            }
             onSuccess();
             onClose();
             // Reset form

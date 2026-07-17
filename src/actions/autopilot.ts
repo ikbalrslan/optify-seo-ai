@@ -118,21 +118,32 @@ export async function getAutopilotQuota(): Promise<AutopilotQuota> {
 }
 
 /**
- * Create a new scheduled post
+ * Create a new scheduled post.
+ *
+ * Expected/business-logic failures are returned as { success: false, error }
+ * rather than thrown: Next.js strips thrown Server Action error messages in
+ * production (replacing them with a generic digest-only error), so a thrown
+ * Error here would reach the client's catch block with its message already
+ * stripped. Returning the message as data is what actually lets the caller
+ * display it.
  */
-export async function createScheduledPost(input: ScheduledPostInput) {
+export async function createScheduledPost(
+    input: ScheduledPostInput
+): Promise<{ success: true; id: string } | { success: false; error: string }> {
     const session = await auth();
     if (!session?.user?.id) {
-        throw new Error("Not authenticated");
+        return { success: false, error: "Not authenticated" };
     }
 
     // Backend limit check - cannot be bypassed
     const limitCheck = await checkAutopilotLimit(session.user.id);
     if (!limitCheck.allowed) {
-        if (limitCheck.limit === 0) {
-            throw new Error("Autopilot is not available on your current plan. Please upgrade.");
-        }
-        throw new Error("Monthly autopilot limit reached. Please upgrade or wait until next month.");
+        return {
+            success: false,
+            error: limitCheck.limit === 0
+                ? "Autopilot is not available on your current plan. Please upgrade."
+                : "Monthly autopilot limit reached. Please upgrade or wait until next month.",
+        };
     }
 
     if (input.connectedSiteId) {
@@ -145,7 +156,7 @@ export async function createScheduledPost(input: ScheduledPostInput) {
         });
 
         if (!site) {
-            throw new Error("Connected site not found or does not belong to you.");
+            return { success: false, error: "Connected site not found or does not belong to you." };
         }
     }
 
@@ -155,7 +166,7 @@ export async function createScheduledPost(input: ScheduledPostInput) {
     scheduledDate.setHours(0, 0, 0, 0);
     today.setHours(0, 0, 0, 0);
     if (scheduledDate < today) {
-        throw new Error("Scheduled date cannot be in the past.");
+        return { success: false, error: "Scheduled date cannot be in the past." };
     }
 
     const post = await prisma.scheduledPost.create({
@@ -179,30 +190,39 @@ export async function createScheduledPost(input: ScheduledPostInput) {
 }
 
 /**
- * Quick schedule a keyword to the next available date (one post per day)
+ * Quick schedule a keyword to the next available date (one post per day).
+ *
+ * Expected/business-logic failures are returned as { success: false, error }
+ * rather than thrown: Next.js strips thrown Server Action error messages in
+ * production (replacing them with a generic digest-only error), so a thrown
+ * Error here would reach the client's catch block with its message already
+ * stripped. Returning the message as data is what actually lets the caller
+ * display it.
  */
-export async function quickScheduleKeyword(keyword: string) {
+export async function quickScheduleKeyword(
+    keyword: string
+): Promise<{ success: true; id: string; scheduledDate: Date } | { success: false; error: string }> {
     const session = await auth();
     if (!session?.user?.id) {
-        throw new Error("Not authenticated");
+        return { success: false, error: "Not authenticated" };
     }
 
     // Check limit
     const limitCheck = await checkAutopilotLimit(session.user.id);
     if (!limitCheck.allowed) {
-        throw new Error(limitCheck.limit === 0
-            ? "Your plan does not include Autopilot. Upgrade to access this feature."
-            : "You have reached your monthly Autopilot limit.");
+        return {
+            success: false,
+            error: limitCheck.limit === 0
+                ? "Your plan does not include Autopilot. Upgrade to access this feature."
+                : "You have reached your monthly Autopilot limit.",
+        };
     }
 
-    // Get user's first connected site (or throw if none)
+    // Use the user's first connected site if they have one; otherwise this
+    // publishes into the app's own internal blog (connectedSiteId left unset).
     const site = await prisma.connectedSite.findFirst({
         where: { userId: session.user.id }
     });
-
-    if (!site) {
-        throw new Error("No connected site found. Please add one in Settings first.");
-    }
 
     // Find the next available date (starting from today)
     const nextDate = await getNextAvailableDate(session.user.id);
@@ -211,7 +231,7 @@ export async function quickScheduleKeyword(keyword: string) {
     const post = await prisma.scheduledPost.create({
         data: {
             userId: session.user.id,
-            connectedSiteId: site.id,
+            connectedSiteId: site?.id,
             keyword: keyword,
             intent: "informational",
             tone: "professional",

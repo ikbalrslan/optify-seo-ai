@@ -167,6 +167,10 @@ export default function KeywordsPage() {
     setSchedulingKeyword(keyword);
     try {
       const result = await quickScheduleKeyword(keyword);
+      if (!result.success) {
+        alert(result.error);
+        return;
+      }
       setScheduleSuccess({ keyword, date: result.scheduledDate });
       // Clear success message after 3 seconds
       setTimeout(() => setScheduleSuccess(null), 3000);
