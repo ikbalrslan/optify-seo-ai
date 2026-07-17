@@ -39,6 +39,7 @@ Repo → Settings → Secrets and variables → Actions → New repository secre
 - `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` — Google OAuth client (Google Cloud Console)
 - `ANTHROPIC_API_KEY` — [console.anthropic.com](https://console.anthropic.com) API key (not a claude.ai/Claude Code subscription — see note above). Powers blog-post generation via `claude-sonnet-5`.
 - `GOOGLE_PAGESPEED_API_KEY` — PageSpeed Insights API key (Analyzer feature, unrelated to the AI provider)
+- `SERPAPI_KEY` — [serpapi.com](https://serpapi.com/users/sign_up) API key (free tier: 250 searches/month). Powers the Keyword Generator's Top/Rising discovery via the Google Trends engine.
 - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — Stripe dashboard
 - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME` — see step 2
 - `RECAPTCHA_SECRET_KEY`, `NEXT_PUBLIC_RECAPTCHA_SITE_KEY` — [reCAPTCHA admin console](https://www.google.com/recaptcha/admin). **Use a newly regenerated secret key, not the old leaked one** — see the warning at the top of this file

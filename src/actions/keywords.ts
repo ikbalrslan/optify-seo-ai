@@ -7,11 +7,22 @@ import { revalidatePath } from "next/cache";
 // Types
 export type KeywordInput = {
     keyword: string;
+    projectId?: string;
     opportunity?: "High" | "Medium" | "Low";
     difficulty?: number;
     volume?: number;
     cpc?: number;
 };
+
+async function resolveProjectId(userId: string, projectId?: string): Promise<string> {
+    if (projectId) return projectId;
+
+    const project = await prisma.project.findFirst({ where: { userId } });
+    if (!project) {
+        throw new Error("Create a project first before adding keywords");
+    }
+    return project.id;
+}
 
 export type KeywordFilter = "all" | "recommended" | "starred" | "queued" | "generated";
 
@@ -102,9 +113,12 @@ export async function createKeyword(input: KeywordInput) {
         throw new Error("Not authenticated");
     }
 
+    const projectId = await resolveProjectId(session.user.id, input.projectId);
+
     const keyword = await prisma.keyword.create({
         data: {
             userId: session.user.id,
+            projectId,
             keyword: input.keyword,
             opportunity: input.opportunity || "Medium",
             difficulty: input.difficulty ?? 50,
@@ -121,7 +135,7 @@ export async function createKeyword(input: KeywordInput) {
 // BULK CREATE KEYWORDS
 // ============================================
 
-export async function bulkCreateKeywords(keywords: string[]) {
+export async function bulkCreateKeywords(keywords: string[], projectId?: string) {
     const session = await auth();
     if (!session?.user?.id) {
         throw new Error("Not authenticated");
@@ -135,11 +149,13 @@ export async function bulkCreateKeywords(keywords: string[]) {
     }
 
     const userId = session.user.id;
+    const resolvedProjectId = await resolveProjectId(userId, projectId);
 
     // Create all keywords
     const created = await prisma.keyword.createMany({
         data: uniqueKeywords.map(keyword => ({
             userId,
+            projectId: resolvedProjectId,
             keyword,
             opportunity: "Medium" as const,
             difficulty: 50,

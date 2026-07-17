@@ -103,9 +103,12 @@ model Project {
   id        String   @id @default(cuid())
   name      String
   domain    String
-  userId    String   
+  country   String   @default("US") // ISO-2 target market for keyword discovery
+  userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   analyses  Analysis[]
+  keywords  Keyword[]
+  keywordSnapshots KeywordSnapshot[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -225,19 +228,40 @@ model ScheduledPost {
 
 model Keyword {
   id              String   @id @default(cuid())
-  userId          String   
+  userId          String
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
   keyword         String
   opportunity     String   @default("Medium") // High, Medium, Low
   difficulty      Int      @default(50)       // 0-100
-  volume          Int      @default(0)        // Search volume
-  cpc             Float    @default(0)        // Cost per click
-  
+  volume          Int      @default(0)        // Relative popularity (0-100) from Google Trends, not absolute search volume
+  cpc             Float    @default(0)        // Cost per click - not yet populated by any data source
+
   isStarred       Boolean  @default(false)
   isQueued        Boolean  @default(false)
   isGenerated     Boolean  @default(false)
-  
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model KeywordSnapshot {
+  id              String   @id @default(cuid())
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  seedKeyword     String   // The topic/query fed into the Trends API
+  country         String   // ISO-2 code
+  period          String   // "YYYY-MM"
+  type            String   // "TOP" | "RISING"
+  relatedQuery    String   // The discovered keyword phrase
+  relativeValue   Int      // 0-100 popularity for TOP, growth % for RISING (5000 = Google's "Breakout" sentinel)
+  rawGrowthLabel  String?  // e.g. "+250%" or "Breakout" as returned by the API
+
+  fetchedAt       DateTime @default(now())
+  createdAt       DateTime @default(now())
+
+  @@unique([projectId, seedKeyword, country, period, relatedQuery])
 }
