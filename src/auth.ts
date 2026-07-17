@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db"
 import authConfig from "./auth.config"
 import Credentials from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
+import { ensureAdminHasProPlan } from "@/lib/admin"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
     adapter: PrismaAdapter(prisma),
@@ -34,6 +35,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     console.error("Error updating Google tokens:", error);
                 }
             }
+
+            if (user.id && (user as { role?: string }).role === "ADMIN") {
+                try {
+                    await ensureAdminHasProPlan(user.id);
+                } catch (error) {
+                    console.error("Error ensuring admin Pro plan:", error);
+                }
+            }
+
             return true;
         },
         async jwt({ token, trigger, session, account }) {

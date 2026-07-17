@@ -2,6 +2,8 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+const ADMIN_EMAILS = ["miarslan.ikb@gmail.com", "arslanahmetsamil@gmail.com"];
+
 async function main() {
     // Create or update Pro plan
     const proPlan = await prisma.plan.upsert({
@@ -23,39 +25,47 @@ async function main() {
 
     console.log("✅ Pro plan created/updated:", proPlan);
 
-    // Find the user
-    const user = await prisma.user.findUnique({
-        where: { email: "miarslan.ikb@gmail.com" },
-        include: { subscription: true },
-    });
+    for (const email of ADMIN_EMAILS) {
+        const user = await prisma.user.findUnique({
+            where: { email },
+            include: { subscription: true },
+        });
 
-    if (!user) {
-        console.error("❌ User not found: miarslan.ikb@gmail.com");
-        return;
+        if (!user) {
+            console.error(`❌ User not found: ${email}`);
+            continue;
+        }
+
+        if (user.role !== "ADMIN") {
+            await prisma.user.update({
+                where: { id: user.id },
+                data: { role: "ADMIN" },
+            });
+            console.log(`✅ Set role to ADMIN for ${email}`);
+        }
+
+        if (user.subscription) {
+            await prisma.subscription.update({
+                where: { userId: user.id },
+                data: {
+                    planId: proPlan.id,
+                    status: "ACTIVE",
+                },
+            });
+            console.log(`✅ Updated existing subscription to Pro plan for ${email}`);
+        } else {
+            await prisma.subscription.create({
+                data: {
+                    userId: user.id,
+                    planId: proPlan.id,
+                    status: "ACTIVE",
+                },
+            });
+            console.log(`✅ Created new subscription with Pro plan for ${email}`);
+        }
     }
 
-    // Create or update subscription for the user
-    if (user.subscription) {
-        await prisma.subscription.update({
-            where: { userId: user.id },
-            data: {
-                planId: proPlan.id,
-                status: "ACTIVE",
-            },
-        });
-        console.log("✅ Updated existing subscription to Pro plan");
-    } else {
-        await prisma.subscription.create({
-            data: {
-                userId: user.id,
-                planId: proPlan.id,
-                status: "ACTIVE",
-            },
-        });
-        console.log("✅ Created new subscription with Pro plan");
-    }
-
-    console.log("🎉 Done! User miarslan.ikb@gmail.com now has Pro plan with 30 autopilot credits.");
+    console.log("🎉 Done.");
 }
 
 main()
