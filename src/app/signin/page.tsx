@@ -55,7 +55,8 @@ function SignInContent() {
         setError("");
 
         try {
-            await register(formData);
+            const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+            await register(formData, callbackUrl);
 
             // Auto login after register
             const email = formData.get("email") as string;

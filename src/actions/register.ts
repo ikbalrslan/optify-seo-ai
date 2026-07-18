@@ -7,7 +7,7 @@ import { ensurePersonalOrganization } from "@/lib/org";
 
 const prisma = new PrismaClient();
 
-export async function register(formData: FormData) {
+export async function register(formData: FormData, redirectTo: string = "/dashboard") {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
     const captchaToken = formData.get("captchaToken") as string;
@@ -61,11 +61,13 @@ export async function register(formData: FormData) {
 
         await ensurePersonalOrganization(newUser.id, newUser.name ?? email);
 
-        // Auto sign-in after registration
+        // Auto sign-in after registration. redirectTo is validated by NextAuth's default
+        // redirect callback (no custom one is configured), which only allows same-origin
+        // targets - safe even though it can come from a user-visible callbackUrl query param.
         await signIn("credentials", {
             email,
             password,
-            redirectTo: "/dashboard",
+            redirectTo,
         });
 
     } catch (error) {

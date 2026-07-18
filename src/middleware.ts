@@ -58,7 +58,11 @@ export default auth((req) => {
     }
 
     if (!isLoggedIn) {
-        return Response.redirect(new URL('/signin', req.nextUrl))
+        // Preserve where they were headed (e.g. an invite link) so signin/page.tsx can send
+        // them back there after login/signup instead of always landing on /dashboard.
+        const signInUrl = new URL('/signin', req.nextUrl)
+        signInUrl.searchParams.set('callbackUrl', req.nextUrl.pathname + req.nextUrl.search)
+        return Response.redirect(signInUrl)
     }
 
     const role = (req.auth?.user as { role?: string } | undefined)?.role
