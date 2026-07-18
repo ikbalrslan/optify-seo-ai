@@ -2,8 +2,12 @@
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { SUBSCRIPTION_PLANS } from "@/config/plans";
 
+// Subscription is per-Project now (one Stripe Subscription Item per paid site), not per-User -
+// this is a stopgap that summarizes the user's active organization's subscriptions into the
+// simple {isPro, planName} shape src/components/shared/Sidebar.tsx and the settings page
+// already expect. A proper per-site breakdown lives on the org billing page instead
+// (src/app/(app)/organization/billing) once that's built.
 export async function getSubscription() {
     const session = await auth();
 
@@ -11,26 +15,30 @@ export async function getSubscription() {
         return null;
     }
 
-    const subscription = await prisma.subscription.findUnique({
-        where: { userId: session.user.id },
-        include: { plan: true }
+    const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { activeOrganizationId: true },
     });
 
-    if (!subscription) {
-        return {
-            planName: "Free", // Default if no sub found
-            status: "active", // Free is always active
-            limits: null,
-            isPro: false
-        };
+    if (!user?.activeOrganizationId) {
+        return { planName: "Free", status: "active", isPro: false };
     }
 
-    // You can enhance this with better status logic based on Stripe status
+    const subscriptions = await prisma.subscription.findMany({
+        where: { organizationId: user.activeOrganizationId, status: "ACTIVE" },
+        include: { plan: true },
+        orderBy: { plan: { price: "desc" } },
+    });
+
+    if (subscriptions.length === 0) {
+        return { planName: "Free", status: "active", isPro: false };
+    }
+
+    const best = subscriptions[0];
     return {
-        planName: subscription.plan.name,
-        status: subscription.status,
-        endData: subscription.endDate,
-        isPro: true, // Or specific tier logic
-        subscription
+        planName: best.plan.name,
+        status: best.status,
+        isPro: true,
+        siteCount: subscriptions.length,
     };
 }

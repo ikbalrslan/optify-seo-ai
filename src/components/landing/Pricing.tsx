@@ -7,7 +7,6 @@ import { Card } from "@/components/ui/card";
 import { SUBSCRIPTION_PLANS } from "@/config/plans";
 import { cn } from "@/lib/utils";
 
-import { createCheckoutSession } from "@/actions/stripe";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
@@ -22,21 +21,16 @@ export function Pricing() {
 
 
 
-    const handleSubscribe = async () => {
+    const handleSubscribe = () => {
+        // Billing is per-site now (each site/project picks its own plan), so there's nothing
+        // to check out directly from the marketing page - send them to sign in (if needed)
+        // and land on the billing page, where they pick which site this plan applies to.
+        const billingUrl = "/organization/billing";
         if (!session?.user) {
-            // Redirect to signin with a callbackUrl to our new Checkout Bridge page
-            // The structure is: /signin?callbackUrl=/checkout/[planName]
-            const callbackUrl = `/checkout/${encodeURIComponent(selectedPlan.name)}`;
-            router.push(`/signin?callbackUrl=${encodeURIComponent(callbackUrl)}`);
+            router.push(`/signin?callbackUrl=${encodeURIComponent(billingUrl)}`);
             return;
         }
-
-        try {
-            await createCheckoutSession(selectedPlan.name);
-        } catch (error) {
-            console.error("Subscription error:", error);
-            // Optionally add toast notification here
-        }
+        router.push(billingUrl);
     };
 
     return (

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ArrowLeft, LogOut, Trash, User } from "lucide-react";
+import { LogOut, Trash, User } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
@@ -66,7 +66,6 @@ export default function SettingsPageClient({ initialSubscription, initialName }:
 
   // Subscription state
   const [subscription, setSubscription] = useState<any>(initialSubscription);
-  const [upgradeOpen, setUpgradeOpen] = useState(false);
 
   // Client-side fetch removed as we pass it from server
   useEffect(() => {
@@ -245,31 +244,17 @@ export default function SettingsPageClient({ initialSubscription, initialName }:
                     </div>
                   </div>
 
-                  <Dialog open={upgradeOpen} onOpenChange={setUpgradeOpen}>
-                    <DialogTrigger asChild>
-                      <Button className="bg-[#1DB954] hover:bg-[#1ed760] text-white font-bold shadow-md">
-                        {subscription?.isPro ? "Manage Plan" : "Upgrade Plan"}
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-6xl w-full h-[90vh] overflow-y-auto p-0 bg-white">
-                      {/* Import dynamic to avoid huge bundle or just standard import */}
-                      <div className="p-4">
-                        {/* We reuse the Pricing component here! */}
-                        {/* Note: Pricing component has padding, we might want to adjust it or wrap it */}
-                        <div className="relative">
-                          <button
-                            onClick={() => setUpgradeOpen(false)}
-                            className="absolute top-4 right-4 z-50 p-2 bg-white rounded-full shadow hover:bg-gray-100"
-                          >
-                            <ArrowLeft className="h-4 w-4" />
-                          </button>
-                          {/* We need to import Pricing at top */}
-                          <PricingModalContent />
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                  <Button asChild className="bg-[#1DB954] hover:bg-[#1ed760] text-white font-bold shadow-md">
+                    <Link href="/organization/billing">
+                      {subscription?.isPro ? "Manage Plan" : "Upgrade Plan"}
+                    </Link>
+                  </Button>
                 </div>
+                {subscription?.isPro && subscription.siteCount > 1 && (
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Showing your organization's top plan across {subscription.siteCount} paid site{subscription.siteCount === 1 ? "" : "s"} - see the billing page for the full breakdown.
+                  </p>
+                )}
               </CardContent>
             </Card>
 
@@ -426,16 +411,6 @@ export default function SettingsPageClient({ initialSubscription, initialName }:
 
 // Wrapper for usage in Dialog avoids SSR issues with Importing directly inside?
 // Actually simpler:
-import { Pricing } from "@/components/landing/Pricing";
-
-function PricingModalContent() {
-  return (
-    <div className="pt-8">
-      <Pricing />
-    </div>
-  );
-}
-
 function DeleteAccountModal({ email }: { email?: string | null }) {
   const [isOpen, setIsOpen] = useState(false);
   const [confirmEmail, setConfirmEmail] = useState("");

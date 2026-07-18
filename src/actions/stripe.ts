@@ -2,68 +2,208 @@
 
 import { stripe } from "@/lib/stripe";
 import { auth } from "@/auth";
+import { prisma } from "@/lib/db";
+import { requireOrgRole } from "@/lib/org";
+import { recomputeOrgDiscount } from "@/lib/billing";
 import { redirect } from "next/navigation";
-import { SUBSCRIPTION_PLANS } from "@/config/plans";
 
-export async function createCheckoutSession(planName: string) {
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+
+async function getProjectWithOrg(projectId: string) {
+    const project = await prisma.project.findUnique({
+        where: { id: projectId },
+        include: { organization: true },
+    });
+    if (!project?.organizationId || !project.organization) {
+        throw new Error("Project not found");
+    }
+    return { project, organization: project.organization };
+}
+
+/**
+ * Starts checkout for an organization's first paid site. Only for organizations with no
+ * Stripe subscription yet - once one exists, additional sites go through
+ * addSiteToSubscription() instead (no checkout redirect needed, a payment method is already
+ * on file).
+ */
+export async function createOrgCheckoutSession(
+    projectId: string,
+    planId: string
+): Promise<{ success: false; error: string } | undefined> {
     const session = await auth();
-    const user = session?.user;
-
-    if (!user || !user.email) {
-        throw new Error("Unauthorized");
+    if (!session?.user?.email) {
+        return { success: false, error: "Not authenticated" };
     }
 
-    const plan = SUBSCRIPTION_PLANS.find(p => p.name === planName);
-    if (!plan) {
-        throw new Error("Invalid plan");
+    const { project, organization } = await getProjectWithOrg(projectId);
+    await requireOrgRole(organization.id, "OWNER");
+
+    if (organization.stripeSubscriptionId) {
+        return { success: false, error: "This organization already has a subscription - use Add Site instead." };
     }
 
-    // In a real app, you would have Stripe Price IDs in your plans config.
-    // For now, we are creating "Price" objects on the fly or assuming a mapping.
-    // Best practice: Store stripePriceId in SUBSCRIPTION_PLANS.
+    const existingSub = await prisma.subscription.findUnique({ where: { projectId } });
+    if (existingSub) {
+        return { success: false, error: "This site already has a subscription." };
+    }
 
-    // NOTE: Since we don't have real price IDs yet, we will use 'price_data' with currency/amount
-    // This creates a product on the fly if needed, or better, we ask user to provide Price IDs.
-    // For this implementation, I will simulate using a known pattern or placeholder logic.
-    // Ideally, we should add `stripePriceId` to SUBSCRIPTION_PLANS.
-
-    // Dynamic price_data for demonstration (NOT recommended for production subscriptions usually, but easier for setup)
-    // Subscriptions usually require an existing Price ID.
-    // Let's assume we pass a placeholder or try to find one.
-
-    // For a robust implementation, we should CREATE prices. 
-    // But since I cannot run "stripe" CLI to create them, I will use line_items with price_data (one-time) 
-    // OR create a subscription with `price_data` (recurring).
+    const plan = await prisma.plan.findUnique({ where: { id: planId } });
+    if (!plan?.stripePriceId) {
+        return { success: false, error: "This plan isn't available for checkout yet." };
+    }
 
     const checkoutSession = await stripe.checkout.sessions.create({
         mode: "subscription",
-        payment_method_types: ["card"],
-        line_items: [
-            {
-                price_data: {
-                    currency: "usd",
-                    product_data: {
-                        name: `${plan.name} Subscription`,
-                        description: `${plan.articles} articles/mo`,
-                    },
-                    unit_amount: Math.round(plan.price * 100), // cents
-                    recurring: {
-                        interval: "month",
-                    },
-                },
-                quantity: 1,
-            },
-        ],
-        metadata: {
-            userId: user.id || "",
-            planName: plan.name,
-        },
-        customer_email: user.email,
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/settings?success=true`,
-        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/settings?canceled=true`,
+        line_items: [{ price: plan.stripePriceId, quantity: 1 }],
+        metadata: { organizationId: organization.id, projectId: project.id, planId: plan.id },
+        customer_email: session.user.email,
+        success_url: `${APP_URL}/organization/billing?success=true`,
+        cancel_url: `${APP_URL}/organization/billing?canceled=true`,
     });
 
-    if (checkoutSession.url) {
-        redirect(checkoutSession.url);
+    if (!checkoutSession.url) {
+        return { success: false, error: "Failed to create checkout session." };
     }
+
+    redirect(checkoutSession.url);
+}
+
+/**
+ * Adds another paid site to an organization that already has a Stripe subscription - no
+ * checkout redirect, since a payment method is already on file. Stripe prorates the new item
+ * automatically.
+ */
+export async function addSiteToSubscription(
+    projectId: string,
+    planId: string
+): Promise<{ success: true } | { success: false; error: string }> {
+    const { project, organization } = await getProjectWithOrg(projectId);
+    await requireOrgRole(organization.id, "OWNER");
+
+    if (!organization.stripeSubscriptionId) {
+        return { success: false, error: "This organization has no active subscription yet - use checkout for its first site instead." };
+    }
+
+    const existingSub = await prisma.subscription.findUnique({ where: { projectId } });
+    if (existingSub) {
+        return { success: false, error: "This site already has a subscription." };
+    }
+
+    const plan = await prisma.plan.findUnique({ where: { id: planId } });
+    if (!plan?.stripePriceId) {
+        return { success: false, error: "This plan isn't available yet." };
+    }
+
+    const item = await stripe.subscriptionItems.create({
+        subscription: organization.stripeSubscriptionId,
+        price: plan.stripePriceId,
+        quantity: 1,
+    });
+
+    await prisma.subscription.create({
+        data: {
+            organizationId: organization.id,
+            projectId: project.id,
+            planId: plan.id,
+            status: "ACTIVE",
+            stripeSubscriptionItemId: item.id,
+        },
+    });
+
+    await recomputeOrgDiscount(organization.id);
+
+    return { success: true };
+}
+
+/**
+ * Removes a site's paid subscription (prorated). The site itself isn't deleted, just its
+ * billing - Phase 3's ownership retrofit determines what happens to a site with no active
+ * subscription.
+ */
+export async function removeSiteFromSubscription(
+    projectId: string
+): Promise<{ success: true } | { success: false; error: string }> {
+    const { organization } = await getProjectWithOrg(projectId);
+    await requireOrgRole(organization.id, "OWNER");
+
+    const subscription = await prisma.subscription.findUnique({ where: { projectId } });
+    if (!subscription) {
+        return { success: false, error: "This site has no subscription to remove." };
+    }
+
+    if (subscription.stripeSubscriptionItemId) {
+        await stripe.subscriptionItems.del(subscription.stripeSubscriptionItemId, {
+            proration_behavior: "create_prorations",
+        });
+    }
+
+    await prisma.subscription.update({
+        where: { id: subscription.id },
+        data: { status: "CANCELED", endDate: new Date() },
+    });
+
+    await recomputeOrgDiscount(organization.id);
+
+    return { success: true };
+}
+
+/**
+ * Changes a site's plan tier (prorated).
+ */
+export async function changeSitePlan(
+    projectId: string,
+    newPlanId: string
+): Promise<{ success: true } | { success: false; error: string }> {
+    const { organization } = await getProjectWithOrg(projectId);
+    await requireOrgRole(organization.id, "OWNER");
+
+    const subscription = await prisma.subscription.findUnique({ where: { projectId } });
+    if (!subscription) {
+        return { success: false, error: "This site has no active subscription to change." };
+    }
+    if (!subscription.stripeSubscriptionItemId) {
+        return { success: false, error: "This subscription isn't linked to Stripe yet." };
+    }
+
+    const newPlan = await prisma.plan.findUnique({ where: { id: newPlanId } });
+    if (!newPlan?.stripePriceId) {
+        return { success: false, error: "This plan isn't available yet." };
+    }
+
+    await stripe.subscriptionItems.update(subscription.stripeSubscriptionItemId, {
+        price: newPlan.stripePriceId,
+        proration_behavior: "create_prorations",
+    });
+
+    await prisma.subscription.update({
+        where: { id: subscription.id },
+        data: { planId: newPlan.id },
+    });
+
+    return { success: true };
+}
+
+/**
+ * Redirects to Stripe's Customer Portal for self-serve payment method / invoice management.
+ */
+export async function createBillingPortalSession(
+    organizationId: string
+): Promise<{ success: false; error: string } | undefined> {
+    await requireOrgRole(organizationId, "OWNER");
+
+    const organization = await prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { stripeCustomerId: true },
+    });
+
+    if (!organization?.stripeCustomerId) {
+        return { success: false, error: "No billing account yet - add your first paid site to set one up." };
+    }
+
+    const portalSession = await stripe.billingPortal.sessions.create({
+        customer: organization.stripeCustomerId,
+        return_url: `${APP_URL}/organization/billing`,
+    });
+
+    redirect(portalSession.url);
 }
