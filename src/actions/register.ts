@@ -3,6 +3,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { signIn } from "@/auth";
+import { ensurePersonalOrganization } from "@/lib/org";
 
 const prisma = new PrismaClient();
 
@@ -49,7 +50,7 @@ export async function register(formData: FormData) {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        await prisma.user.create({
+        const newUser = await prisma.user.create({
             data: {
                 email,
                 password: hashedPassword,
@@ -57,6 +58,8 @@ export async function register(formData: FormData) {
                 role: "USER"
             },
         });
+
+        await ensurePersonalOrganization(newUser.id, newUser.name ?? email);
 
         // Auto sign-in after registration
         await signIn("credentials", {

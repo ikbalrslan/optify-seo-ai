@@ -18,7 +18,8 @@ import {
     User,
     CalendarDays,
     Zap,
-    Sparkles
+    Sparkles,
+    Users
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -37,6 +38,7 @@ import {
     TooltipProvider,
     TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { OrgSwitcher } from "@/components/shared/OrgSwitcher";
 
 interface SidebarProps {
     collapsed?: boolean;
@@ -67,6 +69,7 @@ export function Sidebar({
                 { label: "Dashboard", icon: Home, href: "/dashboard" },
                 { label: "Autopilot", icon: CalendarDays, href: "/autopilot" },
                 { label: "Keywords", icon: FileText, href: "/keywords" },
+                { label: "Team", icon: Users, href: "/organization" },
                 { label: "Settings", icon: Settings, href: "/settings" },
             ]
         },
@@ -111,6 +114,10 @@ export function Sidebar({
                     </Button>
                 </div>
             )}
+
+            <div className="px-3 pt-3">
+                <OrgSwitcher collapsed={collapsed} />
+            </div>
 
             <div className="flex-1 py-4 overflow-y-auto">
                 {menuGroups.map((group, groupIndex) => {

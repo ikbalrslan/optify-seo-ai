@@ -37,6 +37,46 @@ model User {
   scheduledPosts ScheduledPost[]
   keywords      Keyword[]
   backlinkExchangeEnabled Boolean @default(false)
+  memberships   OrganizationMember[]
+  activeOrganizationId String? // Currently selected organization, same pattern as activeConnectedSiteId
+}
+
+model Organization {
+  id                   String   @id @default(cuid())
+  name                 String
+  stripeCustomerId     String?  @unique
+  stripeSubscriptionId String?  @unique
+  members              OrganizationMember[]
+  invites              OrganizationInvite[]
+  projects             Project[]
+  connectedSites       ConnectedSite[]
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           String       @default("MEMBER") // OWNER | ADMIN | MEMBER
+  createdAt      DateTime     @default(now())
+
+  @@unique([organizationId, userId])
+}
+
+model OrganizationInvite {
+  id              String       @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email           String
+  role            String       @default("MEMBER")
+  token           String       @unique
+  invitedByUserId String
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  createdAt       DateTime     @default(now())
 }
 
 model Account {
@@ -104,8 +144,11 @@ model Project {
   name      String
   domain    String
   country   String   @default("US") // ISO-2 target market for keyword discovery
-  userId    String
+  userId    String // Original creator; ownership/access is scoped by organizationId, this is unchanged audit info
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Nullable until the backfill migration runs against existing rows, then made required in a follow-up migration
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   analyses  Analysis[]
   keywords  Keyword[]
   keywordSnapshots KeywordSnapshot[]
@@ -163,8 +206,11 @@ model Subscription {
 
 model ConnectedSite {
   id        String   @id @default(cuid())
-  userId    String
+  userId    String // Original creator; ownership/access is scoped by organizationId, this is unchanged audit info
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Nullable until the backfill migration runs against existing rows, then made required in a follow-up migration
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   type      String   @default("WORDPRESS") // WORDPRESS today; more site types can be added later
   name      String
   url       String

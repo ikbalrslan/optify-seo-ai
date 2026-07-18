@@ -6,6 +6,7 @@ import authConfig from "./auth.config"
 import Credentials from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
 import { ensureAdminHasProPlan } from "@/lib/admin"
+import { ensurePersonalOrganization } from "@/lib/org"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
     adapter: PrismaAdapter(prisma),
@@ -13,6 +14,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     trustHost: true,
     pages: {
         signIn: "/signin",
+    },
+    events: {
+        // Only fires for adapter-driven user creation (Google OAuth first sign-in) - the
+        // credentials/register.ts path creates User rows directly and calls
+        // ensurePersonalOrganization itself, since it never touches the adapter's event system.
+        async createUser({ user }) {
+            if (user.id) {
+                await ensurePersonalOrganization(user.id, user.name ?? user.email ?? "My");
+            }
+        },
     },
     callbacks: {
         async signIn({ user, account }) {
