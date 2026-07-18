@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import { Loader2, ShieldCheck, ShieldOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -24,6 +25,7 @@ type Plan = {
 const NO_PLAN = "NONE";
 
 export default function AdminUsersPage() {
+    const { data: session } = useSession();
     const [users, setUsers] = useState<AdminUser[]>([]);
     const [plans, setPlans] = useState<Plan[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -107,10 +109,20 @@ export default function AdminUsersPage() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                        {users.map((user) => (
+                        {users.map((user) => {
+                            const isSelf = user.id === session?.user?.id;
+                            const disableRemoveSelf = isSelf && user.role === "ADMIN";
+                            return (
                             <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                                 <td className="px-4 py-3">
-                                    <div className="font-medium text-slate-900 dark:text-white">{user.name ?? "—"}</div>
+                                    <div className="font-medium text-slate-900 dark:text-white flex items-center gap-2">
+                                        {user.name ?? "—"}
+                                        {isSelf && (
+                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                                You
+                                            </span>
+                                        )}
+                                    </div>
                                     <div className="text-sm text-slate-500 dark:text-slate-400">{user.email}</div>
                                 </td>
                                 <td className="px-4 py-3">
@@ -150,7 +162,8 @@ export default function AdminUsersPage() {
                                     <Button
                                         variant="ghost"
                                         size="sm"
-                                        disabled={pendingUserId === user.id}
+                                        disabled={pendingUserId === user.id || disableRemoveSelf}
+                                        title={disableRemoveSelf ? "You can't remove your own admin role" : undefined}
                                         onClick={() => handleToggleRole(user)}
                                     >
                                         {pendingUserId === user.id ? (
@@ -164,7 +177,8 @@ export default function AdminUsersPage() {
                                     </Button>
                                 </td>
                             </tr>
-                        ))}
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
