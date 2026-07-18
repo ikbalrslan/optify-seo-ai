@@ -3,8 +3,10 @@
 import { prisma } from "@/lib/db";
 import { requireOrgRole } from "@/lib/org";
 
-export async function getPlans() {
-    return prisma.plan.findMany({ where: { stripePriceId: { not: null } }, orderBy: { price: "asc" } });
+// There's a single all-inclusive Plan (see src/config/plans.ts) - every paid site subscribes
+// to it.
+export async function getPlan() {
+    return prisma.plan.findFirst({ where: { stripePriceId: { not: null } } });
 }
 
 const VOLUME_DISCOUNT_TIERS = [

@@ -20,6 +20,12 @@ async function getProjectWithOrg(projectId: string) {
     return { project, organization: project.organization };
 }
 
+// There's a single all-inclusive Plan (see src/config/plans.ts) - every paid site subscribes
+// to it, so callers don't pick a plan, they just subscribe.
+async function getTheOnlyPlan() {
+    return prisma.plan.findFirst({ where: { stripePriceId: { not: null } } });
+}
+
 /**
  * Starts checkout for an organization's first paid site. Only for organizations with no
  * Stripe subscription yet - once one exists, additional sites go through
@@ -27,8 +33,7 @@ async function getProjectWithOrg(projectId: string) {
  * on file).
  */
 export async function createOrgCheckoutSession(
-    projectId: string,
-    planId: string
+    projectId: string
 ): Promise<{ success: false; error: string } | undefined> {
     const session = await auth();
     if (!session?.user?.email) {
@@ -47,9 +52,9 @@ export async function createOrgCheckoutSession(
         return { success: false, error: "This site already has a subscription." };
     }
 
-    const plan = await prisma.plan.findUnique({ where: { id: planId } });
+    const plan = await getTheOnlyPlan();
     if (!plan?.stripePriceId) {
-        return { success: false, error: "This plan isn't available for checkout yet." };
+        return { success: false, error: "No plan is available for checkout yet." };
     }
 
     const checkoutSession = await stripe.checkout.sessions.create({
@@ -74,8 +79,7 @@ export async function createOrgCheckoutSession(
  * automatically.
  */
 export async function addSiteToSubscription(
-    projectId: string,
-    planId: string
+    projectId: string
 ): Promise<{ success: true } | { success: false; error: string }> {
     const { project, organization } = await getProjectWithOrg(projectId);
     await requireOrgRole(organization.id, "OWNER");
@@ -89,9 +93,9 @@ export async function addSiteToSubscription(
         return { success: false, error: "This site already has a subscription." };
     }
 
-    const plan = await prisma.plan.findUnique({ where: { id: planId } });
+    const plan = await getTheOnlyPlan();
     if (!plan?.stripePriceId) {
-        return { success: false, error: "This plan isn't available yet." };
+        return { success: false, error: "No plan is available yet." };
     }
 
     const item = await stripe.subscriptionItems.create({
@@ -143,42 +147,6 @@ export async function removeSiteFromSubscription(
     });
 
     await recomputeOrgDiscount(organization.id);
-
-    return { success: true };
-}
-
-/**
- * Changes a site's plan tier (prorated).
- */
-export async function changeSitePlan(
-    projectId: string,
-    newPlanId: string
-): Promise<{ success: true } | { success: false; error: string }> {
-    const { organization } = await getProjectWithOrg(projectId);
-    await requireOrgRole(organization.id, "OWNER");
-
-    const subscription = await prisma.subscription.findUnique({ where: { projectId } });
-    if (!subscription) {
-        return { success: false, error: "This site has no active subscription to change." };
-    }
-    if (!subscription.stripeSubscriptionItemId) {
-        return { success: false, error: "This subscription isn't linked to Stripe yet." };
-    }
-
-    const newPlan = await prisma.plan.findUnique({ where: { id: newPlanId } });
-    if (!newPlan?.stripePriceId) {
-        return { success: false, error: "This plan isn't available yet." };
-    }
-
-    await stripe.subscriptionItems.update(subscription.stripeSubscriptionItemId, {
-        price: newPlan.stripePriceId,
-        proration_behavior: "create_prorations",
-    });
-
-    await prisma.subscription.update({
-        where: { id: subscription.id },
-        data: { planId: newPlan.id },
-    });
 
     return { success: true };
 }

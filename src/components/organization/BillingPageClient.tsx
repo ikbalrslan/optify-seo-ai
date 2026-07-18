@@ -3,13 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, CreditCard, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getOrgBillingSummary, getPlans } from "@/actions/billing";
+import { getOrgBillingSummary, getPlan } from "@/actions/billing";
 import {
     createOrgCheckoutSession,
     addSiteToSubscription,
     removeSiteFromSubscription,
-    changeSitePlan,
     createBillingPortalSession,
 } from "@/actions/stripe";
 
@@ -33,21 +31,20 @@ type Plan = { id: string; name: string; price: number };
 
 export default function BillingPageClient({ organizationId }: { organizationId: string }) {
     const [summary, setSummary] = useState<Summary | null>(null);
-    const [plans, setPlans] = useState<Plan[]>([]);
+    const [plan, setPlan] = useState<Plan | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [pendingSiteId, setPendingSiteId] = useState<string | null>(null);
     const [isManagingBilling, setIsManagingBilling] = useState(false);
-    const [selectedPlanBySite, setSelectedPlanBySite] = useState<Record<string, string>>({});
 
     const load = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [summaryData, planList] = await Promise.all([
+            const [summaryData, planData] = await Promise.all([
                 getOrgBillingSummary(organizationId),
-                getPlans(),
+                getPlan(),
             ]);
             setSummary(summaryData);
-            setPlans(planList);
+            setPlan(planData);
         } finally {
             setIsLoading(false);
         }
@@ -58,32 +55,17 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
     }, [load]);
 
     const handleSubscribe = async (siteId: string) => {
-        const planId = selectedPlanBySite[siteId] ?? plans[0]?.id;
-        if (!planId || !summary) return;
+        if (!summary) return;
 
         setPendingSiteId(siteId);
         try {
             const result = summary.hasPaymentMethod
-                ? await addSiteToSubscription(siteId, planId)
-                : await createOrgCheckoutSession(siteId, planId);
+                ? await addSiteToSubscription(siteId)
+                : await createOrgCheckoutSession(siteId);
 
             // createOrgCheckoutSession redirects on success and never returns - if we get a
             // result back at all, it's the {success:false, error} failure shape.
             if (result && !result.success) {
-                alert(result.error);
-                return;
-            }
-            await load();
-        } finally {
-            setPendingSiteId(null);
-        }
-    };
-
-    const handleChangePlan = async (siteId: string, newPlanId: string) => {
-        setPendingSiteId(siteId);
-        try {
-            const result = await changeSitePlan(siteId, newPlanId);
-            if (!result.success) {
                 alert(result.error);
                 return;
             }
@@ -133,7 +115,7 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
                 <div>
                     <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Billing</h2>
                     <p className="text-sm text-slate-500 dark:text-slate-400">
-                        Each site is billed separately
+                        Each site is billed separately{plan && ` at $${plan.price}/mo`}
                         {summary.discountPercent > 0 && `, with an automatic ${summary.discountPercent}% volume discount applied`}.
                     </p>
                 </div>
@@ -183,42 +165,12 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
                                         <div className="font-medium text-slate-900 dark:text-white">{site.name}</div>
                                         <div className="text-sm text-slate-500 dark:text-slate-400">{site.domain}</div>
                                     </td>
-                                    <td className="px-4 py-3">
-                                        {site.plan ? (
-                                            <Select
-                                                value={site.plan.id}
-                                                onValueChange={(value) => handleChangePlan(site.id, value)}
-                                                disabled={pendingSiteId === site.id}
-                                            >
-                                                <SelectTrigger className="h-8 w-40">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {plans.map((plan) => (
-                                                        <SelectItem key={plan.id} value={plan.id}>
-                                                            {plan.name} (${plan.price}/mo)
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        ) : (
-                                            <Select
-                                                value={selectedPlanBySite[site.id] ?? plans[0]?.id}
-                                                onValueChange={(value) => setSelectedPlanBySite((prev) => ({ ...prev, [site.id]: value }))}
-                                                disabled={pendingSiteId === site.id}
-                                            >
-                                                <SelectTrigger className="h-8 w-40">
-                                                    <SelectValue placeholder="Choose a plan" />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {plans.map((plan) => (
-                                                        <SelectItem key={plan.id} value={plan.id}>
-                                                            {plan.name} (${plan.price}/mo)
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                        )}
+                                    <td className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
+                                        {site.plan
+                                            ? `${site.plan.name} ($${site.plan.price}/mo)`
+                                            : plan
+                                                ? `${plan.name} ($${plan.price}/mo)`
+                                                : "Not subscribed"}
                                     </td>
                                     <td className="px-4 py-3 text-right">
                                         {site.plan ? (

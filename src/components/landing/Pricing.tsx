@@ -2,10 +2,8 @@
 
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
-import { useState } from "react";
 import { Card } from "@/components/ui/card";
-import { SUBSCRIPTION_PLANS } from "@/config/plans";
-import { cn } from "@/lib/utils";
+import { ALL_IN_PLAN } from "@/config/plans";
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -15,11 +13,6 @@ import { useRouter } from "next/navigation";
 export function Pricing() {
     const { data: session } = useSession();
     const router = useRouter();
-    const [selectedPlanName, setSelectedPlanName] = useState("PRO");
-
-    const selectedPlan = SUBSCRIPTION_PLANS.find(p => p.name === selectedPlanName) || SUBSCRIPTION_PLANS[0];
-
-
 
     const handleSubscribe = () => {
         // Billing is per-site now (each site/project picks its own plan), so there's nothing
@@ -44,45 +37,18 @@ export function Pricing() {
                         </span>
                     </h2>
                     <p className="text-lg text-gray-600 max-w-2xl mx-auto mb-12">
-                        Scale your content production with plans tailored to your needs.
+                        One plan, everything included. Priced per site, with an automatic volume discount as you add more.
                     </p>
-
-                    {/* Tabs */}
-                    <div className="flex flex-wrap justify-center gap-2 mb-12">
-                        {SUBSCRIPTION_PLANS.map((plan) => (
-                            <button
-                                key={plan.name}
-                                onClick={() => setSelectedPlanName(plan.name)}
-                                className={cn(
-                                    "px-6 py-2 rounded-full text-sm font-semibold transition-all duration-200",
-                                    selectedPlanName === plan.name
-                                        ? "bg-black text-white shadow-md scale-105"
-                                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                )}
-                            >
-                                {plan.name}
-                            </button>
-                        ))}
-                    </div>
                 </div>
 
-                {/* Selected Plan Display */}
+                {/* Plan Display */}
                 <div className="max-w-lg mx-auto">
-                    <Card key={selectedPlan.name} className={cn(
-                        "p-8 border-2 shadow-xl rounded-2xl relative overflow-hidden flex flex-col transition-all duration-300",
-                        selectedPlan.popular ? "border-green-500 ring-4 ring-green-500/10" : "border-gray-100"
-                    )}>
-                        {selectedPlan.popular && (
-                            <div className="absolute top-0 right-0 bg-green-500 text-white px-4 py-1.5 rounded-bl-xl text-xs font-bold uppercase tracking-wider">
-                                Most Popular
-                            </div>
-                        )}
-
+                    <Card className="p-8 border-2 border-green-500 ring-4 ring-green-500/10 shadow-xl rounded-2xl relative overflow-hidden flex flex-col transition-all duration-300">
                         <div className="mb-8 text-center">
-                            <h3 className="text-2xl font-bold text-gray-900 mb-4">{selectedPlan.name}</h3>
+                            <h3 className="text-2xl font-bold text-gray-900 mb-4">{ALL_IN_PLAN.name}</h3>
                             <div className="flex items-center justify-center gap-1 mb-2">
-                                <span className="text-5xl font-bold text-gray-900">${selectedPlan.price}</span>
-                                <span className="text-gray-500 text-lg">/mo</span>
+                                <span className="text-5xl font-bold text-gray-900">${ALL_IN_PLAN.price}</span>
+                                <span className="text-gray-500 text-lg">/mo per site</span>
                             </div>
                             <p className="text-gray-500 text-sm">Cancel anytime</p>
                         </div>
@@ -90,7 +56,7 @@ export function Pricing() {
                         <div className="flex-1 mb-8">
                             <div className="text-sm font-semibold text-gray-900 mb-4 uppercase tracking-wide">What's included:</div>
                             <ul className="space-y-4">
-                                {selectedPlan.features.map((feature, i) => (
+                                {ALL_IN_PLAN.features.map((feature, i) => (
                                     <li key={i} className="flex items-start text-gray-700">
                                         <div className="bg-green-100 rounded-full p-1 mr-3 mt-0.5 flex-shrink-0">
                                             <Check className="w-3 h-3 text-green-600" />
@@ -101,16 +67,10 @@ export function Pricing() {
                             </ul>
                         </div>
 
-                        {/* "Initialize Subscription" Button - As requested */}
                         <div className="mt-auto">
                             <Button
                                 onClick={handleSubscribe}
-                                className={cn(
-                                    "w-full h-14 text-lg font-bold rounded-xl shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98]",
-                                    selectedPlan.popular
-                                        ? "bg-[#1DB954] hover:bg-[#1ed760] text-white"
-                                        : "bg-black hover:bg-gray-900 text-white"
-                                )}
+                                className="w-full h-14 text-lg font-bold rounded-xl shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98] bg-[#1DB954] hover:bg-[#1ed760] text-white"
                             >
                                 Initialize Subscription
                             </Button>
@@ -122,7 +82,7 @@ export function Pricing() {
                 </div>
 
                 <div className="mt-16 text-center">
-                    <p className="text-gray-500 text-sm">Need a custom plan with more than 300 articles? <a href="#" className="underline">Contact Sales</a></p>
+                    <p className="text-gray-500 text-sm">Need something custom? <a href="#" className="underline">Contact Sales</a></p>
                 </div>
 
             </div>

@@ -8,12 +8,10 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-// Matches src/config/plans.ts's marketing copy exactly - these are real, user-visible prices.
+// Matches src/config/plans.ts's ALL_IN_PLAN exactly - a single all-inclusive plan, priced
+// per site (see the org-wide volume discount in src/lib/billing.ts for multi-site pricing).
 const PLAN_TIERS = [
-    { name: "Beginner", slug: "beginner", price: 49, autopilotPostsPerMonth: 9 },
-    { name: "Pro", slug: "pro", price: 99, autopilotPostsPerMonth: 20 },
-    { name: "Ultimate", slug: "ultimate", price: 199, autopilotPostsPerMonth: 50 },
-    { name: "Enterprise", slug: "enterprise", price: 499, autopilotPostsPerMonth: 100 },
+    { name: "All-in", slug: "all-in", price: 99, autopilotPostsPerMonth: 30 },
 ];
 
 // Volume discount tiers for the org-wide "more sites, less per site" pricing (see
