@@ -6,8 +6,6 @@ import { prisma } from "@/lib/db";
 import { requireOrgRole, type OrgRole } from "@/lib/org";
 import { revalidatePath } from "next/cache";
 
-export type { OrgRole };
-
 const INVITE_EXPIRY_DAYS = 7;
 
 export async function getMyOrganizations() {

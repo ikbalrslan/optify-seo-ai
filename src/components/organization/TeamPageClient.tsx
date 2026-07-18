@@ -20,8 +20,10 @@ import {
     revokeInvite,
     updateMemberRole,
     removeMember,
-    type OrgRole,
 } from "@/actions/organizations";
+// Type-only import: erased at compile time, so this never pulls src/lib/org.ts's
+// server-only code (auth()/prisma) into the client bundle.
+import type { OrgRole } from "@/lib/org";
 
 type Member = { id: string; userId: string; name: string | null; email: string | null; role: string };
 type Invite = { id: string; email: string; role: string; token: string; expiresAt: Date };
