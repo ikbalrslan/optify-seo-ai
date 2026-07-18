@@ -26,7 +26,6 @@ model User {
 
   role      String   @default("USER") // Was Enum Role
   projects  Project[]
-  subscription Subscription?
   encryptedOpenAiKey String?
   encryptedWordpressKey String?
   lastBlogGeneratedAt DateTime?
@@ -50,6 +49,7 @@ model Organization {
   invites              OrganizationInvite[]
   projects             Project[]
   connectedSites       ConnectedSite[]
+  subscriptions        Subscription[]
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 }
@@ -153,6 +153,7 @@ model Project {
   keywords  Keyword[]
   keywordSnapshots KeywordSnapshot[]
   scheduledPosts ScheduledPost[]
+  subscription Subscription?
 
   // Fully-autonomous monthly discovery + scheduling (Phase 3)
   autopilotEnabled Boolean @default(false)
@@ -185,23 +186,38 @@ model Plan {
   price         Float
   limits        String?  // Stored as JSON string
   autopilotPostsPerMonth Int @default(0) // 0 = disabled, -1 = unlimited
+  stripeProductId String?
+  stripePriceId   String? @unique // Stripe Prices are immutable - a price change creates a new one and updates this
   subscriptions Subscription[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
 
+// One paid site: a Subscription is 1:1 with a Project (the "site"), representing one
+// Stripe Subscription Item inside its Organization's single Stripe Subscription.
+// organizationId/projectId are nullable until prisma/backfill-subscriptions.ts runs against
+// existing per-user rows (reading the old userId field below), then made required (+ projectId
+// unique) and userId/stripeSubscriptionId dropped in a follow-up migration/commit - deployed
+// separately on purpose, so the backfill script can actually run in between (see DEPLOYMENT.md).
 model Subscription {
-  id            String             @id @default(cuid())
-  userId        String             @unique 
-  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  planId        String             
-  plan          Plan               @relation(fields: [planId], references: [id])
-  status        String             @default("ACTIVE")
-  startDate     DateTime           @default(now())
-  endDate       DateTime?
+  id                       String        @id @default(cuid())
+  organizationId           String?
+  organization             Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  projectId                String?       @unique
+  project                  Project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  planId                   String
+  plan                     Plan          @relation(fields: [planId], references: [id])
+  status                   String        @default("ACTIVE") // ACTIVE | PAST_DUE | CANCELED
+  startDate                DateTime      @default(now())
+  endDate                  DateTime?
+  stripeSubscriptionItemId String?
+  createdAt                DateTime      @default(now())
+  updatedAt                DateTime      @updatedAt
+
+  // --- Legacy per-user fields, kept only so the backfill script can read them; dropped
+  // in the follow-up NOT NULL migration once every row has organizationId/projectId set. ---
+  userId               String? @unique
   stripeSubscriptionId String?
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
 }
 
 model ConnectedSite {

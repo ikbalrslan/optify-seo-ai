@@ -4,8 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { Loader2, ShieldCheck, ShieldOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getUsers, getPlans, updateUserRole, updateUserPlan } from "@/actions/admin";
+import { getUsers, updateUserRole } from "@/actions/admin";
 
 type AdminUser = {
     id: string;
@@ -13,21 +12,12 @@ type AdminUser = {
     email: string | null;
     role: string;
     createdAt: Date;
-    planName: string | null;
-    planId: string | null;
+    organizations: { name: string; role: string; projectCount: number }[];
 };
-
-type Plan = {
-    id: string;
-    name: string;
-};
-
-const NO_PLAN = "NONE";
 
 export default function AdminUsersPage() {
     const { data: session } = useSession();
     const [users, setUsers] = useState<AdminUser[]>([]);
-    const [plans, setPlans] = useState<Plan[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [pendingUserId, setPendingUserId] = useState<string | null>(null);
@@ -35,9 +25,7 @@ export default function AdminUsersPage() {
     const loadData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const [userList, planList] = await Promise.all([getUsers(), getPlans()]);
-            setUsers(userList);
-            setPlans(planList);
+            setUsers(await getUsers());
         } catch {
             setError("Failed to load users. You may not have admin access.");
         } finally {
@@ -54,21 +42,6 @@ export default function AdminUsersPage() {
         setPendingUserId(user.id);
         try {
             const result = await updateUserRole(user.id, nextRole);
-            if (!result.success) {
-                alert(result.error);
-                return;
-            }
-            await loadData();
-        } finally {
-            setPendingUserId(null);
-        }
-    };
-
-    const handlePlanChange = async (user: AdminUser, planId: string) => {
-        if (planId === NO_PLAN) return;
-        setPendingUserId(user.id);
-        try {
-            const result = await updateUserPlan(user.id, planId);
             if (!result.success) {
                 alert(result.error);
                 return;
@@ -103,7 +76,7 @@ export default function AdminUsersPage() {
                         <tr>
                             <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">User</th>
                             <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Role</th>
-                            <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Plan</th>
+                            <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Organizations</th>
                             <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Joined</th>
                             <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Actions</th>
                         </tr>
@@ -136,24 +109,21 @@ export default function AdminUsersPage() {
                                         {user.role}
                                     </span>
                                 </td>
-                                <td className="px-4 py-3">
-                                    <Select
-                                        value={user.planId ?? NO_PLAN}
-                                        onValueChange={(value) => handlePlanChange(user, value)}
-                                        disabled={pendingUserId === user.id}
-                                    >
-                                        <SelectTrigger className="h-8 w-40">
-                                            <SelectValue placeholder="No plan" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {!user.planId && <SelectItem value={NO_PLAN}>No plan</SelectItem>}
-                                            {plans.map((plan) => (
-                                                <SelectItem key={plan.id} value={plan.id}>
-                                                    {plan.name}
-                                                </SelectItem>
+                                <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+                                    {user.organizations.length === 0 ? (
+                                        "—"
+                                    ) : (
+                                        <div className="space-y-0.5">
+                                            {user.organizations.map((org) => (
+                                                <div key={org.name}>
+                                                    {org.name}{" "}
+                                                    <span className="text-slate-400 dark:text-slate-500">
+                                                        ({org.role.toLowerCase()}, {org.projectCount} site{org.projectCount === 1 ? "" : "s"})
+                                                    </span>
+                                                </div>
                                             ))}
-                                        </SelectContent>
-                                    </Select>
+                                        </div>
+                                    )}
                                 </td>
                                 <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
                                     {new Date(user.createdAt).toLocaleDateString()}

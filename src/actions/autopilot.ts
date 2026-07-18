@@ -44,13 +44,33 @@ export type AutopilotQuota = {
 // LIMIT CHECKING (Backend Only - Source of Truth)
 // ============================================
 
-async function checkAutopilotLimit(userId: string): Promise<{ allowed: boolean; remaining: number; limit: number }> {
+// Subscription moved from per-User to per-Project (one Stripe Subscription Item per paid
+// site - see prisma/schema.prisma), but ScheduledPost/autopilot actions are still scoped by
+// userId, not by a specific project - that retrofit is a separate, larger piece of work.
+// Interim behavior until then: platform admins get unlimited access (there's no Subscription
+// concept for them anymore), everyone else's effective limit is the most generous plan among
+// their active organization's paid sites. This is intentionally not per-site-accurate yet.
+async function getEffectiveAutopilotLimit(userId: string): Promise<number> {
     const user = await prisma.user.findUnique({
         where: { id: userId },
-        include: { subscription: { include: { plan: true } } }
+        select: { role: true, activeOrganizationId: true },
     });
 
-    const limit = user?.subscription?.plan?.autopilotPostsPerMonth ?? 0;
+    if (user?.role === "ADMIN") return -1;
+    if (!user?.activeOrganizationId) return 0;
+
+    const subscriptions = await prisma.subscription.findMany({
+        where: { organizationId: user.activeOrganizationId, status: "ACTIVE" },
+        include: { plan: true },
+    });
+
+    if (subscriptions.length === 0) return 0;
+    if (subscriptions.some((s) => s.plan.autopilotPostsPerMonth === -1)) return -1;
+    return Math.max(...subscriptions.map((s) => s.plan.autopilotPostsPerMonth));
+}
+
+async function checkAutopilotLimit(userId: string): Promise<{ allowed: boolean; remaining: number; limit: number }> {
+    const limit = await getEffectiveAutopilotLimit(userId);
 
     // -1 = unlimited
     if (limit === -1) return { allowed: true, remaining: -1, limit: -1 };
@@ -89,12 +109,7 @@ export async function getAutopilotQuota(): Promise<AutopilotQuota> {
         return { used: 0, limit: 0, remaining: 0 };
     }
 
-    const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        include: { subscription: { include: { plan: true } } }
-    });
-
-    const limit = user?.subscription?.plan?.autopilotPostsPerMonth ?? 0;
+    const limit = await getEffectiveAutopilotLimit(session.user.id);
 
     if (limit === -1) {
         return { used: 0, limit: -1, remaining: -1 };

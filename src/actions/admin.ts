@@ -2,7 +2,6 @@
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { ensureAdminHasProPlan } from "@/lib/admin";
 import { revalidatePath } from "next/cache";
 
 // The middleware already blocks non-admins from reaching /admin/* pages, but server
@@ -35,25 +34,28 @@ export async function getUsers() {
 
     const users = await prisma.user.findMany({
         include: {
-            subscription: { include: { plan: true } },
+            memberships: {
+                include: { organization: { include: { _count: { select: { projects: true } } } } },
+            },
         },
         orderBy: { createdAt: "desc" },
     });
 
+    // Plans are per-project now (Subscription is 1:1 with Project, not User - see
+    // prisma/schema.prisma), so there's no single "this user's plan" to show anymore.
+    // Org/site management proper lives on the billing UI; this is just an admin-facing summary.
     return users.map((u) => ({
         id: u.id,
         name: u.name,
         email: u.email,
         role: u.role,
         createdAt: u.createdAt,
-        planName: u.subscription?.plan.name ?? null,
-        planId: u.subscription?.planId ?? null,
+        organizations: u.memberships.map((m) => ({
+            name: m.organization.name,
+            role: m.role,
+            projectCount: m.organization._count.projects,
+        })),
     }));
-}
-
-export async function getPlans() {
-    await requireAdmin();
-    return prisma.plan.findMany({ orderBy: { price: "asc" } });
 }
 
 export async function updateUserRole(
@@ -67,31 +69,6 @@ export async function updateUserRole(
     }
 
     await prisma.user.update({ where: { id: userId }, data: { role } });
-
-    if (role === "ADMIN") {
-        await ensureAdminHasProPlan(userId);
-    }
-
-    revalidatePath("/admin/users");
-    return { success: true };
-}
-
-export async function updateUserPlan(
-    userId: string,
-    planId: string
-): Promise<{ success: true } | { success: false; error: string }> {
-    await requireAdmin();
-
-    const plan = await prisma.plan.findUnique({ where: { id: planId } });
-    if (!plan) {
-        return { success: false, error: "Plan not found." };
-    }
-
-    await prisma.subscription.upsert({
-        where: { userId },
-        update: { planId: plan.id, status: "ACTIVE" },
-        create: { userId, planId: plan.id, status: "ACTIVE" },
-    });
 
     revalidatePath("/admin/users");
     return { success: true };
