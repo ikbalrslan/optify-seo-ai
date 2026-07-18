@@ -7,12 +7,24 @@ import { revalidatePath } from "next/cache";
 
 // The middleware already blocks non-admins from reaching /admin/* pages, but server
 // actions can be invoked directly, so every admin action re-checks role itself.
+//
+// This deliberately re-reads role from the database rather than trusting session.user.role:
+// role is baked into the JWT at sign-in and cached in the session cookie for the life of that
+// session (see src/auth.ts), so a user demoted while still logged in would otherwise keep
+// passing this check with their stale "ADMIN" claim - including being able to call
+// updateUserRole on themselves and silently re-grant their own admin access. Querying the
+// live value closes that off; it costs one extra indexed read per admin action, same
+// trade-off already accepted for org-role checks in src/lib/org.ts.
 async function requireAdmin(): Promise<{ userId: string }> {
     const session = await auth();
-    // `role` isn't declared on next-auth's own Session["user"] type in this version, so it's
-    // read via a cast rather than relying on module augmentation (see src/auth.ts for why).
-    const role = (session?.user as { role?: string } | undefined)?.role;
-    if (!session?.user?.id || role !== "ADMIN") {
+    if (!session?.user?.id) {
+        throw new Error("Not authorized");
+    }
+    const user = await prisma.user.findUnique({
+        where: { id: session.user.id },
+        select: { role: true },
+    });
+    if (user?.role !== "ADMIN") {
         throw new Error("Not authorized");
     }
     return { userId: session.user.id };
