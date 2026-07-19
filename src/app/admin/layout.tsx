@@ -58,7 +58,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="hidden md:flex flex-col w-56 bg-slate-900 border-r border-slate-800 text-white fixed inset-y-0 z-50">
           {/* Static sidebar for SSR/Initial Load */}
         </div>
-        <main className="flex-1 md:pl-56 bg-slate-50 dark:bg-slate-950 min-h-screen">
+        <main className="flex-1 md:pl-56 bg-slate-50 min-h-screen">
           {children}
         </main>
       </div>
@@ -138,11 +138,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Main Content */}
       <main className={cn(
-        "flex-1 bg-slate-50 dark:bg-slate-950 min-h-screen transition-all duration-300 ease-in-out",
+        "flex-1 bg-slate-50 min-h-screen transition-all duration-300 ease-in-out",
         collapsed ? "md:pl-20" : "md:pl-56"
       )}>
-        <div className="h-16 border-b bg-white dark:bg-slate-900 flex items-center justify-between px-8">
-          <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100 uppercase tracking-wide">
+        <div className="h-16 border-b bg-white flex items-center justify-between px-8">
+          <h2 className="text-lg font-semibold text-slate-800 uppercase tracking-wide">
             Admin Administration
           </h2>
           <div className="flex items-center gap-4">

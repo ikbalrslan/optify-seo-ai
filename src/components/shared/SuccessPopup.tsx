@@ -22,8 +22,8 @@ export function SuccessPopup({ isOpen, onClose, title = "Success", message }: Su
                     </DialogTitle>
                 </DialogHeader>
                 <div className="flex flex-col items-center space-y-4 py-4">
-                    <div className="h-16 w-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-                        <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
+                    <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center">
+                        <CheckCircle className="h-8 w-8 text-green-600" />
                     </div>
                     <p className="text-center text-muted-foreground text-[15px]">
                         {message}

@@ -158,7 +158,7 @@ export default function FeedbackPage() {
                                         className={cn(
                                             "flex-1 p-4 rounded-xl border-2 transition-all flex items-center justify-center gap-3 font-medium",
                                             type === "BUG"
-                                                ? "border-red-500 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400"
+                                                ? "border-red-500 bg-red-50 text-red-600"
                                                 : "border-border hover:border-sidebar-border text-muted-foreground"
                                         )}
                                     >
@@ -254,9 +254,9 @@ export default function FeedbackPage() {
                                                 <h3 className="text-base font-bold text-foreground group-hover:text-[#1DB954] transition-colors">{feature.title}</h3>
                                                 <div className={cn(
                                                     "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide",
-                                                    feature.status === "OPEN" ? "bg-muted text-muted-foreground dark:text-foreground" :
-                                                        feature.status === "IN_PROGRESS" ? "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" :
-                                                            "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400"
+                                                    feature.status === "OPEN" ? "bg-muted text-muted-foreground" :
+                                                        feature.status === "IN_PROGRESS" ? "bg-blue-100 text-blue-600" :
+                                                            "bg-green-100 text-green-600"
                                                 )}>
                                                     {feature.status.replace("_", " ")}
                                                 </div>
@@ -301,22 +301,22 @@ export default function FeedbackPage() {
                     ) : (
                         <div className="grid gap-3">
                             {features.filter(f => f.type === "BUG").map((feature) => (
-                                <Card key={feature.id} className="group hover:shadow-md transition-all border-red-100 dark:border-red-900/40 bg-red-50/10 dark:bg-red-900/10">
+                                <Card key={feature.id} className="group hover:shadow-md transition-all border-red-100 bg-red-50/10">
                                     <CardContent className="p-4">
                                         <div className="flex-1 space-y-1">
                                             <div className="flex items-start justify-between">
                                                 <div className="flex flex-col gap-0.5">
                                                     <h3 className="text-base font-bold text-foreground group-hover:text-red-600 transition-colors">{feature.title}</h3>
-                                                    <span className="w-fit px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 flex items-center gap-1">
+                                                    <span className="w-fit px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide bg-red-100 text-red-600 flex items-center gap-1">
                                                         <div className="w-1 h-1 rounded-full bg-red-500 animate-pulse" />
                                                         Private Bug
                                                     </span>
                                                 </div>
                                                 <div className={cn(
                                                     "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide",
-                                                    feature.status === "OPEN" ? "bg-muted text-muted-foreground dark:text-foreground" :
-                                                        feature.status === "IN_PROGRESS" ? "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" :
-                                                            "bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400"
+                                                    feature.status === "OPEN" ? "bg-muted text-muted-foreground" :
+                                                        feature.status === "IN_PROGRESS" ? "bg-blue-100 text-blue-600" :
+                                                            "bg-green-100 text-green-600"
                                                 )}>
                                                     {feature.status.replace("_", " ")}
                                                 </div>

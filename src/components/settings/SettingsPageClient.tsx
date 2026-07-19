@@ -230,7 +230,7 @@ export default function SettingsPageClient({ initialSubscription, initialName }:
               <CardHeader className="pb-4 pt-4 px-6 flex flex-row items-center justify-between">
                 <CardTitle className="text-lg font-bold text-foreground">Subscription</CardTitle>
                 {subscription?.isPro && (
-                  <span className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded-full text-xs font-bold uppercase tracking-wide">
+                  <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold uppercase tracking-wide">
                     Active
                   </span>
                 )}
@@ -306,7 +306,7 @@ export default function SettingsPageClient({ initialSubscription, initialName }:
                   </div>
                   <CardTitle className="text-lg font-bold text-foreground">WordPress Integrations</CardTitle>
                 </div>
-                <a href="/plugins/optify-connector.zip" download className="text-sm font-medium text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-2">
+                <a href="/plugins/optify-connector.zip" download className="text-sm font-medium text-blue-600 hover:underline flex items-center gap-2">
                   <Download className="h-4 w-4" />
                   Download Plugin
                 </a>
@@ -330,7 +330,7 @@ export default function SettingsPageClient({ initialSubscription, initialName }:
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1 text-[10px] uppercase font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-full">
+                        <div className="flex items-center gap-1 text-[10px] uppercase font-bold text-green-600 bg-green-50 px-2 py-1 rounded-full">
                           <CheckCircle2 className="h-3 w-3" /> Connected
                         </div>
                         <button onClick={() => handleDeleteSite(site.id)} className="p-2 hover:bg-background rounded-full text-muted-foreground hover:text-destructive transition-colors">
@@ -354,7 +354,7 @@ export default function SettingsPageClient({ initialSubscription, initialName }:
                     </DialogHeader>
                     <div className="space-y-4 pt-4">
                       {connectError && (
-                        <div className="text-sm text-red-500 dark:text-red-400 bg-red-50 dark:bg-red-900/30 p-2 rounded border border-red-100 dark:border-red-900/50 mb-2">
+                        <div className="text-sm text-red-500 bg-red-50 p-2 rounded border border-red-100 mb-2">
                           {connectError}
                         </div>
                       )}
@@ -636,7 +636,7 @@ function SearchConsoleCard() {
                     </div>
                   </div>
                   {isVerified ? (
-                    <div className="flex items-center gap-1 text-[10px] uppercase font-bold text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30 px-2 py-1 rounded-full">
+                    <div className="flex items-center gap-1 text-[10px] uppercase font-bold text-green-600 bg-green-50 px-2 py-1 rounded-full">
                       <CheckCircle2 className="h-3 w-3" /> Verified
                     </div>
                   ) : (

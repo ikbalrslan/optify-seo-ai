@@ -62,17 +62,17 @@ export default function AdminUsersPage() {
 
     if (error) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[400px] border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg">
-                <p className="text-slate-500 dark:text-slate-400">{error}</p>
+            <div className="flex flex-col items-center justify-center min-h-[400px] border-2 border-dashed border-slate-200 rounded-lg">
+                <p className="text-slate-500">{error}</p>
             </div>
         );
     }
 
     return (
-        <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
             <div className="overflow-x-auto">
                 <table className="w-full">
-                    <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                    <thead className="bg-slate-50 border-b border-slate-200">
                         <tr>
                             <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">User</th>
                             <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Role</th>
@@ -81,35 +81,35 @@ export default function AdminUsersPage() {
                             <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Actions</th>
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    <tbody className="divide-y divide-slate-100">
                         {users.map((user) => {
                             const isSelf = user.id === session?.user?.id;
                             const disableRemoveSelf = isSelf && user.role === "ADMIN";
                             return (
-                            <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                            <tr key={user.id} className="hover:bg-slate-50 transition-colors">
                                 <td className="px-4 py-3">
-                                    <div className="font-medium text-slate-900 dark:text-white flex items-center gap-2">
+                                    <div className="font-medium text-slate-900 flex items-center gap-2">
                                         {user.name ?? "—"}
                                         {isSelf && (
-                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-500">
                                                 You
                                             </span>
                                         )}
                                     </div>
-                                    <div className="text-sm text-slate-500 dark:text-slate-400">{user.email}</div>
+                                    <div className="text-sm text-slate-500">{user.email}</div>
                                 </td>
                                 <td className="px-4 py-3">
                                     <span
                                         className={
                                             user.role === "ADMIN"
-                                                ? "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-                                                : "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
+                                                ? "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700"
+                                                : "inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600"
                                         }
                                     >
                                         {user.role}
                                     </span>
                                 </td>
-                                <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">
+                                <td className="px-4 py-3 text-sm text-slate-600">
                                     {user.organizations.length === 0 ? (
                                         "—"
                                     ) : (
@@ -117,7 +117,7 @@ export default function AdminUsersPage() {
                                             {user.organizations.map((org) => (
                                                 <div key={org.name}>
                                                     {org.name}{" "}
-                                                    <span className="text-slate-400 dark:text-slate-500">
+                                                    <span className="text-slate-400">
                                                         ({org.role.toLowerCase()}, {org.projectCount} site{org.projectCount === 1 ? "" : "s"})
                                                     </span>
                                                 </div>
@@ -125,7 +125,7 @@ export default function AdminUsersPage() {
                                         </div>
                                     )}
                                 </td>
-                                <td className="px-4 py-3 text-sm text-slate-500 dark:text-slate-400">
+                                <td className="px-4 py-3 text-sm text-slate-500">
                                     {new Date(user.createdAt).toLocaleDateString()}
                                 </td>
                                 <td className="px-4 py-3 text-right">

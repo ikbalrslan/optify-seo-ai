@@ -142,8 +142,8 @@ export default function TeamPageClient({
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-lg font-semibold text-slate-900 dark:text-white">{organizationName}</h2>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">Manage your team's members and invites</p>
+                    <h2 className="text-lg font-semibold text-slate-900">{organizationName}</h2>
+                    <p className="text-sm text-slate-500">Manage your team's members and invites</p>
                 </div>
                 {canManage && (
                     <Button onClick={() => setIsInviteOpen(true)}>
@@ -153,26 +153,26 @@ export default function TeamPageClient({
                 )}
             </div>
 
-            <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
-                        <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                        <thead className="bg-slate-50 border-b border-slate-200">
                             <tr>
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Member</th>
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Role</th>
                                 <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        <tbody className="divide-y divide-slate-100">
                             {members.map((member) => {
                                 const canRemove =
                                     member.userId !== session?.user?.id &&
                                     ((myRole === "ADMIN" && member.role === "MEMBER") || isOwner);
                                 return (
-                                    <tr key={member.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                                    <tr key={member.id} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-4 py-3">
-                                            <div className="font-medium text-slate-900 dark:text-white">{member.name ?? "—"}</div>
-                                            <div className="text-sm text-slate-500 dark:text-slate-400">{member.email}</div>
+                                            <div className="font-medium text-slate-900">{member.name ?? "—"}</div>
+                                            <div className="text-sm text-slate-500">{member.email}</div>
                                         </td>
                                         <td className="px-4 py-3">
                                             {isOwner && member.userId !== session?.user?.id ? (
@@ -191,7 +191,7 @@ export default function TeamPageClient({
                                                     </SelectContent>
                                                 </Select>
                                             ) : (
-                                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600">
                                                     {member.role}
                                                 </span>
                                             )}
@@ -223,22 +223,22 @@ export default function TeamPageClient({
 
             {invites.length > 0 && (
                 <div>
-                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Pending Invites</h3>
-                    <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
+                    <h3 className="text-sm font-semibold text-slate-700 mb-2">Pending Invites</h3>
+                    <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
                         <div className="overflow-x-auto">
                             <table className="w-full">
-                                <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                                <thead className="bg-slate-50 border-b border-slate-200">
                                     <tr>
                                         <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Email</th>
                                         <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Role</th>
                                         <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                                <tbody className="divide-y divide-slate-100">
                                     {invites.map((invite) => (
-                                        <tr key={invite.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                                            <td className="px-4 py-3 text-slate-900 dark:text-white">{invite.email}</td>
-                                            <td className="px-4 py-3 text-slate-500 dark:text-slate-400">{invite.role}</td>
+                                        <tr key={invite.id} className="hover:bg-slate-50 transition-colors">
+                                            <td className="px-4 py-3 text-slate-900">{invite.email}</td>
+                                            <td className="px-4 py-3 text-slate-500">{invite.role}</td>
                                             <td className="px-4 py-3 text-right">
                                                 <div className="flex items-center justify-end gap-2">
                                                     <Button variant="ghost" size="sm" onClick={() => handleCopyLink(invite.token)}>

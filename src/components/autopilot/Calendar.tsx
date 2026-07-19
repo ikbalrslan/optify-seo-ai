@@ -249,7 +249,7 @@ export function Calendar({ posts, onDateClick, onPostClick, onPostDelete, month,
     };
 
     return (
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
             <CalendarHeader
                 month={month}
                 year={year}
@@ -265,7 +265,7 @@ export function Calendar({ posts, onDateClick, onPostClick, onPostDelete, month,
             {/* Day Headers */}
             <div className="grid grid-cols-7 border-b border-slate-200">
                 {DAYS.map(day => (
-                    <div key={day} className="py-2 text-center text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">
+                    <div key={day} className="py-2 text-center text-xs font-semibold text-slate-500 uppercase">
                         {day}
                     </div>
                 ))}
@@ -285,22 +285,22 @@ export function Calendar({ posts, onDateClick, onPostClick, onPostDelete, month,
             </div>
 
             {/* Legend */}
-            <div className="flex items-center gap-4 p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50">
+            <div className="flex items-center gap-4 p-3 border-t border-slate-200 bg-slate-50">
                 <div className="flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                    <span className="text-xs text-slate-600 dark:text-slate-400">Scheduled</span>
+                    <span className="text-xs text-slate-600">Scheduled</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 rounded-full bg-yellow-500" />
-                    <span className="text-xs text-slate-600 dark:text-slate-400">Generating</span>
+                    <span className="text-xs text-slate-600">Generating</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
-                    <span className="text-xs text-slate-600 dark:text-slate-400">Published</span>
+                    <span className="text-xs text-slate-600">Published</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
-                    <span className="text-xs text-slate-600 dark:text-slate-400">Failed</span>
+                    <span className="text-xs text-slate-600">Failed</span>
                 </div>
             </div>
         </div>

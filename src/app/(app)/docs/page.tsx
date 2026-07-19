@@ -8,8 +8,8 @@ export default function DocsPage() {
     return (
         <div className="max-w-4xl mx-auto space-y-8 p-6">
             <div className="space-y-2">
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Documentation</h1>
-                <p className="text-slate-500 dark:text-slate-400">Everything you need to know about integrating and using Optify.</p>
+                <h1 className="text-3xl font-bold text-slate-900">Documentation</h1>
+                <p className="text-slate-500">Everything you need to know about integrating and using Optify.</p>
             </div>
 
             <div className="grid gap-6">
@@ -21,7 +21,7 @@ export default function DocsPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        <p className="text-slate-600 dark:text-slate-300">
+                        <p className="text-slate-600">
                             Connect your WordPress site to Optify to publish SEO-optimized articles directly from the dashboard.
                             Follow these simple steps to get started.
                         </p>
@@ -31,11 +31,11 @@ export default function DocsPage() {
                             <AccordionItem value="item-1">
                                 <AccordionTrigger className="text-lg font-medium">
                                     <div className="flex items-center gap-3">
-                                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-sm font-bold">1</span>
+                                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-bold">1</span>
                                         Download & Install Plugin
                                     </div>
                                 </AccordionTrigger>
-                                <AccordionContent className="pl-11 pr-4 pb-4 space-y-3 text-slate-600 dark:text-slate-300">
+                                <AccordionContent className="pl-11 pr-4 pb-4 space-y-3 text-slate-600">
                                     <p>First, you need to install the Optify Connector plugin on your WordPress site.</p>
                                     <ol className="list-decimal list-inside space-y-2 ml-2">
                                         <li>Go to the <strong>Settings</strong> page in Optify and switch to the <strong>Integrations</strong> tab.</li>
@@ -52,11 +52,11 @@ export default function DocsPage() {
                             <AccordionItem value="item-2">
                                 <AccordionTrigger className="text-lg font-medium">
                                     <div className="flex items-center gap-3">
-                                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-sm font-bold">2</span>
+                                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-bold">2</span>
                                         Generate Application Password
                                     </div>
                                 </AccordionTrigger>
-                                <AccordionContent className="pl-11 pr-4 pb-4 space-y-3 text-slate-600 dark:text-slate-300">
+                                <AccordionContent className="pl-11 pr-4 pb-4 space-y-3 text-slate-600">
                                     <p>WordPress Application Passwords allow Optify to securely connect without using your main password.</p>
                                     <ol className="list-decimal list-inside space-y-2 ml-2">
                                         <li>In your WordPress Admin, go to <strong>Users &gt; Profile</strong>.</li>
@@ -64,8 +64,8 @@ export default function DocsPage() {
                                         <li>In the "New Application Password Name" field, enter a name like <code>Optify</code>.</li>
                                         <li>Click <strong>Add New Application Password</strong>.</li>
                                         <li>
-                                            <div className="mt-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-900/50 rounded-md">
-                                                <p className="font-semibold text-yellow-800 dark:text-yellow-200 mb-1 flex items-center gap-2">
+                                            <div className="mt-2 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                                                <p className="font-semibold text-yellow-800 mb-1 flex items-center gap-2">
                                                     <Key className="h-4 w-4" /> Important
                                                 </p>
                                                 <p className="text-sm">Copy the generated password instantly! It will look like <code>abcd 1234 efgh 5678</code>. You won't be able to see it again.</p>
@@ -78,11 +78,11 @@ export default function DocsPage() {
                             <AccordionItem value="item-3">
                                 <AccordionTrigger className="text-lg font-medium">
                                     <div className="flex items-center gap-3">
-                                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-sm font-bold">3</span>
+                                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-bold">3</span>
                                         Connect to Optify
                                     </div>
                                 </AccordionTrigger>
-                                <AccordionContent className="pl-11 pr-4 pb-4 space-y-3 text-slate-600 dark:text-slate-300">
+                                <AccordionContent className="pl-11 pr-4 pb-4 space-y-3 text-slate-600">
                                     <p>Now, link your site using the credentials you just generated.</p>
                                     <ol className="list-decimal list-inside space-y-2 ml-2">
                                         <li>Return to the Optify <strong>Settings &gt; Integrations</strong> page.</li>
@@ -92,7 +92,7 @@ export default function DocsPage() {
                                         <li>Paste the <strong>Application Password</strong> you copied earlier.</li>
                                         <li>Click <strong>Connect</strong>.</li>
                                     </ol>
-                                    <div className="flex items-center gap-2 text-green-600 dark:text-green-400 mt-2 font-medium">
+                                    <div className="flex items-center gap-2 text-green-600 mt-2 font-medium">
                                         <CheckCircle2 className="h-4 w-4" />
                                         You're all set!
                                     </div>
@@ -102,11 +102,11 @@ export default function DocsPage() {
                             <AccordionItem value="item-4">
                                 <AccordionTrigger className="text-lg font-medium">
                                     <div className="flex items-center gap-3">
-                                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-sm font-bold">4</span>
+                                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-bold">4</span>
                                         How to Publish
                                     </div>
                                 </AccordionTrigger>
-                                <AccordionContent className="pl-11 pr-4 pb-4 space-y-3 text-slate-600 dark:text-slate-300">
+                                <AccordionContent className="pl-11 pr-4 pb-4 space-y-3 text-slate-600">
                                     <p>Publishing articles is now one click away.</p>
                                     <ul className="list-disc list-inside space-y-2 ml-2">
                                         <li>Go to the <strong>Blog Generator</strong>.</li>

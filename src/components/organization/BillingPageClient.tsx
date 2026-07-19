@@ -113,8 +113,8 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Billing</h2>
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
+                    <h2 className="text-lg font-semibold text-slate-900">Billing</h2>
+                    <p className="text-sm text-slate-500">
                         Each site is billed separately{plan && ` at $${plan.price}/mo`}
                         {summary.discountPercent > 0 && `, with an automatic ${summary.discountPercent}% volume discount applied`}.
                     </p>
@@ -129,17 +129,17 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
             </div>
 
             <div className="grid grid-cols-3 gap-4">
-                <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4">
+                <div className="bg-white rounded-lg border border-slate-200 p-4">
                     <div className="text-xs text-slate-500 uppercase font-semibold">Paid Sites</div>
-                    <div className="text-2xl font-bold text-slate-900 dark:text-white">{summary.activeSiteCount}</div>
+                    <div className="text-2xl font-bold text-slate-900">{summary.activeSiteCount}</div>
                 </div>
-                <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4">
+                <div className="bg-white rounded-lg border border-slate-200 p-4">
                     <div className="text-xs text-slate-500 uppercase font-semibold">Volume Discount</div>
-                    <div className="text-2xl font-bold text-slate-900 dark:text-white">{summary.discountPercent}%</div>
+                    <div className="text-2xl font-bold text-slate-900">{summary.discountPercent}%</div>
                 </div>
-                <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 p-4">
+                <div className="bg-white rounded-lg border border-slate-200 p-4">
                     <div className="text-xs text-slate-500 uppercase font-semibold">Monthly Total</div>
-                    <div className="text-2xl font-bold text-slate-900 dark:text-white">
+                    <div className="text-2xl font-bold text-slate-900">
                         ${summary.netTotal.toFixed(2)}
                         {summary.discountPercent > 0 && (
                             <span className="text-sm text-slate-400 line-through ml-2">${summary.grossTotal.toFixed(2)}</span>
@@ -148,24 +148,24 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
                 </div>
             </div>
 
-            <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden">
+            <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
-                        <thead className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                        <thead className="bg-slate-50 border-b border-slate-200">
                             <tr>
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Site</th>
                                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Plan</th>
                                 <th className="text-right px-4 py-3 text-xs font-semibold text-slate-500 uppercase">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                        <tbody className="divide-y divide-slate-100">
                             {summary.sites.map((site) => (
-                                <tr key={site.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                                <tr key={site.id} className="hover:bg-slate-50 transition-colors">
                                     <td className="px-4 py-3">
-                                        <div className="font-medium text-slate-900 dark:text-white">{site.name}</div>
-                                        <div className="text-sm text-slate-500 dark:text-slate-400">{site.domain}</div>
+                                        <div className="font-medium text-slate-900">{site.name}</div>
+                                        <div className="text-sm text-slate-500">{site.domain}</div>
                                     </td>
-                                    <td className="px-4 py-3 text-sm text-slate-700 dark:text-slate-300">
+                                    <td className="px-4 py-3 text-sm text-slate-700">
                                         {site.plan
                                             ? `${site.plan.name} ($${site.plan.price}/mo)`
                                             : plan

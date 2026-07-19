@@ -1,4 +1,3 @@
-import { ThemeToggle } from "@/components/shared/ThemeToggle";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
@@ -21,10 +20,6 @@ export function Navbar() {
                         <Sidebar onLinkClick={() => setIsOpen(false)} />
                     </SheetContent>
                 </Sheet>
-            </div>
-
-            <div className="flex items-center ml-auto">
-                <ThemeToggle />
             </div>
         </div>
     );

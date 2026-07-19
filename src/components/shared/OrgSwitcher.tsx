@@ -63,12 +63,12 @@ export function OrgSwitcher({ collapsed }: { collapsed?: boolean }) {
                     variant="ghost"
                     disabled={isSwitching}
                     className={cn(
-                        "w-full h-auto py-2 px-2 rounded-md hover:bg-[#EAECC6]/50 dark:hover:bg-sidebar-accent/50 flex items-center gap-2",
+                        "w-full h-auto py-2 px-2 rounded-md hover:bg-[#EAECC6]/50 flex items-center gap-2",
                         collapsed ? "justify-center" : "justify-between"
                     )}
                 >
                     <div className="flex items-center gap-2 min-w-0">
-                        <Building2 className="h-4 w-4 flex-shrink-0 text-slate-500 dark:text-muted-foreground" />
+                        <Building2 className="h-4 w-4 flex-shrink-0 text-slate-500" />
                         {!collapsed && (
                             <span className="text-sm font-medium truncate">{activeOrg?.name}</span>
                         )}

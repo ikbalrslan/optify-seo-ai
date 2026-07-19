@@ -147,10 +147,10 @@ export default function AutopilotPage() {
 
     const getStatusBadge = (status: string) => {
         const styles: Record<string, string> = {
-            SCHEDULED: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-            GENERATING: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
-            PUBLISHED: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-            FAILED: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+            SCHEDULED: "bg-blue-100 text-blue-700",
+            GENERATING: "bg-yellow-100 text-yellow-700",
+            PUBLISHED: "bg-green-100 text-green-700",
+            FAILED: "bg-red-100 text-red-700",
         };
         return (
             <span className={cn("px-2 py-1 rounded-full text-xs font-medium", styles[status] || "bg-gray-100")}>
@@ -164,11 +164,11 @@ export default function AutopilotPage() {
             {/* Header */}
             <div className="flex items-start justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
                         <CalendarDays className="h-8 w-8 text-[#1DB954]" />
                         Autopilot
                     </h1>
-                    <p className="text-slate-500 dark:text-slate-400 mt-1">
+                    <p className="text-slate-500 mt-1">
                         Schedule blog posts to be generated and published automatically.
                     </p>
                 </div>
@@ -233,42 +233,42 @@ export default function AutopilotPage() {
                         <div className="space-y-4 pt-2">
                             <div className="grid grid-cols-2 gap-4 text-sm">
                                 <div>
-                                    <p className="text-slate-500 dark:text-slate-400">Keyword</p>
+                                    <p className="text-slate-500">Keyword</p>
                                     <p className="font-medium">{selectedPost.keyword}</p>
                                 </div>
                                 <div>
-                                    <p className="text-slate-500 dark:text-slate-400">Site</p>
+                                    <p className="text-slate-500">Site</p>
                                     <p className="font-medium">{selectedPost.connectedSite?.name ?? "optifyseo.ai Blog"}</p>
                                 </div>
                                 <div>
-                                    <p className="text-slate-500 dark:text-slate-400">Tone</p>
+                                    <p className="text-slate-500">Tone</p>
                                     <p className="font-medium">{selectedPost.tone}</p>
                                 </div>
                                 <div>
-                                    <p className="text-slate-500 dark:text-slate-400">Scheduled</p>
+                                    <p className="text-slate-500">Scheduled</p>
                                     <p className="font-medium">
                                         {new Date(selectedPost.scheduledDate).toLocaleDateString()}
                                     </p>
                                 </div>
                                 <div>
-                                    <p className="text-slate-500 dark:text-slate-400">Publish As</p>
+                                    <p className="text-slate-500">Publish As</p>
                                     <p className="font-medium capitalize">{selectedPost.publishStatus}</p>
                                 </div>
                             </div>
 
                             {selectedPost.generatedTitle && (
-                                <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-100 dark:border-green-900/30">
-                                    <p className="text-xs text-green-600 dark:text-green-400 mb-1">Generated Title</p>
-                                    <p className="text-sm font-medium text-green-900 dark:text-green-100">
+                                <div className="p-3 bg-green-50 rounded-lg border border-green-100">
+                                    <p className="text-xs text-green-600 mb-1">Generated Title</p>
+                                    <p className="text-sm font-medium text-green-900">
                                         {selectedPost.generatedTitle}
                                     </p>
                                 </div>
                             )}
 
                             {selectedPost.errorMessage && (
-                                <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-100 dark:border-red-900/30">
-                                    <p className="text-xs text-red-600 dark:text-red-400 mb-1">Error</p>
-                                    <p className="text-sm text-red-900 dark:text-red-100">
+                                <div className="p-3 bg-red-50 rounded-lg border border-red-100">
+                                    <p className="text-xs text-red-600 mb-1">Error</p>
+                                    <p className="text-sm text-red-900">
                                         {selectedPost.errorMessage}
                                     </p>
                                 </div>

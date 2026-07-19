@@ -213,11 +213,11 @@ export default function KeywordGeneratorPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+        <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
           <Sparkles className="h-8 w-8 text-[#1DB954]" />
           Keyword Generator
         </h1>
-        <p className="text-slate-500 dark:text-slate-400 mt-1">
+        <p className="text-slate-500 mt-1">
           Discover real top and rising keywords for your site, by country, powered by Google Trends.
         </p>
       </div>

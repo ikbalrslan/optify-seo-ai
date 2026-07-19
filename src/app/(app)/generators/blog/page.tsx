@@ -145,8 +145,8 @@ export default function BlogGeneratorPage() {
     return (
         <div className="col-span-4 border-primary/10">
             <div className="space-y-2">
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Blog Post Generator</h1>
-                <p className="text-slate-500 dark:text-slate-400">Generate SEO-optimized blog posts in seconds.</p>
+                <h1 className="text-3xl font-bold text-slate-900">Blog Post Generator</h1>
+                <p className="text-slate-500">Generate SEO-optimized blog posts in seconds.</p>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -156,7 +156,7 @@ export default function BlogGeneratorPage() {
 
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-900 dark:text-slate-200">
+                            <label className="text-sm font-medium text-slate-900">
                                 Primary Keyword <span className="text-red-500">*</span>
                             </label>
                             <Input
@@ -173,7 +173,7 @@ export default function BlogGeneratorPage() {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-900 dark:text-slate-200">
+                                <label className="text-sm font-medium text-slate-900">
                                     Search Intent
                                 </label>
                                 <Select
@@ -194,7 +194,7 @@ export default function BlogGeneratorPage() {
 
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-900 dark:text-slate-200">
+                                <label className="text-sm font-medium text-slate-900">
                                     Tone & Voice <span className="text-red-500">*</span>
                                 </label>
                                 <Input
@@ -209,7 +209,7 @@ export default function BlogGeneratorPage() {
                                 {formErrors.tone && <p className="text-xs text-red-500 font-medium">{formErrors.tone}</p>}
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium text-slate-900 dark:text-slate-200">
+                                <label className="text-sm font-medium text-slate-900">
                                     Approx Word Count ({'>'}300) <span className="text-red-500">*</span>
                                 </label>
                                 <Input
@@ -227,7 +227,7 @@ export default function BlogGeneratorPage() {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-900 dark:text-slate-200">
+                            <label className="text-sm font-medium text-slate-900">
                                 Competitor URLs (Optional)
                             </label>
                             <Textarea
@@ -274,7 +274,7 @@ export default function BlogGeneratorPage() {
                 {/* Output Display */}
                 <div className="space-y-6">
                     {!generatedContent ? (
-                        <div className="h-full min-h-[400px] flex flex-col items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg text-slate-400">
+                        <div className="h-full min-h-[400px] flex flex-col items-center justify-center border-2 border-dashed border-slate-200 rounded-lg text-slate-400">
                             <Wand2 className="h-12 w-12 mb-4 opacity-50" />
                             <p>Generated content will appear here</p>
                         </div>

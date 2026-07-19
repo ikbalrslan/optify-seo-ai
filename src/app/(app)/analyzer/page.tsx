@@ -91,36 +91,36 @@ export default function AnalyzerPage() {
            {/* Lighthouse Scores */}
            {result.lighthouse && (
                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <Card className="bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900">
+                    <Card className="bg-orange-50 border-orange-200">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-orange-700 dark:text-orange-400">Performance</CardTitle>
+                            <CardTitle className="text-sm font-medium text-orange-700">Performance</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold text-orange-700 dark:text-orange-400">{result.lighthouse.performance}</div>
+                            <div className="text-3xl font-bold text-orange-700">{result.lighthouse.performance}</div>
                         </CardContent>
                     </Card>
-                    <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900">
+                    <Card className="bg-blue-50 border-blue-200">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-400">Accessibility</CardTitle>
+                            <CardTitle className="text-sm font-medium text-blue-700">Accessibility</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold text-blue-700 dark:text-blue-400">{result.lighthouse.accessibility}</div>
+                            <div className="text-3xl font-bold text-blue-700">{result.lighthouse.accessibility}</div>
                         </CardContent>
                     </Card>
-                    <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900">
+                    <Card className="bg-green-50 border-green-200">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-green-700 dark:text-green-400">Best Practices</CardTitle>
+                            <CardTitle className="text-sm font-medium text-green-700">Best Practices</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold text-green-700 dark:text-green-400">{result.lighthouse.bestPractices}</div>
+                            <div className="text-3xl font-bold text-green-700">{result.lighthouse.bestPractices}</div>
                         </CardContent>
                     </Card>
-                    <Card className="bg-purple-50 dark:bg-purple-950/20 border-purple-200 dark:border-purple-900">
+                    <Card className="bg-purple-50 border-purple-200">
                         <CardHeader className="pb-2">
-                            <CardTitle className="text-sm font-medium text-purple-700 dark:text-purple-400">SEO</CardTitle>
+                            <CardTitle className="text-sm font-medium text-purple-700">SEO</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-3xl font-bold text-purple-700 dark:text-purple-400">{result.lighthouse.seo}</div>
+                            <div className="text-3xl font-bold text-purple-700">{result.lighthouse.seo}</div>
                         </CardContent>
                     </Card>
                </div>

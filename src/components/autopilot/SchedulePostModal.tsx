@@ -150,13 +150,13 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
 
                 <div className="space-y-4 pt-4">
                     {/* Date Display */}
-                    <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                        <p className="text-sm text-slate-500 dark:text-slate-400">Scheduled for:</p>
-                        <p className="font-medium text-slate-900 dark:text-white">{formatDate(selectedDate)}</p>
+                    <div className="p-3 bg-slate-50 rounded-lg">
+                        <p className="text-sm text-slate-500">Scheduled for:</p>
+                        <p className="font-medium text-slate-900">{formatDate(selectedDate)}</p>
                     </div>
 
                     {error && (
-                        <div className="p-3 text-sm text-red-500 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-100 dark:border-red-900/50">
+                        <div className="p-3 text-sm text-red-500 bg-red-50 rounded-lg border border-red-100">
                             {error}
                         </div>
                     )}
