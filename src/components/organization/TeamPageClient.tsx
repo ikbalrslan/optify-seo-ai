@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import { Loader2, UserPlus, Copy, X, Check } from "lucide-react";
+import { Loader2, UserPlus, Copy, X, Check, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -21,6 +21,7 @@ import {
     updateMemberRole,
     removeMember,
 } from "@/actions/organizations";
+import { CreateOrganizationDialog } from "@/components/organization/CreateOrganizationDialog";
 // Type-only import: erased at compile time, so this never pulls src/lib/org.ts's
 // server-only code (auth()/prisma) into the client bundle.
 import type { OrgRole } from "@/lib/org";
@@ -47,6 +48,8 @@ export default function TeamPageClient({
     const [inviteError, setInviteError] = useState("");
     const [isInviting, setIsInviting] = useState(false);
     const [copiedToken, setCopiedToken] = useState<string | null>(null);
+
+    const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
 
     const load = useCallback(async () => {
         setIsLoading(true);
@@ -145,12 +148,18 @@ export default function TeamPageClient({
                     <h2 className="text-lg font-semibold text-slate-900">{organizationName}</h2>
                     <p className="text-sm text-slate-500">Manage your team's members and invites</p>
                 </div>
-                {canManage && (
-                    <Button onClick={() => setIsInviteOpen(true)}>
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        Invite Member
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" onClick={() => setIsCreateOrgOpen(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        New Organization
                     </Button>
-                )}
+                    {canManage && (
+                        <Button onClick={() => setIsInviteOpen(true)}>
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            Invite Member
+                        </Button>
+                    )}
+                </div>
             </div>
 
             <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
@@ -306,6 +315,12 @@ export default function TeamPageClient({
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <CreateOrganizationDialog
+                open={isCreateOrgOpen}
+                onOpenChange={setIsCreateOrgOpen}
+                description={`Use this to keep a separate client or project fully apart from ${organizationName} - its own team, sites, and billing. You'll be its owner and it becomes your active organization.`}
+            />
         </div>
     );
 }
