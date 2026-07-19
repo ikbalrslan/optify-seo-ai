@@ -22,13 +22,9 @@ export function OrgSwitcher({ collapsed }: { collapsed?: boolean }) {
     const [isSwitching, setIsSwitching] = useState(false);
 
     const load = useCallback(async () => {
-        const list = await getMyOrganizations();
-        setOrgs(list);
-        // getActiveOrganization() isn't called here to avoid a second round trip - the first
-        // org in the list is a reasonable default until the user actually switches, since
-        // getMyOrganizations() is already ordered by membership creation date same as the
-        // fallback in getActiveOrganization().
-        setActiveId((prev) => prev ?? list[0]?.id ?? null);
+        const { organizations, activeOrganizationId } = await getMyOrganizations();
+        setOrgs(organizations);
+        setActiveId(activeOrganizationId);
     }, []);
 
     useEffect(() => {

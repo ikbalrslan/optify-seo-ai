@@ -11,20 +11,33 @@ const INVITE_EXPIRY_DAYS = 7;
 export async function getMyOrganizations() {
     const session = await auth();
     if (!session?.user?.id) {
-        return [];
+        return { organizations: [], activeOrganizationId: null };
     }
 
-    const memberships = await prisma.organizationMember.findMany({
-        where: { userId: session.user.id },
-        include: { organization: true },
-        orderBy: { createdAt: "asc" },
-    });
+    const [memberships, user] = await Promise.all([
+        prisma.organizationMember.findMany({
+            where: { userId: session.user.id },
+            include: { organization: true },
+            orderBy: { createdAt: "asc" },
+        }),
+        prisma.user.findUnique({ where: { id: session.user.id }, select: { activeOrganizationId: true } }),
+    ]);
 
-    return memberships.map((m) => ({
-        id: m.organization.id,
-        name: m.organization.name,
-        role: m.role,
-    }));
+    return {
+        organizations: memberships.map((m) => ({
+            id: m.organization.id,
+            name: m.organization.name,
+            role: m.role,
+        })),
+        // Falls back to the first membership, same as getActiveOrganization()'s self-heal, for
+        // a brand-new user whose activeOrganizationId hasn't been set yet - but otherwise this
+        // is the actual persisted value, not a guess. OrgSwitcher used to assume memberships[0]
+        // was always the active org to avoid this second query; that broke the moment
+        // acceptInvite()/switchActiveOrganization() set activeOrganizationId to anything else,
+        // since the switcher would then think the real active org was still unselected and
+        // silently no-op every click on it (handleSwitch bails out when orgId === activeId).
+        activeOrganizationId: user?.activeOrganizationId ?? memberships[0]?.organizationId ?? null,
+    };
 }
 
 export async function switchActiveOrganization(
