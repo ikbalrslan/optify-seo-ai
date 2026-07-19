@@ -59,7 +59,7 @@ export async function register(formData: FormData, redirectTo: string = "/dashbo
             },
         });
 
-        await ensurePersonalOrganization(newUser.id, newUser.name ?? email);
+        await ensurePersonalOrganization(newUser.id, newUser.name ?? email, email);
 
         // Auto sign-in after registration. redirectTo is validated by NextAuth's default
         // redirect callback (no custom one is configured), which only allows same-origin

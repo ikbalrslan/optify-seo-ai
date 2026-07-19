@@ -20,7 +20,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // ensurePersonalOrganization itself, since it never touches the adapter's event system.
         async createUser({ user }) {
             if (user.id) {
-                await ensurePersonalOrganization(user.id, user.name ?? user.email ?? "My");
+                await ensurePersonalOrganization(user.id, user.name ?? user.email ?? "My", user.email);
             }
         },
     },

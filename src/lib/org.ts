@@ -44,11 +44,26 @@ export async function requireOrgRole(
  * the Prisma adapter) and src/actions/register.ts (credentials signup, a direct prisma.user.create
  * that never goes through the adapter's event system) - kept here as one shared helper rather
  * than duplicating the org+membership+activeOrganizationId logic in both places.
+ *
+ * Skips creation when the email has a pending (unaccepted, unexpired) OrganizationInvite -
+ * otherwise a teammate signing up specifically to accept an invite ended up owning a
+ * throwaway solo org in addition to joining the real one, since acceptInvite() (called right
+ * after, once they land back on /invite/[token]) only adds membership, it never removes an
+ * org created here moments earlier.
  */
-export async function ensurePersonalOrganization(userId: string, displayName: string): Promise<void> {
+export async function ensurePersonalOrganization(userId: string, displayName: string, email?: string | null): Promise<void> {
     const existing = await prisma.organizationMember.findFirst({ where: { userId } });
     if (existing) {
         return;
+    }
+
+    if (email) {
+        const pendingInvite = await prisma.organizationInvite.findFirst({
+            where: { email: email.toLowerCase(), acceptedAt: null, expiresAt: { gt: new Date() } },
+        });
+        if (pendingInvite) {
+            return;
+        }
     }
 
     const organization = await prisma.organization.create({
