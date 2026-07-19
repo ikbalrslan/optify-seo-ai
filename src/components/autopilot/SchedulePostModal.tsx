@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Calendar as CalendarIcon } from "lucide-react";
 import { getConnectedSites } from "@/actions/wordpress";
 import { createScheduledPost } from "@/actions/autopilot";
-import { getProjects } from "@/actions/projects";
 import { getKeywordsForProject } from "@/actions/keywords";
 
 const BLOG_TARGET = "BLOG";
@@ -19,9 +18,10 @@ interface SchedulePostModalProps {
     selectedDate: Date | null;
     defaultKeyword?: string;
     onSuccess: () => void;
+    projectId: string;
 }
 
-export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeyword, onSuccess }: SchedulePostModalProps) {
+export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeyword, onSuccess, projectId }: SchedulePostModalProps) {
     const [sites, setSites] = useState<any[]>([]);
     const [isLoadingSites, setIsLoadingSites] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -30,9 +30,8 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
     // Publish target: BLOG_TARGET or a connected site id
     const [publishTarget, setPublishTarget] = useState<string>(BLOG_TARGET);
 
-    // Project/keyword picker (optional - fills the free-text keyword field below)
-    const [projects, setProjects] = useState<any[]>([]);
-    const [selectedProjectId, setSelectedProjectId] = useState("");
+    // Optional keyword picker, scoped to the project this post is being scheduled for -
+    // fills the free-text keyword field below.
     const [projectKeywords, setProjectKeywords] = useState<any[]>([]);
     const [isLoadingKeywords, setIsLoadingKeywords] = useState(false);
 
@@ -49,22 +48,14 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
     useEffect(() => {
         if (isOpen) {
             loadSites();
-            loadProjects();
+            loadProjectKeywords(projectId);
             setError("");
             // Pre-fill keyword if provided
             if (defaultKeyword) {
                 setFormData(prev => ({ ...prev, keyword: defaultKeyword }));
             }
         }
-    }, [isOpen, defaultKeyword]);
-
-    useEffect(() => {
-        if (selectedProjectId) {
-            loadProjectKeywords(selectedProjectId);
-        } else {
-            setProjectKeywords([]);
-        }
-    }, [selectedProjectId]);
+    }, [isOpen, defaultKeyword, projectId]);
 
     const loadSites = async () => {
         setIsLoadingSites(true);
@@ -75,18 +66,6 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
             console.error("Failed to load sites", e);
         } finally {
             setIsLoadingSites(false);
-        }
-    };
-
-    const loadProjects = async () => {
-        try {
-            const data = await getProjects();
-            setProjects(data);
-            if (data.length > 0 && !selectedProjectId) {
-                setSelectedProjectId(data[0].id);
-            }
-        } catch (e) {
-            console.error("Failed to load projects", e);
         }
     };
 
@@ -121,6 +100,7 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
         try {
             const result = await createScheduledPost({
                 ...formData,
+                projectId,
                 connectedSiteId: publishTarget === BLOG_TARGET ? undefined : publishTarget,
                 keywordId: formData.keywordId || undefined,
                 scheduledDate: selectedDate,
@@ -206,35 +186,20 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
                         )}
                     </div>
 
-                    {/* Optional: pick from tracked site's keywords */}
-                    {projects.length > 0 && (
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">Site (for keyword picker)</label>
-                                <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Select site..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {projects.map(p => (
-                                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">Your Keywords</label>
-                                <Select value={formData.keywordId} onValueChange={handlePickKeyword} disabled={isLoadingKeywords || projectKeywords.length === 0}>
-                                    <SelectTrigger>
-                                        <SelectValue placeholder={isLoadingKeywords ? "Loading..." : projectKeywords.length === 0 ? "No keywords yet" : "Pick a keyword..."} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {projectKeywords.map(kw => (
-                                            <SelectItem key={kw.id} value={kw.id}>{kw.keyword}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
+                    {/* Optional: pick from this project's tracked keywords */}
+                    {projectKeywords.length > 0 && (
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">Your Keywords</label>
+                            <Select value={formData.keywordId} onValueChange={handlePickKeyword} disabled={isLoadingKeywords}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder={isLoadingKeywords ? "Loading..." : "Pick a keyword..."} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {projectKeywords.map(kw => (
+                                        <SelectItem key={kw.id} value={kw.id}>{kw.keyword}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     )}
 

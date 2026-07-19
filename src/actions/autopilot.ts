@@ -1,17 +1,19 @@
 "use server";
 
-import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { getActiveOrganization, requireOrgProjectAccess, requireOrgRole } from "@/lib/org";
 import { generateBlogPost, generateBlogContent, type BlogInput } from "@/actions/generate-blog";
 import { decrypt } from "@/lib/encryption";
 import { slugify } from "@/lib/slug";
 import { revalidatePath } from "next/cache";
 
 // Types
-// A scheduled post either targets a connected external site (connectedSiteId set - the site's
-// own `type` field, e.g. WORDPRESS, determines which publish adapter runs) or, when
-// connectedSiteId is omitted, this app's own internal /blog.
+// A scheduled post always belongs to a specific project ("site" - its own Subscription is what
+// per-project autopilot quota is checked against), and either targets a connected external site
+// (connectedSiteId set - the site's own `type` field, e.g. WORDPRESS, determines which publish
+// adapter runs) or, when connectedSiteId is omitted, this app's own internal /blog.
 export type ScheduledPostInput = {
+    projectId: string;
     connectedSiteId?: string;
     keywordId?: string;
     keyword: string;
@@ -44,33 +46,21 @@ export type AutopilotQuota = {
 // LIMIT CHECKING (Backend Only - Source of Truth)
 // ============================================
 
-// Subscription moved from per-User to per-Project (one Stripe Subscription Item per paid
-// site - see prisma/schema.prisma), but ScheduledPost/autopilot actions are still scoped by
-// userId, not by a specific project - that retrofit is a separate, larger piece of work.
-// Interim behavior until then: platform admins get unlimited access (there's no Subscription
-// concept for them anymore), everyone else's effective limit is the most generous plan among
-// their active organization's paid sites. This is intentionally not per-site-accurate yet.
-async function getEffectiveAutopilotLimit(userId: string): Promise<number> {
-    const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { role: true, activeOrganizationId: true },
-    });
-
-    if (user?.role === "ADMIN") return -1;
-    if (!user?.activeOrganizationId) return 0;
-
-    const subscriptions = await prisma.subscription.findMany({
-        where: { organizationId: user.activeOrganizationId, status: "ACTIVE" },
+// Quota is per-project (per-site): each Project has its own Subscription (see
+// prisma/schema.prisma), so its autopilot limit is that Subscription's own
+// plan.autopilotPostsPerMonth - not pooled across the organization's other sites.
+async function getEffectiveAutopilotLimit(projectId: string): Promise<number> {
+    const subscription = await prisma.subscription.findUnique({
+        where: { projectId },
         include: { plan: true },
     });
 
-    if (subscriptions.length === 0) return 0;
-    if (subscriptions.some((s) => s.plan.autopilotPostsPerMonth === -1)) return -1;
-    return Math.max(...subscriptions.map((s) => s.plan.autopilotPostsPerMonth));
+    if (!subscription || subscription.status !== "ACTIVE") return 0;
+    return subscription.plan.autopilotPostsPerMonth;
 }
 
-async function checkAutopilotLimit(userId: string): Promise<{ allowed: boolean; remaining: number; limit: number }> {
-    const limit = await getEffectiveAutopilotLimit(userId);
+async function checkAutopilotLimit(projectId: string): Promise<{ allowed: boolean; remaining: number; limit: number }> {
+    const limit = await getEffectiveAutopilotLimit(projectId);
 
     // -1 = unlimited
     if (limit === -1) return { allowed: true, remaining: -1, limit: -1 };
@@ -84,7 +74,7 @@ async function checkAutopilotLimit(userId: string): Promise<{ allowed: boolean; 
 
     const used = await prisma.scheduledPost.count({
         where: {
-            userId,
+            projectId,
             createdAt: { gte: startOfMonth }
         }
     });
@@ -96,21 +86,29 @@ async function checkAutopilotLimit(userId: string): Promise<{ allowed: boolean; 
     };
 }
 
+// Platform superadmins bypass per-project quota entirely (no Subscription concept applies to
+// them) - checked once by callers before touching checkAutopilotLimit, same bypass that used to
+// live inside the old pooled-limit helper.
+async function isPlatformAdmin(userId: string): Promise<boolean> {
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+    return user?.role === "ADMIN";
+}
+
 // ============================================
 // PUBLIC ACTIONS
 // ============================================
 
 /**
- * Get current user's autopilot quota
+ * Get a project's autopilot quota.
  */
-export async function getAutopilotQuota(): Promise<AutopilotQuota> {
-    const session = await auth();
-    if (!session?.user?.id) {
-        return { used: 0, limit: 0, remaining: 0 };
+export async function getAutopilotQuota(projectId: string): Promise<AutopilotQuota> {
+    const { userId } = await requireOrgProjectAccess(projectId, "MEMBER");
+
+    if (await isPlatformAdmin(userId)) {
+        return { used: 0, limit: -1, remaining: -1 };
     }
 
-    const limit = await getEffectiveAutopilotLimit(session.user.id);
-
+    const limit = await getEffectiveAutopilotLimit(projectId);
     if (limit === -1) {
         return { used: 0, limit: -1, remaining: -1 };
     }
@@ -120,7 +118,7 @@ export async function getAutopilotQuota(): Promise<AutopilotQuota> {
 
     const used = await prisma.scheduledPost.count({
         where: {
-            userId: session.user.id,
+            projectId,
             createdAt: { gte: startOfMonth }
         }
     });
@@ -130,6 +128,46 @@ export async function getAutopilotQuota(): Promise<AutopilotQuota> {
         limit,
         remaining: Math.max(0, limit - used)
     };
+}
+
+/**
+ * Aggregate autopilot quota across every project in the current organization - for the
+ * global sidebar (src/app/(app)/layout.tsx), which has no specific project in view. Quota
+ * itself is per-project (see getAutopilotQuota above); this just sums it up for that one
+ * org-wide display.
+ */
+export async function getOrgAutopilotQuota(): Promise<AutopilotQuota> {
+    const organization = await getActiveOrganization();
+    if (!organization) {
+        return { used: 0, limit: 0, remaining: 0 };
+    }
+    const { userId } = await requireOrgRole(organization.id, "MEMBER");
+
+    if (await isPlatformAdmin(userId)) {
+        return { used: 0, limit: -1, remaining: -1 };
+    }
+
+    const subscriptions = await prisma.subscription.findMany({
+        where: { organizationId: organization.id, status: "ACTIVE" },
+        include: { plan: true },
+    });
+
+    if (subscriptions.some((s) => s.plan.autopilotPostsPerMonth === -1)) {
+        return { used: 0, limit: -1, remaining: -1 };
+    }
+
+    const limit = subscriptions.reduce((sum, s) => sum + s.plan.autopilotPostsPerMonth, 0);
+
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const used = await prisma.scheduledPost.count({
+        where: {
+            project: { organizationId: organization.id },
+            createdAt: { gte: startOfMonth },
+        },
+    });
+
+    return { used, limit, remaining: Math.max(0, limit - used) };
 }
 
 /**
@@ -145,33 +183,35 @@ export async function getAutopilotQuota(): Promise<AutopilotQuota> {
 export async function createScheduledPost(
     input: ScheduledPostInput
 ): Promise<{ success: true; id: string } | { success: false; error: string }> {
-    const session = await auth();
-    if (!session?.user?.id) {
-        return { success: false, error: "Not authenticated" };
+    let userId: string;
+    try {
+        ({ userId } = await requireOrgProjectAccess(input.projectId, "MEMBER"));
+    } catch {
+        return { success: false, error: "Not authorized" };
     }
 
     // Backend limit check - cannot be bypassed
-    const limitCheck = await checkAutopilotLimit(session.user.id);
-    if (!limitCheck.allowed) {
-        return {
-            success: false,
-            error: limitCheck.limit === 0
-                ? "Autopilot is not available on your current plan. Please upgrade."
-                : "Monthly autopilot limit reached. Please upgrade or wait until next month.",
-        };
+    if (!(await isPlatformAdmin(userId))) {
+        const limitCheck = await checkAutopilotLimit(input.projectId);
+        if (!limitCheck.allowed) {
+            return {
+                success: false,
+                error: limitCheck.limit === 0
+                    ? "Autopilot is not available on your current plan. Please upgrade."
+                    : "Monthly autopilot limit reached. Please upgrade or wait until next month.",
+            };
+        }
     }
 
     if (input.connectedSiteId) {
-        // Verify the connected site belongs to this user
+        // Verify the connected site belongs to the same project's organization
+        const project = await prisma.project.findUniqueOrThrow({ where: { id: input.projectId } });
         const site = await prisma.connectedSite.findFirst({
-            where: {
-                id: input.connectedSiteId,
-                userId: session.user.id
-            }
+            where: { id: input.connectedSiteId, organizationId: project.organizationId }
         });
 
         if (!site) {
-            return { success: false, error: "Connected site not found or does not belong to you." };
+            return { success: false, error: "Connected site not found or does not belong to your organization." };
         }
     }
 
@@ -186,7 +226,8 @@ export async function createScheduledPost(
 
     const post = await prisma.scheduledPost.create({
         data: {
-            userId: session.user.id,
+            userId,
+            projectId: input.projectId,
             connectedSiteId: input.connectedSiteId,
             keywordId: input.keywordId,
             keyword: input.keyword,
@@ -205,7 +246,7 @@ export async function createScheduledPost(
 }
 
 /**
- * Quick schedule a keyword to the next available date (one post per day).
+ * Quick schedule a keyword to the next available date (one post per day, per project).
  *
  * Expected/business-logic failures are returned as { success: false, error }
  * rather than thrown: Next.js strips thrown Server Action error messages in
@@ -215,37 +256,44 @@ export async function createScheduledPost(
  * display it.
  */
 export async function quickScheduleKeyword(
-    keyword: string
+    keyword: string,
+    projectId: string
 ): Promise<{ success: true; id: string; scheduledDate: Date } | { success: false; error: string }> {
-    const session = await auth();
-    if (!session?.user?.id) {
-        return { success: false, error: "Not authenticated" };
+    let access: Awaited<ReturnType<typeof requireOrgProjectAccess>>;
+    try {
+        access = await requireOrgProjectAccess(projectId, "MEMBER");
+    } catch {
+        return { success: false, error: "Not authorized" };
     }
+    const { userId, project } = access;
 
     // Check limit
-    const limitCheck = await checkAutopilotLimit(session.user.id);
-    if (!limitCheck.allowed) {
-        return {
-            success: false,
-            error: limitCheck.limit === 0
-                ? "Your plan does not include Autopilot. Upgrade to access this feature."
-                : "You have reached your monthly Autopilot limit.",
-        };
+    if (!(await isPlatformAdmin(userId))) {
+        const limitCheck = await checkAutopilotLimit(projectId);
+        if (!limitCheck.allowed) {
+            return {
+                success: false,
+                error: limitCheck.limit === 0
+                    ? "Your plan does not include Autopilot. Upgrade to access this feature."
+                    : "You have reached your monthly Autopilot limit.",
+            };
+        }
     }
 
-    // Use the user's first connected site if they have one; otherwise this
-    // publishes into the app's own internal blog (connectedSiteId left unset).
-    const site = await prisma.connectedSite.findFirst({
-        where: { userId: session.user.id }
-    });
+    // Use the project's configured autopilot site if set; otherwise the organization's first
+    // connected site; otherwise this publishes into the app's own internal blog.
+    const site = project.autopilotConnectedSiteId
+        ? await prisma.connectedSite.findFirst({ where: { id: project.autopilotConnectedSiteId, organizationId: project.organizationId } })
+        : await prisma.connectedSite.findFirst({ where: { organizationId: project.organizationId } });
 
     // Find the next available date (starting from today)
-    const nextDate = await getNextAvailableDate(session.user.id);
+    const nextDate = await getNextAvailableDate(projectId);
 
     // Create the scheduled post with default settings
     const post = await prisma.scheduledPost.create({
         data: {
-            userId: session.user.id,
+            userId,
+            projectId,
             connectedSiteId: site?.id,
             keyword: keyword,
             intent: "informational",
@@ -264,17 +312,17 @@ export async function quickScheduleKeyword(
 }
 
 /**
- * Find the next available date that has no scheduled posts for this user
+ * Find the next available date that has no scheduled posts for this project
  */
-async function getNextAvailableDate(userId: string): Promise<Date> {
+async function getNextAvailableDate(projectId: string): Promise<Date> {
     // Start from today
     const startDate = new Date();
     startDate.setHours(9, 0, 0, 0); // Set to 9 AM
 
-    // Get all scheduled post dates for this user from today onwards
+    // Get all scheduled post dates for this project from today onwards
     const existingPosts = await prisma.scheduledPost.findMany({
         where: {
-            userId,
+            projectId,
             scheduledDate: { gte: startDate },
             status: "SCHEDULED"
         },
@@ -307,30 +355,24 @@ async function getNextAvailableDate(userId: string): Promise<Date> {
  * Update an existing scheduled post (only if not yet executed)
  */
 export async function updateScheduledPost(id: string, input: Partial<ScheduledPostInput>) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        throw new Error("Not authenticated");
-    }
-
-    const existing = await prisma.scheduledPost.findFirst({
-        where: { id, userId: session.user.id }
-    });
-
+    const existing = await prisma.scheduledPost.findUnique({ where: { id } });
     if (!existing) {
         throw new Error("Scheduled post not found.");
     }
+    await requireOrgProjectAccess(existing.projectId, "MEMBER");
 
     if (existing.status !== "SCHEDULED") {
         throw new Error("Cannot edit a post that has already been processed.");
     }
 
-    // If changing connected site, verify ownership
+    // If changing connected site, verify it belongs to the same organization
     if (input.connectedSiteId && input.connectedSiteId !== existing.connectedSiteId) {
+        const project = await prisma.project.findUniqueOrThrow({ where: { id: existing.projectId } });
         const site = await prisma.connectedSite.findFirst({
-            where: { id: input.connectedSiteId, userId: session.user.id }
+            where: { id: input.connectedSiteId, organizationId: project.organizationId }
         });
         if (!site) {
-            throw new Error("Connected site not found or does not belong to you.");
+            throw new Error("Connected site not found or does not belong to your organization.");
         }
     }
 
@@ -356,18 +398,11 @@ export async function updateScheduledPost(id: string, input: Partial<ScheduledPo
  * Delete a scheduled post
  */
 export async function deleteScheduledPost(id: string) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        throw new Error("Not authenticated");
-    }
-
-    const existing = await prisma.scheduledPost.findFirst({
-        where: { id, userId: session.user.id }
-    });
-
+    const existing = await prisma.scheduledPost.findUnique({ where: { id } });
     if (!existing) {
         throw new Error("Scheduled post not found.");
     }
+    await requireOrgProjectAccess(existing.projectId, "MEMBER");
 
     await prisma.scheduledPost.delete({
         where: { id }
@@ -378,20 +413,17 @@ export async function deleteScheduledPost(id: string) {
 }
 
 /**
- * Get scheduled posts for a specific month/year (calendar view)
+ * Get scheduled posts for a specific project, for a given month/year (calendar view)
  */
-export async function getScheduledPosts(month: number, year: number) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        return [];
-    }
+export async function getScheduledPosts(projectId: string, month: number, year: number) {
+    await requireOrgProjectAccess(projectId, "MEMBER");
 
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
 
     const posts = await prisma.scheduledPost.findMany({
         where: {
-            userId: session.user.id,
+            projectId,
             scheduledDate: {
                 gte: startDate,
                 lte: endDate
@@ -428,13 +460,8 @@ export async function getScheduledPosts(month: number, year: number) {
  * Get a single scheduled post by ID
  */
 export async function getScheduledPostById(id: string) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        throw new Error("Not authenticated");
-    }
-
-    const post = await prisma.scheduledPost.findFirst({
-        where: { id, userId: session.user.id },
+    const post = await prisma.scheduledPost.findUnique({
+        where: { id },
         include: {
             connectedSite: {
                 select: { id: true, name: true, url: true, type: true }
@@ -445,6 +472,7 @@ export async function getScheduledPostById(id: string) {
     if (!post) {
         throw new Error("Scheduled post not found.");
     }
+    await requireOrgProjectAccess(post.projectId, "MEMBER");
 
     return post;
 }
@@ -602,18 +630,11 @@ export async function processDueScheduledPosts() {
  * Retry a failed post
  */
 export async function retryScheduledPost(id: string) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        throw new Error("Not authenticated");
-    }
-
-    const post = await prisma.scheduledPost.findFirst({
-        where: { id, userId: session.user.id }
-    });
-
+    const post = await prisma.scheduledPost.findUnique({ where: { id } });
     if (!post) {
         throw new Error("Scheduled post not found.");
     }
+    await requireOrgProjectAccess(post.projectId, "MEMBER");
 
     if (post.status !== "FAILED") {
         throw new Error("Only failed posts can be retried.");
@@ -642,7 +663,7 @@ const MAX_AUTO_SCHEDULED_PER_PROJECT_PER_RUN = 5; // cap per run even on unlimit
 /**
  * For every project with autopilot enabled: discover this month's rising keywords for its
  * seed keyword, skip ones already scheduled for that project, and auto-create scheduled
- * posts (spaced via getNextAvailableDate) up to the user's remaining monthly quota.
+ * posts (spaced via getNextAvailableDate) up to that project's own remaining monthly quota.
  */
 export async function runAutopilotDiscoveryAndScheduling() {
     const { discoverKeywordsInternal } = await import("@/actions/keyword-discovery");
@@ -660,7 +681,9 @@ export async function runAutopilotDiscoveryAndScheduling() {
 
     for (const project of projects) {
         try {
-            const limitCheck = await checkAutopilotLimit(project.userId);
+            const limitCheck = (await isPlatformAdmin(project.userId))
+                ? { allowed: true, remaining: -1, limit: -1 }
+                : await checkAutopilotLimit(project.id);
             if (!limitCheck.allowed) {
                 console.log(`[Autopilot] Skipping project ${project.id} - quota exhausted`);
                 continue;
@@ -683,7 +706,7 @@ export async function runAutopilotDiscoveryAndScheduling() {
                 .slice(0, slots);
 
             for (const candidate of candidates) {
-                const nextDate = await getNextAvailableDate(project.userId);
+                const nextDate = await getNextAvailableDate(project.id);
                 await prisma.scheduledPost.create({
                     data: {
                         userId: project.userId,
@@ -711,4 +734,3 @@ export async function runAutopilotDiscoveryAndScheduling() {
     revalidatePath("/autopilot");
     return { projectsProcessed: projects.length, scheduled: totalScheduled };
 }
-

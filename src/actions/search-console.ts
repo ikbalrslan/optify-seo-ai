@@ -3,6 +3,7 @@
 import { google } from "googleapis";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { getActiveOrganization } from "@/lib/org";
 
 interface SearchConsoleData {
     date: string;
@@ -19,12 +20,15 @@ export async function getSearchConsoleData(siteUrl?: string): Promise<SearchCons
 
     let targetSiteUrl = siteUrl;
 
-    // If no siteUrl provided, get user's first connected site
+    // If no siteUrl provided, get the organization's first connected site
     if (!targetSiteUrl) {
-        const connectedSite = await prisma.connectedSite.findFirst({
-            where: { userId: session.user.id },
-            orderBy: { createdAt: "desc" }
-        });
+        const organization = await getActiveOrganization();
+        const connectedSite = organization
+            ? await prisma.connectedSite.findFirst({
+                where: { organizationId: organization.id },
+                orderBy: { createdAt: "desc" }
+            })
+            : null;
 
         if (!connectedSite) {
             console.warn("No connected site configured");

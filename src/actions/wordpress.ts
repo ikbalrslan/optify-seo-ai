@@ -1,7 +1,8 @@
 "use server";
 
-import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { auth } from "@/auth";
+import { getActiveOrganization, requireOrgRole } from "@/lib/org";
 import { encrypt, decrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 
@@ -10,9 +11,15 @@ type WordPressCredentials = {
     encryptedAppPassword: string;
 };
 
+// ConnectedSite entities are shared across an organization, same as Project - viewing/publishing
+// is MEMBER-level, but adding/removing a site (structural site management) requires ADMIN.
+
 export async function addWordPressSite(url: string, username: string, appPassword: string) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error("Not authenticated");
+    const organization = await getActiveOrganization();
+    if (!organization) {
+        throw new Error("No active organization");
+    }
+    const { userId } = await requireOrgRole(organization.id, "ADMIN");
 
     // Basic URL validation
     let cleanUrl = url.trim();
@@ -52,7 +59,8 @@ export async function addWordPressSite(url: string, username: string, appPasswor
 
     await prisma.connectedSite.create({
         data: {
-            userId: session.user.id,
+            userId,
+            organizationId: organization.id,
             type: "WORDPRESS",
             name: siteName,
             url: cleanUrl,
@@ -65,11 +73,14 @@ export async function addWordPressSite(url: string, username: string, appPasswor
 }
 
 export async function getConnectedSites() {
-    const session = await auth();
-    if (!session?.user?.id) return [];
+    const organization = await getActiveOrganization();
+    if (!organization) {
+        return [];
+    }
+    await requireOrgRole(organization.id, "MEMBER");
 
     const sites = await prisma.connectedSite.findMany({
-        where: { userId: session.user.id },
+        where: { organizationId: organization.id },
         orderBy: { createdAt: "desc" }
     });
 
@@ -88,26 +99,32 @@ export async function getConnectedSites() {
 }
 
 export async function deleteConnectedSite(id: string) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error("Not authenticated");
+    const organization = await getActiveOrganization();
+    if (!organization) {
+        throw new Error("No active organization");
+    }
+    await requireOrgRole(organization.id, "ADMIN");
 
-    await prisma.connectedSite.delete({
-        where: {
-            id: id,
-            userId: session.user.id
-        }
+    const result = await prisma.connectedSite.deleteMany({
+        where: { id, organizationId: organization.id },
     });
+    if (result.count === 0) {
+        throw new Error("Site not found");
+    }
 
     revalidatePath("/settings");
     return { success: true };
 }
 
 export async function publishToWordPress(siteId: string, postData: { title: string, content: string, meta_description?: string, focus_keyword?: string }) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error("Not authenticated");
+    const organization = await getActiveOrganization();
+    if (!organization) {
+        throw new Error("No active organization");
+    }
+    await requireOrgRole(organization.id, "MEMBER");
 
-    const site = await prisma.connectedSite.findUnique({
-        where: { id: siteId, userId: session.user.id }
+    const site = await prisma.connectedSite.findFirst({
+        where: { id: siteId, organizationId: organization.id }
     });
 
     if (!site) throw new Error("Site not found");
@@ -150,10 +167,15 @@ export async function publishToWordPress(siteId: string, postData: { title: stri
     }
 }
 
-// Get the user's active/selected connected site
+// Get the user's active/selected connected site (a personal UI pointer, like
+// activeConnectedSiteId itself - but the site it resolves to must still belong to the user's
+// current organization, so a stale pointer from a former org can't leak another org's site).
 export async function getActiveConnectedSite() {
     const session = await auth();
     if (!session?.user?.id) return null;
+
+    const organization = await getActiveOrganization();
+    if (!organization) return null;
 
     const user = await prisma.user.findUnique({
         where: { id: session.user.id },
@@ -161,8 +183,8 @@ export async function getActiveConnectedSite() {
     });
 
     if (user?.activeConnectedSiteId) {
-        const site = await prisma.connectedSite.findUnique({
-            where: { id: user.activeConnectedSiteId, userId: session.user.id }
+        const site = await prisma.connectedSite.findFirst({
+            where: { id: user.activeConnectedSiteId, organizationId: organization.id }
         });
         if (site) {
             return {
@@ -175,7 +197,7 @@ export async function getActiveConnectedSite() {
 
     // Fallback to first site if no active site set
     const firstSite = await prisma.connectedSite.findFirst({
-        where: { userId: session.user.id },
+        where: { organizationId: organization.id },
         orderBy: { createdAt: "desc" }
     });
 
@@ -200,9 +222,13 @@ export async function setActiveConnectedSite(siteId: string) {
     const session = await auth();
     if (!session?.user?.id) throw new Error("Not authenticated");
 
-    // Verify the site belongs to the user
-    const site = await prisma.connectedSite.findUnique({
-        where: { id: siteId, userId: session.user.id }
+    const organization = await getActiveOrganization();
+    if (!organization) throw new Error("No active organization");
+    await requireOrgRole(organization.id, "MEMBER");
+
+    // Verify the site belongs to the organization
+    const site = await prisma.connectedSite.findFirst({
+        where: { id: siteId, organizationId: organization.id }
     });
 
     if (!site) throw new Error("Site not found");

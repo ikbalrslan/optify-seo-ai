@@ -1,7 +1,7 @@
 "use server";
 
-import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { requireOrgProjectAccess } from "@/lib/org";
 import { fetchTopRisingQueries } from "@/lib/seo/trends";
 import { createKeyword } from "@/actions/keywords";
 import { revalidatePath } from "next/cache";
@@ -11,18 +11,7 @@ function currentPeriod(): string {
 }
 
 export async function discoverKeywords(projectId: string, seedKeyword: string) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        throw new Error("Not authenticated");
-    }
-
-    const project = await prisma.project.findFirst({
-        where: { id: projectId, userId: session.user.id },
-    });
-    if (!project) {
-        throw new Error("Project not found");
-    }
-
+    const { project } = await requireOrgProjectAccess(projectId, "MEMBER");
     return discoverKeywordsInternal(project, seedKeyword);
 }
 
@@ -93,16 +82,9 @@ async function getSnapshotsForPeriod(projectId: string, seedKeyword: string, per
 }
 
 export async function getKeywordSnapshots(projectId: string, seedKeyword: string) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        return { top: [], rising: [] };
-    }
-
-    // Verify ownership before returning another user's project data
-    const project = await prisma.project.findFirst({
-        where: { id: projectId, userId: session.user.id },
-    });
-    if (!project) {
+    try {
+        await requireOrgProjectAccess(projectId, "MEMBER");
+    } catch {
         return { top: [], rising: [] };
     }
 
@@ -110,17 +92,12 @@ export async function getKeywordSnapshots(projectId: string, seedKeyword: string
 }
 
 export async function promoteSnapshotToKeyword(snapshotId: string) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        throw new Error("Not authenticated");
-    }
-
-    const snapshot = await prisma.keywordSnapshot.findFirst({
-        where: { id: snapshotId, project: { userId: session.user.id } },
-    });
+    const snapshot = await prisma.keywordSnapshot.findUnique({ where: { id: snapshotId } });
     if (!snapshot) {
         throw new Error("Snapshot not found");
     }
+
+    await requireOrgProjectAccess(snapshot.projectId, "MEMBER");
 
     // Rising queries can report growth in the thousands (Google's "Breakout" sentinel is 5000+),
     // which doesn't fit the same 0-100 scale as Top queries' relative popularity - clamp so the

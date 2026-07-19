@@ -1,26 +1,32 @@
 "use server";
 
-import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { getActiveOrganization, requireOrgRole, requireOrgProjectAccess } from "@/lib/org";
 import { revalidatePath } from "next/cache";
 
+// Projects ("sites") are shared across an organization - any MEMBER can see and use them, but
+// creating/renaming/deleting one (structural site management) requires ADMIN, same as
+// ConnectedSite in wordpress.ts.
+
 export async function getProjects() {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const organization = await getActiveOrganization();
+    if (!organization) {
         return [];
     }
+    await requireOrgRole(organization.id, "MEMBER");
 
     return prisma.project.findMany({
-        where: { userId: session.user.id },
+        where: { organizationId: organization.id },
         orderBy: { createdAt: "desc" },
     });
 }
 
 export async function createProject(name: string, domain: string, country: string = "US") {
-    const session = await auth();
-    if (!session?.user?.id) {
-        throw new Error("Not authenticated");
+    const organization = await getActiveOrganization();
+    if (!organization) {
+        throw new Error("No active organization");
     }
+    const { userId } = await requireOrgRole(organization.id, "ADMIN");
 
     if (!name.trim() || !domain.trim()) {
         throw new Error("Name and domain are required");
@@ -28,7 +34,8 @@ export async function createProject(name: string, domain: string, country: strin
 
     const project = await prisma.project.create({
         data: {
-            userId: session.user.id,
+            userId,
+            organizationId: organization.id,
             name: name.trim(),
             domain: domain.trim(),
             country,
@@ -43,17 +50,7 @@ export async function updateProjectAutopilotSettings(
     projectId: string,
     input: { autopilotEnabled: boolean; autopilotSeedKeyword?: string; autopilotConnectedSiteId?: string | null }
 ) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        throw new Error("Not authenticated");
-    }
-
-    const project = await prisma.project.findFirst({
-        where: { id: projectId, userId: session.user.id },
-    });
-    if (!project) {
-        throw new Error("Project not found");
-    }
+    const { project } = await requireOrgProjectAccess(projectId, "ADMIN");
 
     if (input.autopilotEnabled && !input.autopilotSeedKeyword?.trim() && !project.autopilotSeedKeyword) {
         throw new Error("A seed keyword is required to enable autopilot");

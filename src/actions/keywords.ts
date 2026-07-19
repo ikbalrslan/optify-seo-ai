@@ -1,7 +1,7 @@
 "use server";
 
-import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { getActiveOrganization, requireOrgRole, requireOrgProjectAccess } from "@/lib/org";
 import { revalidatePath } from "next/cache";
 
 // Types
@@ -14,10 +14,19 @@ export type KeywordInput = {
     cpc?: number;
 };
 
-async function resolveProjectId(userId: string, projectId?: string): Promise<string> {
-    if (projectId) return projectId;
+// Keyword.projectId is required, and every Project belongs to exactly one organization, so
+// org-scoped access is checked via that relation - no separate organizationId column needed
+// on Keyword itself.
+async function resolveProjectId(organizationId: string, projectId?: string): Promise<string> {
+    if (projectId) {
+        const project = await prisma.project.findFirst({ where: { id: projectId, organizationId } });
+        if (!project) {
+            throw new Error("Project not found");
+        }
+        return project.id;
+    }
 
-    const project = await prisma.project.findFirst({ where: { userId } });
+    const project = await prisma.project.findFirst({ where: { organizationId }, orderBy: { createdAt: "asc" } });
     if (!project) {
         throw new Error("Create a project first before adding keywords");
     }
@@ -25,11 +34,10 @@ async function resolveProjectId(userId: string, projectId?: string): Promise<str
 }
 
 export async function getKeywordsForProject(projectId: string) {
-    const session = await auth();
-    if (!session?.user?.id) return [];
+    await requireOrgProjectAccess(projectId, "MEMBER");
 
     return prisma.keyword.findMany({
-        where: { userId: session.user.id, projectId },
+        where: { projectId },
         orderBy: { createdAt: "desc" },
     });
 }
@@ -54,12 +62,13 @@ export async function getKeywords(
     sortBy: string = "createdAt",
     sortOrder: "asc" | "desc" = "desc"
 ) {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const organization = await getActiveOrganization();
+    if (!organization) {
         return [];
     }
+    await requireOrgRole(organization.id, "MEMBER");
 
-    const where: any = { userId: session.user.id };
+    const where: any = { project: { organizationId: organization.id } };
 
     // Apply filter
     switch (filter) {
@@ -95,19 +104,20 @@ export async function getKeywords(
 // ============================================
 
 export async function getKeywordStats(): Promise<KeywordStats> {
-    const session = await auth();
-    if (!session?.user?.id) {
+    const organization = await getActiveOrganization();
+    if (!organization) {
         return { all: 0, recommended: 0, starred: 0, queued: 0, generated: 0 };
     }
+    await requireOrgRole(organization.id, "MEMBER");
 
-    const userId = session.user.id;
+    const where = { organizationId: organization.id };
 
     const [all, recommended, starred, queued, generated] = await Promise.all([
-        prisma.keyword.count({ where: { userId } }),
-        prisma.keyword.count({ where: { userId, opportunity: "High" } }),
-        prisma.keyword.count({ where: { userId, isStarred: true } }),
-        prisma.keyword.count({ where: { userId, isQueued: true } }),
-        prisma.keyword.count({ where: { userId, isGenerated: true } }),
+        prisma.keyword.count({ where: { project: where } }),
+        prisma.keyword.count({ where: { project: where, opportunity: "High" } }),
+        prisma.keyword.count({ where: { project: where, isStarred: true } }),
+        prisma.keyword.count({ where: { project: where, isQueued: true } }),
+        prisma.keyword.count({ where: { project: where, isGenerated: true } }),
     ]);
 
     return { all, recommended, starred, queued, generated };
@@ -118,16 +128,17 @@ export async function getKeywordStats(): Promise<KeywordStats> {
 // ============================================
 
 export async function createKeyword(input: KeywordInput) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        throw new Error("Not authenticated");
+    const organization = await getActiveOrganization();
+    if (!organization) {
+        throw new Error("No active organization");
     }
+    const { userId } = await requireOrgRole(organization.id, "MEMBER");
 
-    const projectId = await resolveProjectId(session.user.id, input.projectId);
+    const projectId = await resolveProjectId(organization.id, input.projectId);
 
     const keyword = await prisma.keyword.create({
         data: {
-            userId: session.user.id,
+            userId,
             projectId,
             keyword: input.keyword,
             opportunity: input.opportunity || "Medium",
@@ -146,10 +157,11 @@ export async function createKeyword(input: KeywordInput) {
 // ============================================
 
 export async function bulkCreateKeywords(keywords: string[], projectId?: string) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        throw new Error("Not authenticated");
+    const organization = await getActiveOrganization();
+    if (!organization) {
+        throw new Error("No active organization");
     }
+    const { userId } = await requireOrgRole(organization.id, "MEMBER");
 
     // Filter empty strings and duplicates
     const uniqueKeywords = [...new Set(keywords.map(k => k.trim()).filter(k => k))];
@@ -158,8 +170,7 @@ export async function bulkCreateKeywords(keywords: string[], projectId?: string)
         throw new Error("No valid keywords provided");
     }
 
-    const userId = session.user.id;
-    const resolvedProjectId = await resolveProjectId(userId, projectId);
+    const resolvedProjectId = await resolveProjectId(organization.id, projectId);
 
     // Create all keywords
     const created = await prisma.keyword.createMany({
@@ -183,13 +194,14 @@ export async function bulkCreateKeywords(keywords: string[], projectId?: string)
 // ============================================
 
 export async function updateKeyword(id: string, input: Partial<KeywordInput>) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        throw new Error("Not authenticated");
+    const organization = await getActiveOrganization();
+    if (!organization) {
+        throw new Error("No active organization");
     }
+    await requireOrgRole(organization.id, "MEMBER");
 
     const existing = await prisma.keyword.findFirst({
-        where: { id, userId: session.user.id },
+        where: { id, project: { organizationId: organization.id } },
     });
 
     if (!existing) {
@@ -210,13 +222,14 @@ export async function updateKeyword(id: string, input: Partial<KeywordInput>) {
 // ============================================
 
 export async function deleteKeyword(id: string) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        throw new Error("Not authenticated");
+    const organization = await getActiveOrganization();
+    if (!organization) {
+        throw new Error("No active organization");
     }
+    await requireOrgRole(organization.id, "MEMBER");
 
     const existing = await prisma.keyword.findFirst({
-        where: { id, userId: session.user.id },
+        where: { id, project: { organizationId: organization.id } },
     });
 
     if (!existing) {
@@ -234,13 +247,14 @@ export async function deleteKeyword(id: string) {
 // ============================================
 
 export async function toggleStarKeyword(id: string) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        throw new Error("Not authenticated");
+    const organization = await getActiveOrganization();
+    if (!organization) {
+        throw new Error("No active organization");
     }
+    await requireOrgRole(organization.id, "MEMBER");
 
     const existing = await prisma.keyword.findFirst({
-        where: { id, userId: session.user.id },
+        where: { id, project: { organizationId: organization.id } },
     });
 
     if (!existing) {
@@ -261,13 +275,14 @@ export async function toggleStarKeyword(id: string) {
 // ============================================
 
 export async function toggleQueueKeyword(id: string) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        throw new Error("Not authenticated");
+    const organization = await getActiveOrganization();
+    if (!organization) {
+        throw new Error("No active organization");
     }
+    await requireOrgRole(organization.id, "MEMBER");
 
     const existing = await prisma.keyword.findFirst({
-        where: { id, userId: session.user.id },
+        where: { id, project: { organizationId: organization.id } },
     });
 
     if (!existing) {
@@ -288,9 +303,17 @@ export async function toggleQueueKeyword(id: string) {
 // ============================================
 
 export async function markKeywordAsGenerated(id: string) {
-    const session = await auth();
-    if (!session?.user?.id) {
-        throw new Error("Not authenticated");
+    const organization = await getActiveOrganization();
+    if (!organization) {
+        throw new Error("No active organization");
+    }
+    await requireOrgRole(organization.id, "MEMBER");
+
+    const existing = await prisma.keyword.findFirst({
+        where: { id, project: { organizationId: organization.id } },
+    });
+    if (!existing) {
+        throw new Error("Keyword not found");
     }
 
     await prisma.keyword.update({

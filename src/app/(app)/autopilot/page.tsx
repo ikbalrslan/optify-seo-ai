@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Calendar } from "@/components/autopilot/Calendar";
 import { SchedulePostModal } from "@/components/autopilot/SchedulePostModal";
 import { getScheduledPosts, deleteScheduledPost, retryScheduledPost } from "@/actions/autopilot";
+import { getProjects } from "@/actions/projects";
 import { Button } from "@/components/ui/button";
 import {
     CalendarDays,
@@ -21,6 +22,7 @@ import {
     DialogDescription,
     DialogFooter,
 } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 type ScheduledPost = {
     id: string;
@@ -46,6 +48,8 @@ export default function AutopilotPage() {
     const [year, setYear] = useState(now.getFullYear());
     const [posts, setPosts] = useState<ScheduledPost[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+    const [selectedProjectId, setSelectedProjectId] = useState("");
 
     // Modal states
     const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
@@ -57,9 +61,10 @@ export default function AutopilotPage() {
     const [isInitialLoad, setIsInitialLoad] = useState(true);
 
     const loadData = async (showFullLoader = false) => {
+        if (!selectedProjectId) return;
         if (showFullLoader) setIsLoading(true);
         try {
-            const postsData = await getScheduledPosts(month, year);
+            const postsData = await getScheduledPosts(selectedProjectId, month, year);
             setPosts(postsData as ScheduledPost[]);
         } catch (e) {
             console.error("Failed to load data", e);
@@ -69,10 +74,18 @@ export default function AutopilotPage() {
         }
     };
 
+    useEffect(() => {
+        getProjects().then((data) => {
+            setProjects(data);
+            if (data.length > 0) {
+                setSelectedProjectId((prev) => prev || data[0].id);
+            }
+        }).catch((e) => console.error("Failed to load projects", e));
+    }, []);
 
     useEffect(() => {
         loadData(isInitialLoad);
-    }, [month, year]);
+    }, [month, year, selectedProjectId]);
 
     const handleDateClick = (date: Date) => {
         setSelectedDate(date);
@@ -149,14 +162,28 @@ export default function AutopilotPage() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div>
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <CalendarDays className="h-8 w-8 text-[#1DB954]" />
-                    Autopilot
-                </h1>
-                <p className="text-slate-500 dark:text-slate-400 mt-1">
-                    Schedule blog posts to be generated and published automatically.
-                </p>
+            <div className="flex items-start justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <CalendarDays className="h-8 w-8 text-[#1DB954]" />
+                        Autopilot
+                    </h1>
+                    <p className="text-slate-500 dark:text-slate-400 mt-1">
+                        Schedule blog posts to be generated and published automatically.
+                    </p>
+                </div>
+                {projects.length > 1 && (
+                    <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                        <SelectTrigger className="w-[200px]">
+                            <SelectValue placeholder="Select site..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {projects.map((p) => (
+                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                )}
             </div>
 
             {/* Calendar */}
@@ -189,6 +216,7 @@ export default function AutopilotPage() {
                 }}
                 selectedDate={selectedDate}
                 onSuccess={loadData}
+                projectId={selectedProjectId}
             />
 
             {/* Post Detail Modal */}

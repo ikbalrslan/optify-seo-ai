@@ -65,6 +65,21 @@ export async function ensurePersonalOrganization(userId: string, displayName: st
 }
 
 /**
+ * Combines "find the project → resolve its organization → verify the caller's role in that
+ * organization" into one call - reused by every content action (keywords, keyword-discovery,
+ * wordpress, autopilot) that operates on a specific project rather than the org as a whole.
+ */
+export async function requireOrgProjectAccess(projectId: string, minRole: OrgRole = "MEMBER") {
+    const project = await prisma.project.findUnique({ where: { id: projectId } });
+    if (!project) {
+        throw new Error("Not authorized");
+    }
+
+    const { userId, role } = await requireOrgRole(project.organizationId, minRole);
+    return { userId, role, project };
+}
+
+/**
  * Resolves the current user's active organization, self-healing if activeOrganizationId is
  * unset or points at an organization they're no longer a member of (falls back to their first
  * membership and persists it). Returns null if the user has no memberships at all.

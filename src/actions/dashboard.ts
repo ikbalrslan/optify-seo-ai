@@ -1,7 +1,7 @@
 "use server";
 
-import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { getActiveOrganization, requireOrgRole } from "@/lib/org";
 
 export type AutopilotStats = {
     scheduled: number;
@@ -27,16 +27,18 @@ export async function getAutopilotStats(period: StatsPeriod = "month"): Promise<
         }
     }
 
-    const session = await auth();
-    if (!session?.user?.id) {
+    const organization = await getActiveOrganization();
+    if (!organization) {
         return { scheduled: 0, published: 0, failed: 0 };
     }
+    await requireOrgRole(organization.id, "MEMBER");
 
     const now = new Date();
 
-    // Build where clause based on period
-    const whereClause: { userId: string; scheduledDate?: { gte: Date; lte: Date } } = {
-        userId: session.user.id,
+    // Build where clause based on period - aggregated across every project in the org, not
+    // just the current user's own posts.
+    const whereClause: { project: { organizationId: string }; scheduledDate?: { gte: Date; lte: Date } } = {
+        project: { organizationId: organization.id },
     };
 
     if (period === "month") {

@@ -146,9 +146,8 @@ model Project {
   country   String   @default("US") // ISO-2 target market for keyword discovery
   userId    String // Original creator; ownership/access is scoped by organizationId, this is unchanged audit info
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  // Nullable until the backfill migration runs against existing rows, then made required in a follow-up migration
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   analyses  Analysis[]
   keywords  Keyword[]
   keywordSnapshots KeywordSnapshot[]
@@ -215,9 +214,8 @@ model ConnectedSite {
   id        String   @id @default(cuid())
   userId    String // Original creator; ownership/access is scoped by organizationId, this is unchanged audit info
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  // Nullable until the backfill migration runs against existing rows, then made required in a follow-up migration
-  organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   type      String   @default("WORDPRESS") // WORDPRESS today; more site types can be added later
   name      String
   url       String
@@ -262,9 +260,10 @@ model ScheduledPost {
   connectedSite   ConnectedSite? @relation(fields: [connectedSiteId], references: [id], onDelete: Cascade)
   blogPost        BlogPost?
 
-  // Optional links back to the site/keyword this post is for (not required - keyword can still be free text)
-  projectId       String?
-  project         Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  // Every post belongs to a site (its org and per-site autopilot quota are read off this) -
+  // the keyword it's for can still be free text, so keywordId stays optional separately.
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   keywordId       String?
   keywordRef      Keyword? @relation(fields: [keywordId], references: [id], onDelete: SetNull)
 

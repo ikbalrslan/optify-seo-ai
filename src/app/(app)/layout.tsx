@@ -1,5 +1,5 @@
 import { getSubscription } from "@/actions/subscription";
-import { getAutopilotQuota } from "@/actions/autopilot";
+import { getOrgAutopilotQuota } from "@/actions/autopilot";
 import { AppLayoutClient } from "@/components/shared/AppLayoutClient";
 
 export default async function UserLayout({
@@ -10,7 +10,7 @@ export default async function UserLayout({
   // Fetch subscription and quota data server-side
   const [subscription, quota] = await Promise.all([
     getSubscription(),
-    getAutopilotQuota()
+    getOrgAutopilotQuota()
   ]);
 
   return (

@@ -51,6 +51,7 @@ import { Textarea } from "@/components/ui/textarea";
 
 type Keyword = {
   id: string;
+  projectId: string;
   keyword: string;
   opportunity: string;
   difficulty: number;
@@ -163,10 +164,10 @@ export default function KeywordsPage() {
   const [schedulingKeyword, setSchedulingKeyword] = useState<string | null>(null);
   const [scheduleSuccess, setScheduleSuccess] = useState<{ keyword: string; date: Date } | null>(null);
 
-  const handleAddToCalendar = async (keyword: string) => {
+  const handleAddToCalendar = async (keyword: string, projectId: string) => {
     setSchedulingKeyword(keyword);
     try {
-      const result = await quickScheduleKeyword(keyword);
+      const result = await quickScheduleKeyword(keyword, projectId);
       if (!result.success) {
         alert(result.error);
         return;
@@ -409,7 +410,7 @@ export default function KeywordsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleAddToCalendar(kw.keyword)}
+                          onClick={() => handleAddToCalendar(kw.keyword, kw.projectId)}
                           disabled={schedulingKeyword === kw.keyword}
                           className="text-[#1DB954] hover:text-[#1DB954] hover:bg-[#1DB954]/10"
                         >
