@@ -1,9 +1,19 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, CreditCard, X } from "lucide-react";
+import { Loader2, CreditCard, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+    DialogFooter,
+} from "@/components/ui/dialog";
 import { getOrgBillingSummary, getPlan } from "@/actions/billing";
+import { createProject } from "@/actions/projects";
 import {
     createOrgCheckoutSession,
     addSiteToSubscription,
@@ -20,6 +30,7 @@ type Site = {
 
 type Summary = {
     hasPaymentMethod: boolean;
+    callerRole: string;
     sites: Site[];
     activeSiteCount: number;
     discountPercent: number;
@@ -35,6 +46,12 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
     const [isLoading, setIsLoading] = useState(true);
     const [pendingSiteId, setPendingSiteId] = useState<string | null>(null);
     const [isManagingBilling, setIsManagingBilling] = useState(false);
+
+    const [isAddSiteOpen, setIsAddSiteOpen] = useState(false);
+    const [newSiteName, setNewSiteName] = useState("");
+    const [newSiteDomain, setNewSiteDomain] = useState("");
+    const [addSiteError, setAddSiteError] = useState("");
+    const [isAddingSite, setIsAddingSite] = useState(false);
 
     const load = useCallback(async () => {
         setIsLoading(true);
@@ -89,6 +106,22 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
         }
     };
 
+    const handleAddSite = async () => {
+        setAddSiteError("");
+        setIsAddingSite(true);
+        try {
+            await createProject(newSiteName, newSiteDomain);
+            setNewSiteName("");
+            setNewSiteDomain("");
+            setIsAddSiteOpen(false);
+            await load();
+        } catch (e: any) {
+            setAddSiteError(e.message || "Failed to add website");
+        } finally {
+            setIsAddingSite(false);
+        }
+    };
+
     const handleManageBilling = async () => {
         setIsManagingBilling(true);
         try {
@@ -119,13 +152,21 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
                         {summary.discountPercent > 0 && `, with an automatic ${summary.discountPercent}% volume discount applied`}.
                     </p>
                 </div>
-                {summary.hasPaymentMethod && (
-                    <Button variant="outline" onClick={handleManageBilling} disabled={isManagingBilling}>
-                        {isManagingBilling && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                        <CreditCard className="h-4 w-4 mr-2" />
-                        Manage Payment Method
-                    </Button>
-                )}
+                <div className="flex items-center gap-2">
+                    {(summary.callerRole === "ADMIN" || summary.callerRole === "OWNER") && (
+                        <Button variant="outline" onClick={() => setIsAddSiteOpen(true)}>
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Website
+                        </Button>
+                    )}
+                    {summary.hasPaymentMethod && summary.callerRole === "OWNER" && (
+                        <Button variant="outline" onClick={handleManageBilling} disabled={isManagingBilling}>
+                            {isManagingBilling && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                            <CreditCard className="h-4 w-4 mr-2" />
+                            Manage Payment Method
+                        </Button>
+                    )}
+                </div>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -173,7 +214,9 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
                                                 : "Not subscribed"}
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        {site.plan ? (
+                                        {summary.callerRole !== "OWNER" ? (
+                                            <span className="text-xs text-slate-400">Owner only</span>
+                                        ) : site.plan ? (
                                             <Button
                                                 variant="ghost"
                                                 size="sm"
@@ -197,6 +240,38 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
                     </table>
                 </div>
             </div>
+
+            <Dialog open={isAddSiteOpen} onOpenChange={setIsAddSiteOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Add a website</DialogTitle>
+                        <DialogDescription>
+                            Creates a new site under this organization. It'll show up below as "Not subscribed" until
+                            you click Subscribe.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3 py-2">
+                        <Input
+                            placeholder="Site name"
+                            value={newSiteName}
+                            onChange={(e) => setNewSiteName(e.target.value)}
+                        />
+                        <Input
+                            placeholder="example.com"
+                            value={newSiteDomain}
+                            onChange={(e) => setNewSiteDomain(e.target.value)}
+                        />
+                        {addSiteError && <p className="text-sm text-red-500">{addSiteError}</p>}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsAddSiteOpen(false)}>Cancel</Button>
+                        <Button onClick={handleAddSite} disabled={isAddingSite || !newSiteName.trim() || !newSiteDomain.trim()}>
+                            {isAddingSite && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                            Add Website
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

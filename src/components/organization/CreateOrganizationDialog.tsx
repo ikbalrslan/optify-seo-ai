@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,7 @@ export function CreateOrganizationDialog({
     onOpenChange: (open: boolean) => void;
     description: string;
 }) {
+    const router = useRouter();
     const [name, setName] = useState("");
     const [error, setError] = useState("");
     const [isCreating, setIsCreating] = useState(false);
@@ -36,10 +38,12 @@ export function CreateOrganizationDialog({
                 setError(result.error);
                 return;
             }
-            // createOrganization() makes the new org active - reload so the whole app
-            // (sidebar, org-scoped pages, etc.) picks it up, same as OrgSwitcher does
-            // after switching orgs.
-            window.location.reload();
+            // createOrganization() makes the new org active - AppLayoutClient keys the
+            // sidebar+content subtree on organizationId, so this remounts and refetches
+            // everything org-scoped instead of needing a full page reload.
+            router.refresh();
+            setName("");
+            onOpenChange(false);
         } finally {
             setIsCreating(false);
         }

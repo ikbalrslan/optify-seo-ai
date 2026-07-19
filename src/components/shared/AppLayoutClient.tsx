@@ -12,9 +12,10 @@ interface AppLayoutClientProps {
     children: React.ReactNode;
     subscription: { isPro: boolean; planName: string } | null;
     quota: { used: number; limit: number; remaining: number };
+    organizationId: string | null;
 }
 
-export function AppLayoutClient({ children, subscription, quota }: AppLayoutClientProps) {
+export function AppLayoutClient({ children, subscription, quota, organizationId }: AppLayoutClientProps) {
     const [collapsed, setCollapsed] = useState(false);
     const [mounted, setMounted] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -27,7 +28,7 @@ export function AppLayoutClient({ children, subscription, quota }: AppLayoutClie
 
     if (!mounted) {
         return (
-            <div className="h-full relative">
+            <div className="h-full relative" key={organizationId}>
                 <div className="hidden md:flex md:flex-col md:fixed md:inset-y-0 z-50 md:w-56">
                     <Sidebar subscription={subscription} quota={quota} />
                 </div>
@@ -41,7 +42,13 @@ export function AppLayoutClient({ children, subscription, quota }: AppLayoutClie
     }
 
     return (
-        <div className="h-full relative">
+        // Keyed on the active org so router.refresh() after switching/creating an organization
+        // (src/components/shared/OrgSwitcher.tsx, src/components/organization/CreateOrganizationDialog.tsx)
+        // forces a full remount of the sidebar and page content - a soft refresh alone re-runs
+        // server components but doesn't re-trigger the useEffect-driven data fetches that most
+        // org-scoped client pages (keywords, autopilot, generators, OrgSwitcher itself) use, so
+        // without this they'd keep showing the previous organization's data after switching.
+        <div className="h-full relative" key={organizationId}>
             {/* Desktop Sidebar */}
             <div className={cn(
                 "hidden md:flex md:flex-col md:fixed md:inset-y-0 z-50 transition-all duration-300 ease-in-out",

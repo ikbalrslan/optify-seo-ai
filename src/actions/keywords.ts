@@ -60,7 +60,8 @@ export async function getKeywords(
     filter: KeywordFilter = "all",
     search?: string,
     sortBy: string = "createdAt",
-    sortOrder: "asc" | "desc" = "desc"
+    sortOrder: "asc" | "desc" = "desc",
+    projectId?: string
 ) {
     const organization = await getActiveOrganization();
     if (!organization) {
@@ -68,7 +69,9 @@ export async function getKeywords(
     }
     await requireOrgRole(organization.id, "MEMBER");
 
-    const where: any = { project: { organizationId: organization.id } };
+    const where: any = {
+        project: projectId ? { id: projectId, organizationId: organization.id } : { organizationId: organization.id },
+    };
 
     // Apply filter
     switch (filter) {
@@ -103,14 +106,14 @@ export async function getKeywords(
 // GET KEYWORD STATS
 // ============================================
 
-export async function getKeywordStats(): Promise<KeywordStats> {
+export async function getKeywordStats(projectId?: string): Promise<KeywordStats> {
     const organization = await getActiveOrganization();
     if (!organization) {
         return { all: 0, recommended: 0, starred: 0, queued: 0, generated: 0 };
     }
     await requireOrgRole(organization.id, "MEMBER");
 
-    const where = { organizationId: organization.id };
+    const where = projectId ? { id: projectId, organizationId: organization.id } : { organizationId: organization.id };
 
     const [all, recommended, starred, queued, generated] = await Promise.all([
         prisma.keyword.count({ where: { project: where } }),

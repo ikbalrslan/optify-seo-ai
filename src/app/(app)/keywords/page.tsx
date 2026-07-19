@@ -28,6 +28,8 @@ import {
   type KeywordStats,
 } from "@/actions/keywords";
 import { quickScheduleKeyword } from "@/actions/autopilot";
+import { getProjects } from "@/actions/projects";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -68,12 +70,18 @@ type SortConfig = {
   order: "asc" | "desc";
 };
 
+const ALL_SITES = "ALL";
+
 export default function KeywordsPage() {
   const [keywords, setKeywords] = useState<Keyword[]>([]);
   const [stats, setStats] = useState<KeywordStats>({ all: 0, recommended: 0, starred: 0, queued: 0, generated: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [filter, setFilter] = useState<KeywordFilter>("all");
+  const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+  // Defaults to "all sites" (org-wide) - the pre-existing behavior - rather than forcing a
+  // single site like Autopilot does, since keywords are commonly reviewed across the whole org.
+  const [selectedProjectId, setSelectedProjectId] = useState(ALL_SITES);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "createdAt", order: "desc" });
@@ -86,9 +94,10 @@ export default function KeywordsPage() {
   const loadData = useCallback(async (showLoader = false) => {
     if (showLoader) setIsLoading(true);
     try {
+      const projectFilter = selectedProjectId === ALL_SITES ? undefined : selectedProjectId;
       const [keywordsData, statsData] = await Promise.all([
-        getKeywords(filter, debouncedSearch, sortConfig.key, sortConfig.order),
-        getKeywordStats(),
+        getKeywords(filter, debouncedSearch, sortConfig.key, sortConfig.order, projectFilter),
+        getKeywordStats(projectFilter),
       ]);
       setKeywords(keywordsData as Keyword[]);
       setStats(statsData);
@@ -98,12 +107,16 @@ export default function KeywordsPage() {
       setIsLoading(false);
       setIsInitialLoad(false);
     }
-  }, [filter, debouncedSearch, sortConfig]);
+  }, [filter, debouncedSearch, sortConfig, selectedProjectId]);
+
+  useEffect(() => {
+    getProjects().then(setProjects).catch((e) => console.error("Failed to load projects", e));
+  }, []);
 
   // Initial load
   useEffect(() => {
     loadData(isInitialLoad);
-  }, [filter, sortConfig, debouncedSearch]);
+  }, [filter, sortConfig, debouncedSearch, selectedProjectId]);
 
   // Debounced search - only update debouncedSearch after delay
   useEffect(() => {
@@ -187,7 +200,7 @@ export default function KeywordsPage() {
     setIsSubmitting(true);
     try {
       const keywordsArray = bulkKeywords.split("\n").map(k => k.trim()).filter(k => k);
-      await bulkCreateKeywords(keywordsArray);
+      await bulkCreateKeywords(keywordsArray, selectedProjectId === ALL_SITES ? undefined : selectedProjectId);
       setBulkKeywords("");
       setIsAddModalOpen(false);
       loadData();
@@ -233,14 +246,29 @@ export default function KeywordsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
-          <FileText className="h-8 w-8 text-[#1DB954]" />
-          Keywords
-        </h1>
-        <p className="text-slate-500 mt-1">
-          Manage your keywords and articles
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
+            <FileText className="h-8 w-8 text-[#1DB954]" />
+            Keywords
+          </h1>
+          <p className="text-slate-500 mt-1">
+            Manage your keywords and articles
+          </p>
+        </div>
+        {projects.length > 1 && (
+          <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Select site..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_SITES}>All Websites</SelectItem>
+              {projects.map((p) => (
+                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Stats Cards */}

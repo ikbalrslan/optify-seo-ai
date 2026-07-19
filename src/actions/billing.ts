@@ -23,7 +23,7 @@ function discountForSiteCount(count: number): number {
 }
 
 export async function getOrgBillingSummary(organizationId: string) {
-    await requireOrgRole(organizationId, "MEMBER");
+    const { role: callerRole } = await requireOrgRole(organizationId, "MEMBER");
 
     const organization = await prisma.organization.findUniqueOrThrow({
         where: { id: organizationId },
@@ -46,6 +46,7 @@ export async function getOrgBillingSummary(organizationId: string) {
 
     return {
         hasPaymentMethod: !!organization.stripeCustomerId,
+        callerRole,
         sites: projects.map((p) => ({
             id: p.id,
             name: p.name,

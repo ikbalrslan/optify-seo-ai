@@ -79,8 +79,18 @@ export default function AutopilotPage() {
             setProjects(data);
             if (data.length > 0) {
                 setSelectedProjectId((prev) => prev || data[0].id);
+            } else {
+                // No sites yet - loadData()'s effect below never fires a real request (it bails
+                // out while selectedProjectId is empty), so nothing else will ever clear the
+                // loading state. Clear it here instead of leaving the spinner up forever.
+                setIsLoading(false);
+                setIsInitialLoad(false);
             }
-        }).catch((e) => console.error("Failed to load projects", e));
+        }).catch((e) => {
+            console.error("Failed to load projects", e);
+            setIsLoading(false);
+            setIsInitialLoad(false);
+        });
     }, []);
 
     useEffect(() => {
@@ -191,6 +201,14 @@ export default function AutopilotPage() {
                 {isInitialLoad ? (
                     <div className="flex items-center justify-center h-96 bg-white rounded-xl border border-slate-200">
                         <Loader2 className="h-8 w-8 animate-spin text-[#1DB954]" />
+                    </div>
+                ) : projects.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-96 bg-white rounded-xl border border-slate-200 text-center px-4">
+                        <CalendarDays className="h-10 w-10 text-slate-300 mb-3" />
+                        <h3 className="text-lg font-semibold text-slate-900">No websites yet</h3>
+                        <p className="text-slate-500 max-w-sm mt-1">
+                            Add a website to your organization first, then come back here to schedule posts for it.
+                        </p>
                     </div>
                 ) : (
                     <>

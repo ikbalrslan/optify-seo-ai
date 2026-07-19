@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronsUpDown, Check, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,7 @@ import { getMyOrganizations, switchActiveOrganization } from "@/actions/organiza
 type Org = { id: string; name: string; role: string };
 
 export function OrgSwitcher({ collapsed }: { collapsed?: boolean }) {
+    const router = useRouter();
     const [orgs, setOrgs] = useState<Org[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [isSwitching, setIsSwitching] = useState(false);
@@ -44,8 +46,13 @@ export function OrgSwitcher({ collapsed }: { collapsed?: boolean }) {
         try {
             const result = await switchActiveOrganization(orgId);
             if (result.success) {
+                // Optimistic - avoids a flash of the old org while router.refresh() completes.
+                // AppLayoutClient keys its whole sidebar+content subtree on organizationId, so
+                // the refresh below actually remounts this component too (not just a soft
+                // re-render), which re-fetches the org list fresh and re-derives the true
+                // activeId on its own - this just smooths over the gap until then.
                 setActiveId(orgId);
-                window.location.reload();
+                router.refresh();
             }
         } finally {
             setIsSwitching(false);
