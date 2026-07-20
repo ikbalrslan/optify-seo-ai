@@ -206,12 +206,19 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
                                         <div className="font-medium text-slate-900">{site.name}</div>
                                         <div className="text-sm text-slate-500">{site.domain}</div>
                                     </td>
-                                    <td className="px-4 py-3 text-sm text-slate-700">
-                                        {site.plan
-                                            ? `${site.plan.name} ($${site.plan.price}/mo)`
-                                            : plan
-                                                ? `${plan.name} ($${plan.price}/mo)`
-                                                : "Not subscribed"}
+                                    <td className="px-4 py-3 text-sm">
+                                        {site.plan ? (
+                                            <span className="text-slate-700">
+                                                {site.plan.name} (${site.plan.price}/mo)
+                                                {site.plan.status !== "ACTIVE" && (
+                                                    <span className="ml-1.5 text-xs font-medium text-amber-600">({site.plan.status})</span>
+                                                )}
+                                            </span>
+                                        ) : (
+                                            <span className="text-slate-400 italic">
+                                                Not subscribed{plan ? ` ($${plan.price}/mo available)` : ""}
+                                            </span>
+                                        )}
                                     </td>
                                     <td className="px-4 py-3 text-right">
                                         {summary.callerRole !== "OWNER" ? (
