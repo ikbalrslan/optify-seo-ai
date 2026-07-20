@@ -328,7 +328,7 @@ export default function KeywordGeneratorPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={BLOG_TARGET}>optifyseo.ai Blog</SelectItem>
+                      <SelectItem value={BLOG_TARGET}>Internal Blog (no site connected)</SelectItem>
                       {sites.map(site => (
                         <SelectItem key={site.id} value={site.id}>{site.name || site.url}</SelectItem>
                       ))}

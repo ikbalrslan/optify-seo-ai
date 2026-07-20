@@ -180,6 +180,12 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
 
                     {/* Quota / subscription status for this specific website - surfaced up front
                         rather than only failing after Schedule Post is clicked. */}
+                    {!isLoadingQuota && quota?.isPlatformAdminBypass && (
+                        <p className="text-xs text-slate-400 italic">
+                            Testing as platform staff - quota/subscription checks are bypassed for this account.
+                            A real customer without an active subscription would be blocked here.
+                        </p>
+                    )}
                     {!isLoadingQuota && quota && quota.limit === 0 && (
                         <div className="p-3 text-sm text-amber-700 bg-amber-50 rounded-lg border border-amber-200 flex items-start gap-2">
                             <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
@@ -218,7 +224,7 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
                                     <SelectValue placeholder="Select where to publish..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value={BLOG_TARGET}>optifyseo.ai Blog</SelectItem>
+                                    <SelectItem value={BLOG_TARGET}>Internal Blog (no site connected)</SelectItem>
                                     {sites.map(site => (
                                         <SelectItem key={site.id} value={site.id}>
                                             {site.name || site.url}

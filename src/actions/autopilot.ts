@@ -40,6 +40,9 @@ export type AutopilotQuota = {
     used: number;
     limit: number; // -1 = unlimited, 0 = disabled
     remaining: number; // -1 if unlimited
+    isPlatformAdminBypass?: boolean; // true when limit/remaining are -1 because the caller is
+    // platform staff, not because the project genuinely has an unlimited plan - lets the UI
+    // avoid implying a real customer would see the same "no restrictions" result.
 };
 
 // ============================================
@@ -105,7 +108,7 @@ export async function getAutopilotQuota(projectId: string): Promise<AutopilotQuo
     const { userId } = await requireOrgProjectAccess(projectId, "MEMBER");
 
     if (await isPlatformAdmin(userId)) {
-        return { used: 0, limit: -1, remaining: -1 };
+        return { used: 0, limit: -1, remaining: -1, isPlatformAdminBypass: true };
     }
 
     const limit = await getEffectiveAutopilotLimit(projectId);

@@ -256,7 +256,7 @@ export default function AutopilotPage() {
                                 </div>
                                 <div>
                                     <p className="text-slate-500">Site</p>
-                                    <p className="font-medium">{selectedPost.connectedSite?.name ?? "optifyseo.ai Blog"}</p>
+                                    <p className="font-medium">{selectedPost.connectedSite?.name ?? "Internal Blog (no site connected)"}</p>
                                 </div>
                                 <div>
                                     <p className="text-slate-500">Tone</p>
