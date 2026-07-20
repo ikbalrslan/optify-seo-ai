@@ -222,7 +222,7 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
                                     </td>
                                     <td className="px-4 py-3 text-right">
                                         {summary.callerRole !== "OWNER" ? (
-                                            <span className="text-xs text-slate-400">Owner only</span>
+                                            <span className="text-xs text-slate-400">Organization owner only</span>
                                         ) : site.plan ? (
                                             <Button
                                                 variant="ghost"
