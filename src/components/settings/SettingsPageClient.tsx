@@ -254,35 +254,46 @@ export default function SettingsPageClient({ initialSubscription, initialName }:
               </CardContent>
             </Card>
 
-            {/* Subscription Card */}
+            {/* Subscription Card - billing is per-website, so once the org has more than one
+                website, a single "Current Plan" name would misleadingly imply it covers all of
+                them. Switch to a generic per-site summary instead. */}
             <Card className="rounded-xl border-none shadow-xl bg-card/50 backdrop-blur-sm overflow-hidden">
               <CardHeader className="pb-4 pt-4 px-6 flex flex-row items-center justify-between">
                 <CardTitle className="text-lg font-bold text-foreground">Subscription</CardTitle>
-                {subscription?.isPro && (
+                {subscription?.isPro && subscription.totalSiteCount <= 1 && (
                   <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold uppercase tracking-wide">
                     Active
                   </span>
                 )}
               </CardHeader>
               <CardContent className="px-6 pb-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Current Plan</p>
-                    <div className="text-2xl font-bold text-foreground">
-                      {subscription ? subscription.planName : "Loading..."}
+                {subscription && subscription.totalSiteCount > 1 ? (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">Websites Subscribed</p>
+                      <div className="text-2xl font-bold text-foreground">
+                        {subscription.siteCount ?? 0} / {subscription.totalSiteCount}
+                      </div>
                     </div>
+                    <Button asChild className="bg-[#1DB954] hover:bg-[#1ed760] text-white font-bold shadow-md">
+                      <Link href="/organization/billing">Manage Billing</Link>
+                    </Button>
                   </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">Current Plan</p>
+                      <div className="text-2xl font-bold text-foreground">
+                        {subscription ? subscription.planName : "Loading..."}
+                      </div>
+                    </div>
 
-                  <Button asChild className="bg-[#1DB954] hover:bg-[#1ed760] text-white font-bold shadow-md">
-                    <Link href="/organization/billing">
-                      {subscription?.isPro ? "Manage Plan" : "Upgrade Plan"}
-                    </Link>
-                  </Button>
-                </div>
-                {subscription?.isPro && subscription.siteCount > 1 && (
-                  <p className="text-sm text-muted-foreground mt-2">
-                    Showing your organization's top plan across {subscription.siteCount} paid site{subscription.siteCount === 1 ? "" : "s"} - see the billing page for the full breakdown.
-                  </p>
+                    <Button asChild className="bg-[#1DB954] hover:bg-[#1ed760] text-white font-bold shadow-md">
+                      <Link href="/organization/billing">
+                        {subscription?.isPro ? "Manage Plan" : "Upgrade Plan"}
+                      </Link>
+                    </Button>
+                  </div>
                 )}
               </CardContent>
             </Card>

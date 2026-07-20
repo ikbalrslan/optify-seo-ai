@@ -3,11 +3,12 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 
-// Subscription is per-Project now (one Stripe Subscription Item per paid site), not per-User -
-// this is a stopgap that summarizes the user's active organization's subscriptions into the
-// simple {isPro, planName} shape src/components/shared/Sidebar.tsx and the settings page
-// already expect. A proper per-site breakdown lives on the org billing page instead
-// (src/app/(app)/organization/billing) once that's built.
+// Subscription is per-Project (one Stripe Subscription Item per paid site), not per-org or
+// per-user - this summarizes the active organization's subscriptions into the simple
+// {isPro, planName} shape src/components/shared/Sidebar.tsx's "Pro" badge still just needs.
+// totalSiteCount lets callers (the settings page) tell "every website is covered" apart from
+// "only some are" instead of implying a single planName applies org-wide - a real per-site
+// breakdown lives on the org billing page (src/app/(app)/organization/billing).
 export async function getSubscription() {
     const session = await auth();
 
@@ -21,17 +22,20 @@ export async function getSubscription() {
     });
 
     if (!user?.activeOrganizationId) {
-        return { planName: "Free", status: "active", isPro: false };
+        return { planName: "Free", status: "active", isPro: false, totalSiteCount: 0 };
     }
 
-    const subscriptions = await prisma.subscription.findMany({
-        where: { organizationId: user.activeOrganizationId, status: "ACTIVE" },
-        include: { plan: true },
-        orderBy: { plan: { price: "desc" } },
-    });
+    const [subscriptions, totalSiteCount] = await Promise.all([
+        prisma.subscription.findMany({
+            where: { organizationId: user.activeOrganizationId, status: "ACTIVE" },
+            include: { plan: true },
+            orderBy: { plan: { price: "desc" } },
+        }),
+        prisma.project.count({ where: { organizationId: user.activeOrganizationId } }),
+    ]);
 
     if (subscriptions.length === 0) {
-        return { planName: "Free", status: "active", isPro: false };
+        return { planName: "Free", status: "active", isPro: false, totalSiteCount };
     }
 
     const best = subscriptions[0];
@@ -40,5 +44,6 @@ export async function getSubscription() {
         status: best.status,
         isPro: true,
         siteCount: subscriptions.length,
+        totalSiteCount,
     };
 }
