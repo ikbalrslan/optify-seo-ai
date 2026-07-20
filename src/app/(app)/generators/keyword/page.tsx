@@ -82,8 +82,17 @@ export default function KeywordGeneratorPage() {
 
   useEffect(() => {
     loadProjects();
-    getConnectedSites().then(setSites).catch(e => console.error("Failed to load sites", e));
   }, [loadProjects]);
+
+  // Connected sites are per-project now - reload whenever the selected project changes so the
+  // autopilot target picker only ever offers sites that actually belong to it.
+  useEffect(() => {
+    if (!selectedProjectId) {
+      setSites([]);
+      return;
+    }
+    getConnectedSites(selectedProjectId).then(setSites).catch(e => console.error("Failed to load sites", e));
+  }, [selectedProjectId]);
 
   // Sync the autopilot panel whenever the selected project changes
   useEffect(() => {

@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Calendar as CalendarIcon } from "lucide-react";
+import { Loader2, Calendar as CalendarIcon, AlertTriangle } from "lucide-react";
 import { getConnectedSites } from "@/actions/wordpress";
-import { createScheduledPost } from "@/actions/autopilot";
+import { createScheduledPost, getAutopilotQuota, type AutopilotQuota } from "@/actions/autopilot";
 import { getKeywordsForProject } from "@/actions/keywords";
 
 const BLOG_TARGET = "BLOG";
@@ -35,6 +36,9 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
     const [projectKeywords, setProjectKeywords] = useState<any[]>([]);
     const [isLoadingKeywords, setIsLoadingKeywords] = useState(false);
 
+    const [quota, setQuota] = useState<AutopilotQuota | null>(null);
+    const [isLoadingQuota, setIsLoadingQuota] = useState(false);
+
     const [formData, setFormData] = useState({
         keywordId: "",
         keyword: "",
@@ -47,8 +51,9 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
 
     useEffect(() => {
         if (isOpen) {
-            loadSites();
+            loadSites(projectId);
             loadProjectKeywords(projectId);
+            loadQuota(projectId);
             setError("");
             // Pre-fill keyword if provided
             if (defaultKeyword) {
@@ -57,15 +62,27 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
         }
     }, [isOpen, defaultKeyword, projectId]);
 
-    const loadSites = async () => {
+    const loadSites = async (projectId: string) => {
         setIsLoadingSites(true);
         try {
-            const data = await getConnectedSites();
+            const data = await getConnectedSites(projectId);
             setSites(data);
         } catch (e) {
             console.error("Failed to load sites", e);
         } finally {
             setIsLoadingSites(false);
+        }
+    };
+
+    const loadQuota = async (projectId: string) => {
+        setIsLoadingQuota(true);
+        try {
+            const data = await getAutopilotQuota(projectId);
+            setQuota(data);
+        } catch (e) {
+            console.error("Failed to load quota", e);
+        } finally {
+            setIsLoadingQuota(false);
         }
     };
 
@@ -159,6 +176,32 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
                         <div className="p-3 text-sm text-red-500 bg-red-50 rounded-lg border border-red-100">
                             {error}
                         </div>
+                    )}
+
+                    {/* Quota / subscription status for this specific website - surfaced up front
+                        rather than only failing after Schedule Post is clicked. */}
+                    {!isLoadingQuota && quota && quota.limit === 0 && (
+                        <div className="p-3 text-sm text-amber-700 bg-amber-50 rounded-lg border border-amber-200 flex items-start gap-2">
+                            <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                            <span>
+                                This website has no active autopilot subscription.{" "}
+                                <Link href="/organization/billing" className="underline font-medium">
+                                    Subscribe in Billing
+                                </Link>{" "}
+                                to enable scheduling.
+                            </span>
+                        </div>
+                    )}
+                    {!isLoadingQuota && quota && quota.limit !== -1 && quota.limit !== 0 && quota.remaining <= 0 && (
+                        <div className="p-3 text-sm text-amber-700 bg-amber-50 rounded-lg border border-amber-200 flex items-start gap-2">
+                            <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                            <span>Monthly autopilot limit reached ({quota.used}/{quota.limit} used this month). Upgrade or wait until next month.</span>
+                        </div>
+                    )}
+                    {!isLoadingQuota && quota && quota.limit !== -1 && quota.limit !== 0 && quota.remaining > 0 && (
+                        <p className="text-xs text-slate-500">
+                            {quota.used} of {quota.limit} posts used this month for this website.
+                        </p>
                     )}
 
                     {/* Publish Target */}
@@ -293,7 +336,7 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
                     {/* Submit Button */}
                     <Button
                         onClick={handleSubmit}
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || (!!quota && quota.limit !== -1 && (quota.limit === 0 || quota.remaining <= 0))}
                         className="w-full bg-[#1DB954] hover:bg-[#1aa34a] text-white"
                     >
                         {isSubmitting ? (

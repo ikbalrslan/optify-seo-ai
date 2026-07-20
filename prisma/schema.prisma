@@ -152,6 +152,7 @@ model Project {
   keywords  Keyword[]
   keywordSnapshots KeywordSnapshot[]
   scheduledPosts ScheduledPost[]
+  connectedSites ConnectedSite[]
   subscription Subscription?
 
   // Fully-autonomous monthly discovery + scheduling (Phase 3)
@@ -210,12 +211,17 @@ model Subscription {
   updatedAt                DateTime     @updatedAt
 }
 
+// Strictly one-to-one with a Project: a WordPress (or future site type) connection belongs to
+// exactly one website. Publishing the same install for a second website means connecting it
+// again there - no sharing of a single ConnectedSite across multiple Projects.
 model ConnectedSite {
   id        String   @id @default(cuid())
   userId    String // Original creator; ownership/access is scoped by organizationId, this is unchanged audit info
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   type      String   @default("WORDPRESS") // WORDPRESS today; more site types can be added later
   name      String
   url       String

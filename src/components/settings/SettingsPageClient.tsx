@@ -12,6 +12,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ProfileUpdatedPopup } from "@/components/shared/ProfileUpdatedPopup";
 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ErrorPopup } from "@/components/shared/ErrorPopup";
 import { SuccessPopup } from "@/components/shared/SuccessPopup";
 import { Download, Plus, Globe, Trash2, CheckCircle2 } from "lucide-react";
@@ -23,6 +24,11 @@ interface WPSite {
   url: string;
   username?: string;
   createdAt: Date;
+}
+
+interface WebsiteOption {
+  id: string;
+  name: string;
 }
 
 interface SettingsPageClientProps {
@@ -39,9 +45,11 @@ export default function SettingsPageClient({ initialSubscription, initialName }:
   const [successOpen, setSuccessOpen] = useState(false);
 
 
-  // WordPress Integrations State
+  // WordPress Integrations State - a connected site belongs to exactly one website (Project),
+  // so this whole section is scoped to whichever website is selected below.
+  const [websites, setWebsites] = useState<WebsiteOption[]>([]);
+  const [selectedWebsiteId, setSelectedWebsiteId] = useState("");
   const [sites, setSites] = useState<WPSite[]>([]);
-  const [isDidFetchSites, setIsDidFetchSites] = useState(false);
   const [isAddingSite, setIsAddingSite] = useState(false);
   const [newSiteUrl, setNewSiteUrl] = useState("");
   const [newSiteUser, setNewSiteUser] = useState("");
@@ -53,16 +61,37 @@ export default function SettingsPageClient({ initialSubscription, initialName }:
   const router = useRouter();
 
   // Update local state when session loads
-  // Fetch sites on load
   useEffect(() => {
     if (session?.user?.name) {
       setName(session.user.name);
     }
+  }, [session]);
 
-    if (session?.user?.email && !isDidFetchSites) {
-      loadSites();
+  // Load the org's websites once, default to the first one.
+  useEffect(() => {
+    const loadWebsites = async () => {
+      try {
+        const { getProjects } = await import("@/actions/projects");
+        const data = await getProjects();
+        setWebsites(data);
+        setSelectedWebsiteId((prev) => prev || (data.length > 0 ? data[0].id : ""));
+      } catch (e) {
+        console.error("Failed to load websites", e);
+      }
+    };
+    loadWebsites();
+  }, []);
+
+  // Reload connected sites whenever the selected website changes.
+  useEffect(() => {
+    if (!selectedWebsiteId) {
+      setSites([]);
+      return;
     }
-  }, [session, isDidFetchSites]);
+    loadSites(selectedWebsiteId);
+  }, [selectedWebsiteId]);
+
+  const selectedWebsite = websites.find((w) => w.id === selectedWebsiteId) ?? null;
 
   // Subscription state
   const [subscription, setSubscription] = useState<any>(initialSubscription);
@@ -74,12 +103,11 @@ export default function SettingsPageClient({ initialSubscription, initialName }:
     }
   }, [initialSubscription]);
 
-  const loadSites = async () => {
+  const loadSites = async (projectId: string) => {
     try {
       const { getConnectedSites } = await import("@/actions/wordpress");
-      const data = await getConnectedSites();
+      const data = await getConnectedSites(projectId);
       setSites(data);
-      setIsDidFetchSites(true);
     } catch (e) {
       console.error("Failed to load sites", e);
     }
@@ -104,12 +132,13 @@ export default function SettingsPageClient({ initialSubscription, initialName }:
 
 
   const handleConnectSite = async () => {
+    if (!selectedWebsiteId) return;
     setIsConnecting(true);
     setConnectError("");
     try {
       const { addWordPressSite } = await import("@/actions/wordpress");
-      await addWordPressSite(newSiteUrl, newSiteUser, newSitePwd);
-      await loadSites();
+      await addWordPressSite(selectedWebsiteId, newSiteUrl, newSiteUser, newSitePwd);
+      await loadSites(selectedWebsiteId);
       setConnectOpen(false);
       // Reset form
       setNewSiteUrl("");
@@ -127,7 +156,7 @@ export default function SettingsPageClient({ initialSubscription, initialName }:
     try {
       const { deleteConnectedSite } = await import("@/actions/wordpress");
       await deleteConnectedSite(id);
-      await loadSites();
+      await loadSites(selectedWebsiteId);
     } catch (e) {
       console.error(e);
     }
@@ -313,13 +342,36 @@ export default function SettingsPageClient({ initialSubscription, initialName }:
               </CardHeader>
               <CardContent className="px-6 pb-6">
 
-                {/* Connected Sites List */}
-                <div className="space-y-3 mb-6">
-                  {sites.length === 0 && (
-                    <div className="text-sm text-muted-foreground italic p-4 border border-dashed border-border rounded-lg text-center">
-                      No sites connected. Download the plugin and connect your first site.
-                    </div>
-                  )}
+                {websites.length === 0 ? (
+                  <div className="text-sm text-muted-foreground italic p-4 border border-dashed border-border rounded-lg text-center">
+                    Add a website in <Link href="/organization/billing" className="underline">Billing</Link> before connecting WordPress.
+                  </div>
+                ) : (
+                  <>
+                    {/* A connected site belongs to exactly one website - pick which one this list/connect applies to. */}
+                    {websites.length > 1 && (
+                      <div className="mb-4 space-y-1.5">
+                        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Website</label>
+                        <Select value={selectedWebsiteId} onValueChange={setSelectedWebsiteId}>
+                          <SelectTrigger className="w-full sm:w-[260px]">
+                            <SelectValue placeholder="Select a website..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {websites.map((w) => (
+                              <SelectItem key={w.id} value={w.id}>{w.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {/* Connected Sites List */}
+                    <div className="space-y-3 mb-6">
+                      {sites.length === 0 && (
+                        <div className="text-sm text-muted-foreground italic p-4 border border-dashed border-border rounded-lg text-center">
+                          No sites connected for this website. Download the plugin and connect it below.
+                        </div>
+                      )}
                   {sites.map(site => (
                     <div key={site.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border">
                       <div className="flex items-center gap-3">
@@ -341,16 +393,18 @@ export default function SettingsPageClient({ initialSubscription, initialName }:
                   ))}
                 </div>
 
-                {/* Connect Button */}
-                <Dialog open={connectOpen} onOpenChange={setConnectOpen}>
-                  <DialogTrigger asChild>
-                    <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
-                      <Plus className="h-4 w-4 mr-2" /> Connect New Site
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
+                    {/* Connect Button */}
+                    <Dialog open={connectOpen} onOpenChange={setConnectOpen}>
+                      <DialogTrigger asChild>
+                        <Button className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">
+                          <Plus className="h-4 w-4 mr-2" /> Connect New Site
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Connect WordPress Site</DialogTitle>
+                      <DialogTitle>
+                        Connect WordPress Site{selectedWebsite ? ` for ${selectedWebsite.name}` : ""}
+                      </DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 pt-4">
                       {connectError && (
@@ -394,14 +448,16 @@ export default function SettingsPageClient({ initialSubscription, initialName }:
                         {isConnecting ? "Connecting..." : "Connect Site"}
                       </Button>
                     </div>
-                  </DialogContent>
-                </Dialog>
+                      </DialogContent>
+                    </Dialog>
+                  </>
+                )}
 
               </CardContent>
             </Card>
 
             {/* Google Search Console Card */}
-            <SearchConsoleCard />
+            <SearchConsoleCard websiteId={selectedWebsiteId} />
           </TabsContent>
         </div>
       </Tabs >
@@ -551,13 +607,18 @@ function BacklinkExchangeToggle() {
   );
 }
 
-function SearchConsoleCard() {
+function SearchConsoleCard({ websiteId }: { websiteId: string }) {
   const [consoleSites, setConsoleSites] = useState<string[]>([]);
   const [wpSites, setWpSites] = useState<{ url: string, name: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
+    if (!websiteId) {
+      setWpSites([]);
+      setIsLoading(false);
+      return;
+    }
     const loadData = async () => {
       try {
         // Load Search Console sites
@@ -567,9 +628,9 @@ function SearchConsoleCard() {
         // If we got any response (even empty), the API connection works
         setIsConnected(true);
 
-        // Load WordPress sites
+        // Load WordPress sites - scoped to the selected website, same as the card above.
         const { getConnectedSites } = await import("@/actions/wordpress");
-        const wpData = await getConnectedSites();
+        const wpData = await getConnectedSites(websiteId);
         setWpSites(wpData.map(s => ({ url: s.url, name: s.name })));
       } catch (e: any) {
         console.error("Failed to load sites", e);
@@ -579,7 +640,7 @@ function SearchConsoleCard() {
       }
     };
     loadData();
-  }, []);
+  }, [websiteId]);
 
   // Check if a WordPress site is in Search Console
   const isInSearchConsole = (wpUrl: string) => {

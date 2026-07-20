@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
-import { getActiveOrganization, requireOrgRole } from "@/lib/org";
+import { getActiveOrganization, requireOrgRole, requireOrgProjectAccess } from "@/lib/org";
 import { encrypt, decrypt } from "@/lib/encryption";
 import { revalidatePath } from "next/cache";
 
@@ -11,15 +11,14 @@ type WordPressCredentials = {
     encryptedAppPassword: string;
 };
 
-// ConnectedSite entities are shared across an organization, same as Project - viewing/publishing
-// is MEMBER-level, but adding/removing a site (structural site management) requires ADMIN.
+// ConnectedSite is strictly one-to-one with a Project (a website) - viewing/publishing is
+// MEMBER-level, adding/removing a site (structural site management) requires ADMIN. Functions
+// that take an optional projectId fall back to listing across the whole org, for the couple of
+// call sites (dashboard's OverviewChart, the standalone blog generator) that don't have a
+// specific project selected yet.
 
-export async function addWordPressSite(url: string, username: string, appPassword: string) {
-    const organization = await getActiveOrganization();
-    if (!organization) {
-        throw new Error("No active organization");
-    }
-    const { userId } = await requireOrgRole(organization.id, "ADMIN");
+export async function addWordPressSite(projectId: string, url: string, username: string, appPassword: string) {
+    const { userId, project } = await requireOrgProjectAccess(projectId, "ADMIN");
 
     // Basic URL validation
     let cleanUrl = url.trim();
@@ -60,7 +59,8 @@ export async function addWordPressSite(url: string, username: string, appPasswor
     await prisma.connectedSite.create({
         data: {
             userId,
-            organizationId: organization.id,
+            organizationId: project.organizationId,
+            projectId,
             type: "WORDPRESS",
             name: siteName,
             url: cleanUrl,
@@ -69,18 +69,26 @@ export async function addWordPressSite(url: string, username: string, appPasswor
     });
 
     revalidatePath("/settings");
+    revalidatePath("/organization/billing");
     return { success: true };
 }
 
-export async function getConnectedSites() {
-    const organization = await getActiveOrganization();
-    if (!organization) {
-        return [];
+export async function getConnectedSites(projectId?: string) {
+    let organizationId: string;
+    if (projectId) {
+        const { project } = await requireOrgProjectAccess(projectId, "MEMBER");
+        organizationId = project.organizationId;
+    } else {
+        const organization = await getActiveOrganization();
+        if (!organization) {
+            return [];
+        }
+        await requireOrgRole(organization.id, "MEMBER");
+        organizationId = organization.id;
     }
-    await requireOrgRole(organization.id, "MEMBER");
 
     const sites = await prisma.connectedSite.findMany({
-        where: { organizationId: organization.id },
+        where: projectId ? { projectId } : { organizationId },
         orderBy: { createdAt: "desc" }
     });
 
@@ -99,35 +107,24 @@ export async function getConnectedSites() {
 }
 
 export async function deleteConnectedSite(id: string) {
-    const organization = await getActiveOrganization();
-    if (!organization) {
-        throw new Error("No active organization");
-    }
-    await requireOrgRole(organization.id, "ADMIN");
-
-    const result = await prisma.connectedSite.deleteMany({
-        where: { id, organizationId: organization.id },
-    });
-    if (result.count === 0) {
+    const site = await prisma.connectedSite.findUnique({ where: { id } });
+    if (!site) {
         throw new Error("Site not found");
     }
+    await requireOrgProjectAccess(site.projectId, "ADMIN");
+
+    await prisma.connectedSite.delete({ where: { id } });
 
     revalidatePath("/settings");
+    revalidatePath("/organization/billing");
     return { success: true };
 }
 
 export async function publishToWordPress(siteId: string, postData: { title: string, content: string, meta_description?: string, focus_keyword?: string }) {
-    const organization = await getActiveOrganization();
-    if (!organization) {
-        throw new Error("No active organization");
-    }
-    await requireOrgRole(organization.id, "MEMBER");
-
-    const site = await prisma.connectedSite.findFirst({
-        where: { id: siteId, organizationId: organization.id }
-    });
-
+    const site = await prisma.connectedSite.findUnique({ where: { id: siteId } });
     if (!site) throw new Error("Site not found");
+    await requireOrgProjectAccess(site.projectId, "MEMBER");
+
     if (site.type !== "WORDPRESS") throw new Error(`Unsupported site type for this action: ${site.type}`);
 
     const creds = JSON.parse(site.credentials) as WordPressCredentials;
@@ -168,14 +165,22 @@ export async function publishToWordPress(siteId: string, postData: { title: stri
 }
 
 // Get the user's active/selected connected site (a personal UI pointer, like
-// activeConnectedSiteId itself - but the site it resolves to must still belong to the user's
-// current organization, so a stale pointer from a former org can't leak another org's site).
-export async function getActiveConnectedSite() {
+// activeConnectedSiteId itself). Without a projectId, resolves across the whole org (used by
+// dashboard's OverviewChart, which has no project selector yet) - the site it resolves to must
+// still belong to the user's current organization, so a stale pointer from a former org can't
+// leak another org's site. With a projectId, restricts both the stored pointer's validity and
+// the fallback to that project's own connected sites.
+export async function getActiveConnectedSite(projectId?: string) {
     const session = await auth();
     if (!session?.user?.id) return null;
 
     const organization = await getActiveOrganization();
     if (!organization) return null;
+    if (projectId) {
+        await requireOrgProjectAccess(projectId, "MEMBER");
+    }
+
+    const scopeWhere = projectId ? { projectId } : { organizationId: organization.id };
 
     const user = await prisma.user.findUnique({
         where: { id: session.user.id },
@@ -184,7 +189,7 @@ export async function getActiveConnectedSite() {
 
     if (user?.activeConnectedSiteId) {
         const site = await prisma.connectedSite.findFirst({
-            where: { id: user.activeConnectedSiteId, organizationId: organization.id }
+            where: { id: user.activeConnectedSiteId, ...scopeWhere }
         });
         if (site) {
             return {
@@ -195,9 +200,9 @@ export async function getActiveConnectedSite() {
         }
     }
 
-    // Fallback to first site if no active site set
+    // Fallback to first site if no active site set (or the stored one is out of scope)
     const firstSite = await prisma.connectedSite.findFirst({
-        where: { organizationId: organization.id },
+        where: scopeWhere,
         orderBy: { createdAt: "desc" }
     });
 
@@ -219,22 +224,12 @@ export async function getActiveConnectedSite() {
 
 // Set the user's active/selected connected site
 export async function setActiveConnectedSite(siteId: string) {
-    const session = await auth();
-    if (!session?.user?.id) throw new Error("Not authenticated");
-
-    const organization = await getActiveOrganization();
-    if (!organization) throw new Error("No active organization");
-    await requireOrgRole(organization.id, "MEMBER");
-
-    // Verify the site belongs to the organization
-    const site = await prisma.connectedSite.findFirst({
-        where: { id: siteId, organizationId: organization.id }
-    });
-
+    const site = await prisma.connectedSite.findUnique({ where: { id: siteId } });
     if (!site) throw new Error("Site not found");
+    const { userId } = await requireOrgProjectAccess(site.projectId, "MEMBER");
 
     await prisma.user.update({
-        where: { id: session.user.id },
+        where: { id: userId },
         data: { activeConnectedSiteId: siteId }
     });
 
