@@ -79,15 +79,18 @@ export async function updateProjectAutopilotSettings(
 export async function deleteProject(projectId: string): Promise<{ success: true } | { success: false; error: string }> {
     const { project } = await requireOrgProjectAccess(projectId, "ADMIN");
 
+    // A CANCELED row here means nothing left to cancel on Stripe's side - only an ACTIVE
+    // subscription needs the OWNER escalation and the actual cancellation call.
     const subscription = await prisma.subscription.findUnique({ where: { projectId } });
-    if (subscription) {
+    const hasActiveSubscription = subscription?.status === "ACTIVE";
+    if (hasActiveSubscription) {
         await requireOrgRole(project.organizationId, "OWNER");
         await cancelSiteSubscriptionItem(project.organizationId, projectId);
     }
 
     await prisma.project.delete({ where: { id: projectId } });
 
-    if (subscription) {
+    if (hasActiveSubscription) {
         await recomputeOrgDiscount(project.organizationId);
     }
 

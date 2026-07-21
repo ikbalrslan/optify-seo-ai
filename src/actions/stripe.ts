@@ -47,9 +47,12 @@ export async function createOrgCheckoutSession(
         return { success: false, error: "This organization already has a subscription - use Add Site instead." };
     }
 
+    // A CANCELED row is expected here (re-subscribing a site that was previously removed) -
+    // canceling never deletes the Subscription row, just marks its status, so only an ACTIVE
+    // one should actually block a fresh checkout.
     const existingSub = await prisma.subscription.findUnique({ where: { projectId } });
-    if (existingSub) {
-        return { success: false, error: "This site already has a subscription." };
+    if (existingSub?.status === "ACTIVE") {
+        return { success: false, error: "This site already has an active subscription." };
     }
 
     const plan = await getTheOnlyPlan();
@@ -94,9 +97,11 @@ export async function addSiteToSubscription(
         return { success: false, error: "This organization has no active subscription yet - use checkout for its first site instead." };
     }
 
+    // Same as createOrgCheckoutSession - a CANCELED row here means re-subscribing a previously
+    // removed site, which is expected and fine; only an already-ACTIVE one should block this.
     const existingSub = await prisma.subscription.findUnique({ where: { projectId } });
-    if (existingSub) {
-        return { success: false, error: "This site already has a subscription." };
+    if (existingSub?.status === "ACTIVE") {
+        return { success: false, error: "This site already has an active subscription." };
     }
 
     const plan = await getTheOnlyPlan();
@@ -113,13 +118,22 @@ export async function addSiteToSubscription(
         plan.stripePriceId
     );
 
-    await prisma.subscription.create({
-        data: {
+    // upsert, not create - projectId is unique, and a previously-canceled row (existingSub, if
+    // any) needs to be reactivated in place rather than crashing on that constraint.
+    await prisma.subscription.upsert({
+        where: { projectId },
+        create: {
             organizationId: organization.id,
             projectId: project.id,
             planId: plan.id,
             status: "ACTIVE",
             stripeSubscriptionItemId,
+        },
+        update: {
+            planId: plan.id,
+            status: "ACTIVE",
+            stripeSubscriptionItemId,
+            endDate: null,
         },
     });
 
@@ -139,9 +153,12 @@ export async function removeSiteFromSubscription(
     const { organization } = await getProjectWithOrg(projectId);
     await requireOrgRole(organization.id, "OWNER");
 
+    // Canceling never deletes the row (just marks its status) - checking existence alone would
+    // let this run again on an already-canceled site, decrementing the shared item's quantity
+    // (and the bill) a second time for a site that was already removed.
     const subscription = await prisma.subscription.findUnique({ where: { projectId } });
-    if (!subscription) {
-        return { success: false, error: "This site has no subscription to remove." };
+    if (!subscription || subscription.status !== "ACTIVE") {
+        return { success: false, error: "This site has no active subscription to remove." };
     }
 
     await cancelSiteSubscriptionItem(organization.id, projectId);

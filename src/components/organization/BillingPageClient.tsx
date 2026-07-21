@@ -44,7 +44,7 @@ type Plan = { id: string; name: string; price: number };
 export default function BillingPageClient({ organizationId }: { organizationId: string }) {
     const [summary, setSummary] = useState<Summary | null>(null);
     const [plan, setPlan] = useState<Plan | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isInitialLoad, setIsInitialLoad] = useState(true);
     const [pendingSiteId, setPendingSiteId] = useState<string | null>(null);
     const [isManagingBilling, setIsManagingBilling] = useState(false);
 
@@ -59,8 +59,10 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
     const [deleteError, setDeleteError] = useState("");
     const [isDeletingSite, setIsDeletingSite] = useState(false);
 
+    // isInitialLoad (not a plain isLoading reset on every call) - this runs again after every
+    // action (subscribe/cancel/add/delete), and re-collapsing the whole page to a full-screen
+    // spinner on each one was a jarring flash for what's really just a quiet data refresh.
     const load = useCallback(async () => {
-        setIsLoading(true);
         try {
             const [summaryData, planData] = await Promise.all([
                 getOrgBillingSummary(organizationId),
@@ -69,7 +71,7 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
             setSummary(summaryData);
             setPlan(planData);
         } finally {
-            setIsLoading(false);
+            setIsInitialLoad(false);
         }
     }, [organizationId]);
 
@@ -163,7 +165,7 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
         }
     };
 
-    if (isLoading || !summary) {
+    if (isInitialLoad || !summary) {
         return (
             <div className="flex items-center justify-center min-h-[400px]">
                 <Loader2 className="h-6 w-6 animate-spin text-slate-400" />
@@ -253,7 +255,7 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
                                         <div className="flex items-center justify-end gap-2">
                                             {summary.callerRole !== "OWNER" ? (
                                                 <span className="text-xs text-slate-400">Organization owner only</span>
-                                            ) : site.plan ? (
+                                            ) : site.plan?.status === "ACTIVE" ? (
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
