@@ -2,8 +2,7 @@
 
 import { prisma } from "@/lib/db";
 import { getActiveOrganization, requireOrgRole, requireOrgProjectAccess } from "@/lib/org";
-import { stripe } from "@/lib/stripe";
-import { recomputeOrgDiscount } from "@/lib/billing";
+import { recomputeOrgDiscount, cancelSiteSubscriptionItem } from "@/lib/billing";
 import { revalidatePath } from "next/cache";
 
 // Projects ("sites") are shared across an organization - any MEMBER can see and use them, but
@@ -83,11 +82,7 @@ export async function deleteProject(projectId: string): Promise<{ success: true 
     const subscription = await prisma.subscription.findUnique({ where: { projectId } });
     if (subscription) {
         await requireOrgRole(project.organizationId, "OWNER");
-        if (subscription.stripeSubscriptionItemId) {
-            await stripe.subscriptionItems.del(subscription.stripeSubscriptionItemId, {
-                proration_behavior: "create_prorations",
-            });
-        }
+        await cancelSiteSubscriptionItem(project.organizationId, subscription.stripeSubscriptionItemId);
     }
 
     await prisma.project.delete({ where: { id: projectId } });

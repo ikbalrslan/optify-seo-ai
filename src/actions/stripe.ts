@@ -4,7 +4,7 @@ import { stripe } from "@/lib/stripe";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { requireOrgRole } from "@/lib/org";
-import { recomputeOrgDiscount } from "@/lib/billing";
+import { recomputeOrgDiscount, cancelSiteSubscriptionItem } from "@/lib/billing";
 import { redirect } from "next/navigation";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
@@ -135,11 +135,7 @@ export async function removeSiteFromSubscription(
         return { success: false, error: "This site has no subscription to remove." };
     }
 
-    if (subscription.stripeSubscriptionItemId) {
-        await stripe.subscriptionItems.del(subscription.stripeSubscriptionItemId, {
-            proration_behavior: "create_prorations",
-        });
-    }
+    await cancelSiteSubscriptionItem(organization.id, subscription.stripeSubscriptionItemId);
 
     await prisma.subscription.update({
         where: { id: subscription.id },

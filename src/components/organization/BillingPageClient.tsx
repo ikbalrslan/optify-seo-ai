@@ -140,6 +140,11 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
             setDeleteTarget(null);
             setDeleteConfirmName("");
             await load();
+        } catch (e: any) {
+            // requireOrgProjectAccess/requireOrgRole throw rather than return {success:false}
+            // for auth failures - without this, an unauthorized or unexpected error left the
+            // dialog silently stuck with no feedback at all.
+            setDeleteError(e.message || "Failed to delete website");
         } finally {
             setIsDeletingSite(false);
         }

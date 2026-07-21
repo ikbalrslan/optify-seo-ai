@@ -17,6 +17,48 @@ function couponForSiteCount(count: number): string | null {
 }
 
 /**
+ * Cancels a single site's Stripe subscription item - but Stripe refuses to delete the *last*
+ * remaining item on a subscription via subscriptionItems.del ("A subscription must have at
+ * least one active plan..."), so when this is the org's only active item, the whole Stripe
+ * Subscription has to be canceled instead via subscriptions.cancel, with
+ * Organization.stripeSubscriptionId cleared to match (same as the customer.subscription.deleted
+ * webhook already does for an out-of-band cancellation). Shared by removeSiteFromSubscription
+ * (src/actions/stripe.ts) and deleteProject (src/actions/projects.ts), which both hit this.
+ */
+export async function cancelSiteSubscriptionItem(
+    organizationId: string,
+    stripeSubscriptionItemId: string | null
+): Promise<void> {
+    if (!stripeSubscriptionItemId) return;
+
+    const organization = await prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { stripeSubscriptionId: true },
+    });
+    if (!organization?.stripeSubscriptionId) return;
+
+    const otherActiveItems = await prisma.subscription.count({
+        where: {
+            organizationId,
+            status: "ACTIVE",
+            stripeSubscriptionItemId: { not: stripeSubscriptionItemId },
+        },
+    });
+
+    if (otherActiveItems > 0) {
+        await stripe.subscriptionItems.del(stripeSubscriptionItemId, {
+            proration_behavior: "create_prorations",
+        });
+    } else {
+        await stripe.subscriptions.cancel(organization.stripeSubscriptionId);
+        await prisma.organization.update({
+            where: { id: organizationId },
+            data: { stripeSubscriptionId: null },
+        });
+    }
+}
+
+/**
  * Recomputes and applies the org-wide volume discount on its Stripe subscription, based on
  * how many of its sites currently have an active paid Subscription. Call this at the end of
  * every add-site/remove-site action. A no-op if the org has no Stripe subscription yet (i.e.
