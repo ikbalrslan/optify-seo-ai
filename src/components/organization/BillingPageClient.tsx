@@ -256,7 +256,7 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
                                                     className="text-red-500 hover:text-red-600 hover:bg-red-50"
                                                 >
                                                     {pendingSiteId === site.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
-                                                    Remove
+                                                    Cancel Subscription
                                                 </Button>
                                             ) : (
                                                 <Button size="sm" disabled={pendingSiteId === site.id} onClick={() => handleSubscribe(site.id)}>
