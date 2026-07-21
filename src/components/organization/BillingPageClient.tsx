@@ -30,6 +30,7 @@ type Site = {
 
 type Summary = {
     hasPaymentMethod: boolean;
+    hasActiveSubscription: boolean;
     callerRole: string;
     sites: Site[];
     activeSiteCount: number;
@@ -81,7 +82,7 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
 
         setPendingSiteId(siteId);
         try {
-            const result = summary.hasPaymentMethod
+            const result = summary.hasActiveSubscription
                 ? await addSiteToSubscription(siteId)
                 : await createOrgCheckoutSession(siteId);
 

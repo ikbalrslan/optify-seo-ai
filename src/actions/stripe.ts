@@ -61,7 +61,13 @@ export async function createOrgCheckoutSession(
         mode: "subscription",
         line_items: [{ price: plan.stripePriceId, quantity: 1 }],
         metadata: { organizationId: organization.id, projectId: project.id, planId: plan.id },
-        customer_email: session.user.email,
+        // Reuse the org's existing Stripe Customer if one's already on file (e.g. it fully
+        // canceled a previous subscription and is starting a new one) instead of customer_email,
+        // which would spin up a brand new Customer object and orphan the old one's payment
+        // method/invoice history.
+        ...(organization.stripeCustomerId
+            ? { customer: organization.stripeCustomerId }
+            : { customer_email: session.user.email }),
         success_url: `${APP_URL}/organization/billing?success=true`,
         cancel_url: `${APP_URL}/organization/billing?canceled=true`,
     });

@@ -27,7 +27,7 @@ export async function getOrgBillingSummary(organizationId: string) {
 
     const organization = await prisma.organization.findUniqueOrThrow({
         where: { id: organizationId },
-        select: { stripeCustomerId: true },
+        select: { stripeCustomerId: true, stripeSubscriptionId: true },
     });
 
     const projects = await prisma.project.findMany({
@@ -45,7 +45,13 @@ export async function getOrgBillingSummary(organizationId: string) {
     const netTotal = grossTotal * (1 - discountPercent / 100);
 
     return {
+        // hasPaymentMethod (has a Stripe Customer on file) and hasActiveSubscription (has a
+        // live Stripe Subscription to add a site to) are different Stripe objects and can
+        // diverge - a fully-canceled org (its last paid site was removed/deleted) keeps its
+        // Customer but has its Subscription cleared, so it needs createOrgCheckoutSession
+        // again for its next first site, not addSiteToSubscription.
         hasPaymentMethod: !!organization.stripeCustomerId,
+        hasActiveSubscription: !!organization.stripeSubscriptionId,
         callerRole,
         sites: projects.map((p) => ({
             id: p.id,
