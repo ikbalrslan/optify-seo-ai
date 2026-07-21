@@ -4,7 +4,7 @@ import { stripe } from "@/lib/stripe";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { requireOrgRole } from "@/lib/org";
-import { recomputeOrgDiscount, cancelSiteSubscriptionItem } from "@/lib/billing";
+import { recomputeOrgDiscount, cancelSiteSubscriptionItem, addToSharedSubscriptionItem } from "@/lib/billing";
 import { redirect } from "next/navigation";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
@@ -104,11 +104,14 @@ export async function addSiteToSubscription(
         return { success: false, error: "No plan is available yet." };
     }
 
-    const item = await stripe.subscriptionItems.create({
-        subscription: organization.stripeSubscriptionId,
-        price: plan.stripePriceId,
-        quantity: 1,
-    });
+    // Every site shares the one Price (see src/config/plans.ts), and Stripe refuses to add a
+    // second item with a Price that's already on the subscription - so this bumps the existing
+    // shared item's quantity instead of creating a new item.
+    const stripeSubscriptionItemId = await addToSharedSubscriptionItem(
+        organization.id,
+        organization.stripeSubscriptionId,
+        plan.stripePriceId
+    );
 
     await prisma.subscription.create({
         data: {
@@ -116,7 +119,7 @@ export async function addSiteToSubscription(
             projectId: project.id,
             planId: plan.id,
             status: "ACTIVE",
-            stripeSubscriptionItemId: item.id,
+            stripeSubscriptionItemId,
         },
     });
 
@@ -141,7 +144,7 @@ export async function removeSiteFromSubscription(
         return { success: false, error: "This site has no subscription to remove." };
     }
 
-    await cancelSiteSubscriptionItem(organization.id, subscription.stripeSubscriptionItemId);
+    await cancelSiteSubscriptionItem(organization.id, projectId);
 
     await prisma.subscription.update({
         where: { id: subscription.id },

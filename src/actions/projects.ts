@@ -82,7 +82,7 @@ export async function deleteProject(projectId: string): Promise<{ success: true 
     const subscription = await prisma.subscription.findUnique({ where: { projectId } });
     if (subscription) {
         await requireOrgRole(project.organizationId, "OWNER");
-        await cancelSiteSubscriptionItem(project.organizationId, subscription.stripeSubscriptionItemId);
+        await cancelSiteSubscriptionItem(project.organizationId, projectId);
     }
 
     await prisma.project.delete({ where: { id: projectId } });
