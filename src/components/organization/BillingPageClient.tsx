@@ -268,7 +268,7 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
                                                 </Button>
                                             ) : (
                                                 <Button size="sm" disabled={pendingSiteId === site.id} onClick={() => handleSubscribe(site.id)}>
-                                                    {pendingSiteId === site.id && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                                                    {pendingSiteId === site.id ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CreditCard className="h-4 w-4 mr-1" />}
                                                     Subscribe
                                                 </Button>
                                             )}
