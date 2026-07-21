@@ -2,6 +2,8 @@
 
 import { prisma } from "@/lib/db";
 import { getActiveOrganization, requireOrgRole, requireOrgProjectAccess } from "@/lib/org";
+import { stripe } from "@/lib/stripe";
+import { recomputeOrgDiscount } from "@/lib/billing";
 import { revalidatePath } from "next/cache";
 
 // Projects ("sites") are shared across an organization - any MEMBER can see and use them, but
@@ -65,6 +67,36 @@ export async function updateProjectAutopilotSettings(
         },
     });
 
+    revalidatePath("/generators/keyword");
+    return { success: true };
+}
+
+// Deletes a website entirely - not just its subscription (that's removeSiteFromSubscription in
+// stripe.ts, which only cancels billing and keeps the site). Cascades (see schema.prisma) take
+// care of Analysis/Keyword/KeywordSnapshot/ScheduledPost/ConnectedSite/Subscription rows, but a
+// raw prisma.project.delete() would silently drop an active Subscription's DB row without ever
+// canceling the real Stripe subscription item - so if one exists, that has to happen first, and
+// only an OWNER (not just ADMIN) can authorize canceling real billing.
+export async function deleteProject(projectId: string): Promise<{ success: true } | { success: false; error: string }> {
+    const { project } = await requireOrgProjectAccess(projectId, "ADMIN");
+
+    const subscription = await prisma.subscription.findUnique({ where: { projectId } });
+    if (subscription) {
+        await requireOrgRole(project.organizationId, "OWNER");
+        if (subscription.stripeSubscriptionItemId) {
+            await stripe.subscriptionItems.del(subscription.stripeSubscriptionItemId, {
+                proration_behavior: "create_prorations",
+            });
+        }
+    }
+
+    await prisma.project.delete({ where: { id: projectId } });
+
+    if (subscription) {
+        await recomputeOrgDiscount(project.organizationId);
+    }
+
+    revalidatePath("/organization/billing");
     revalidatePath("/generators/keyword");
     return { success: true };
 }

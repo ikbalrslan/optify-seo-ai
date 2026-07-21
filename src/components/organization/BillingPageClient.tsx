@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, CreditCard, X, Plus } from "lucide-react";
+import { Loader2, CreditCard, X, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,7 +13,7 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { getOrgBillingSummary, getPlan } from "@/actions/billing";
-import { createProject } from "@/actions/projects";
+import { createProject, deleteProject } from "@/actions/projects";
 import {
     createOrgCheckoutSession,
     addSiteToSubscription,
@@ -52,6 +52,11 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
     const [newSiteDomain, setNewSiteDomain] = useState("");
     const [addSiteError, setAddSiteError] = useState("");
     const [isAddingSite, setIsAddingSite] = useState(false);
+
+    const [deleteTarget, setDeleteTarget] = useState<Site | null>(null);
+    const [deleteConfirmName, setDeleteConfirmName] = useState("");
+    const [deleteError, setDeleteError] = useState("");
+    const [isDeletingSite, setIsDeletingSite] = useState(false);
 
     const load = useCallback(async () => {
         setIsLoading(true);
@@ -119,6 +124,24 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
             setAddSiteError(e.message || "Failed to add website");
         } finally {
             setIsAddingSite(false);
+        }
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deleteTarget) return;
+        setDeleteError("");
+        setIsDeletingSite(true);
+        try {
+            const result = await deleteProject(deleteTarget.id);
+            if (!result.success) {
+                setDeleteError(result.error);
+                return;
+            }
+            setDeleteTarget(null);
+            setDeleteConfirmName("");
+            await load();
+        } finally {
+            setIsDeletingSite(false);
         }
     };
 
@@ -221,25 +244,42 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
                                         )}
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        {summary.callerRole !== "OWNER" ? (
-                                            <span className="text-xs text-slate-400">Organization owner only</span>
-                                        ) : site.plan ? (
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                disabled={pendingSiteId === site.id}
-                                                onClick={() => handleRemove(site.id)}
-                                                className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                                            >
-                                                {pendingSiteId === site.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
-                                                Remove
-                                            </Button>
-                                        ) : (
-                                            <Button size="sm" disabled={pendingSiteId === site.id} onClick={() => handleSubscribe(site.id)}>
-                                                {pendingSiteId === site.id && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-                                                Subscribe
-                                            </Button>
-                                        )}
+                                        <div className="flex items-center justify-end gap-2">
+                                            {summary.callerRole !== "OWNER" ? (
+                                                <span className="text-xs text-slate-400">Organization owner only</span>
+                                            ) : site.plan ? (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    disabled={pendingSiteId === site.id}
+                                                    onClick={() => handleRemove(site.id)}
+                                                    className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                >
+                                                    {pendingSiteId === site.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                                                    Remove
+                                                </Button>
+                                            ) : (
+                                                <Button size="sm" disabled={pendingSiteId === site.id} onClick={() => handleSubscribe(site.id)}>
+                                                    {pendingSiteId === site.id && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                                                    Subscribe
+                                                </Button>
+                                            )}
+                                            {(summary.callerRole === "ADMIN" || summary.callerRole === "OWNER") && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50"
+                                                    onClick={() => {
+                                                        setDeleteTarget(site);
+                                                        setDeleteConfirmName("");
+                                                        setDeleteError("");
+                                                    }}
+                                                    title="Delete website"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
@@ -275,6 +315,40 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
                         <Button onClick={handleAddSite} disabled={isAddingSite || !newSiteName.trim() || !newSiteDomain.trim()}>
                             {isAddingSite && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                             Add Website
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Delete {deleteTarget?.name}</DialogTitle>
+                        <DialogDescription>
+                            This permanently deletes this website, its keywords, scheduled posts, and connected
+                            WordPress site{deleteTarget?.plan ? ", and cancels its subscription" : ""}. This cannot
+                            be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3 py-2">
+                        <label className="text-sm text-slate-600">
+                            Type <span className="font-semibold">{deleteTarget?.name}</span> to confirm:
+                        </label>
+                        <Input
+                            value={deleteConfirmName}
+                            onChange={(e) => setDeleteConfirmName(e.target.value)}
+                        />
+                        {deleteError && <p className="text-sm text-red-500">{deleteError}</p>}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancel</Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleConfirmDelete}
+                            disabled={isDeletingSite || deleteConfirmName !== deleteTarget?.name}
+                        >
+                            {isDeletingSite && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                            Delete Website
                         </Button>
                     </DialogFooter>
                 </DialogContent>
