@@ -45,7 +45,6 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
     const [summary, setSummary] = useState<Summary | null>(null);
     const [plan, setPlan] = useState<Plan | null>(null);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
-    const [pendingSiteId, setPendingSiteId] = useState<string | null>(null);
     const [isManagingBilling, setIsManagingBilling] = useState(false);
 
     const [isAddSiteOpen, setIsAddSiteOpen] = useState(false);
@@ -62,6 +61,10 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
     const [subscribeTarget, setSubscribeTarget] = useState<Site | null>(null);
     const [subscribeError, setSubscribeError] = useState("");
     const [isSubscribing, setIsSubscribing] = useState(false);
+
+    const [cancelTarget, setCancelTarget] = useState<Site | null>(null);
+    const [cancelError, setCancelError] = useState("");
+    const [isCanceling, setIsCanceling] = useState(false);
 
     // isInitialLoad (not a plain isLoading reset on every call) - this runs again after every
     // action (subscribe/cancel/add/delete), and re-collapsing the whole page to a full-screen
@@ -108,17 +111,23 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
         }
     };
 
-    const handleRemove = async (siteId: string) => {
-        setPendingSiteId(siteId);
+    const handleConfirmCancel = async () => {
+        if (!cancelTarget) return;
+
+        setCancelError("");
+        setIsCanceling(true);
         try {
-            const result = await removeSiteFromSubscription(siteId);
+            const result = await removeSiteFromSubscription(cancelTarget.id);
             if (!result.success) {
-                alert(result.error);
+                setCancelError(result.error);
                 return;
             }
+            setCancelTarget(null);
             await load();
+        } catch (e: any) {
+            setCancelError(e.message || "Failed to cancel this site's subscription");
         } finally {
-            setPendingSiteId(null);
+            setIsCanceling(false);
         }
     };
 
@@ -267,11 +276,13 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    disabled={pendingSiteId === site.id}
-                                                    onClick={() => handleRemove(site.id)}
+                                                    onClick={() => {
+                                                        setCancelTarget(site);
+                                                        setCancelError("");
+                                                    }}
                                                     className="text-red-500 hover:text-red-600 hover:bg-red-50"
                                                 >
-                                                    {pendingSiteId === site.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                                                    <X className="h-4 w-4" />
                                                     Cancel Subscription
                                                 </Button>
                                             ) : (
@@ -395,6 +406,29 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
                         <Button onClick={handleConfirmSubscribe} disabled={isSubscribing}>
                             {isSubscribing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                             Confirm Subscribe
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!cancelTarget} onOpenChange={(open) => !open && setCancelTarget(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Cancel subscription for {cancelTarget?.name}?</DialogTitle>
+                        <DialogDescription>
+                            {summary.activeSiteCount <= 1
+                                ? "This is the organization's only paid site right now, so canceling it ends the whole Stripe subscription. You'll receive a prorated credit for the unused remaining days in the current billing cycle."
+                                : "This removes billing for this site and reduces the paid site count by one - the site itself and its data aren't affected, only its subscription. You'll receive a prorated credit for the unused remaining days in the current billing cycle, and your volume discount tier will be recalculated."}
+                        </DialogDescription>
+                    </DialogHeader>
+                    {cancelError && (
+                        <p className="text-sm text-red-500">{cancelError}</p>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setCancelTarget(null)}>Keep Subscription</Button>
+                        <Button variant="destructive" onClick={handleConfirmCancel} disabled={isCanceling}>
+                            {isCanceling && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                            Confirm Cancel
                         </Button>
                     </DialogFooter>
                 </DialogContent>
