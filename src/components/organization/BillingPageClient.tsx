@@ -59,6 +59,10 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
     const [deleteError, setDeleteError] = useState("");
     const [isDeletingSite, setIsDeletingSite] = useState(false);
 
+    const [subscribeTarget, setSubscribeTarget] = useState<Site | null>(null);
+    const [subscribeError, setSubscribeError] = useState("");
+    const [isSubscribing, setIsSubscribing] = useState(false);
+
     // isInitialLoad (not a plain isLoading reset on every call) - this runs again after every
     // action (subscribe/cancel/add/delete), and re-collapsing the whole page to a full-screen
     // spinner on each one was a jarring flash for what's really just a quiet data refresh.
@@ -79,24 +83,28 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
         load();
     }, [load]);
 
-    const handleSubscribe = async (siteId: string) => {
-        if (!summary) return;
+    const handleConfirmSubscribe = async () => {
+        if (!summary || !subscribeTarget) return;
 
-        setPendingSiteId(siteId);
+        setSubscribeError("");
+        setIsSubscribing(true);
         try {
             const result = summary.hasActiveSubscription
-                ? await addSiteToSubscription(siteId)
-                : await createOrgCheckoutSession(siteId);
+                ? await addSiteToSubscription(subscribeTarget.id)
+                : await createOrgCheckoutSession(subscribeTarget.id);
 
             // createOrgCheckoutSession redirects on success and never returns - if we get a
             // result back at all, it's the {success:false, error} failure shape.
             if (result && !result.success) {
-                alert(result.error);
+                setSubscribeError(result.error);
                 return;
             }
+            setSubscribeTarget(null);
             await load();
+        } catch (e: any) {
+            setSubscribeError(e.message || "Failed to subscribe this website");
         } finally {
-            setPendingSiteId(null);
+            setIsSubscribing(false);
         }
     };
 
@@ -267,8 +275,14 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
                                                     Cancel Subscription
                                                 </Button>
                                             ) : (
-                                                <Button size="sm" disabled={pendingSiteId === site.id} onClick={() => handleSubscribe(site.id)}>
-                                                    {pendingSiteId === site.id ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <CreditCard className="h-4 w-4 mr-1" />}
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => {
+                                                        setSubscribeTarget(site);
+                                                        setSubscribeError("");
+                                                    }}
+                                                >
+                                                    <CreditCard className="h-4 w-4 mr-1" />
                                                     Subscribe
                                                 </Button>
                                             )}
@@ -357,6 +371,30 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
                         >
                             {isDeletingSite && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                             Delete Website
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!subscribeTarget} onOpenChange={(open) => !open && setSubscribeTarget(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Subscribe {subscribeTarget?.name}?</DialogTitle>
+                        <DialogDescription>
+                            {plan && `This adds $${plan.price}/mo to this organization's monthly invoice. `}
+                            {summary.hasActiveSubscription
+                                ? "Since your organization already has an active subscription, this bills immediately as a prorated charge for the remaining days in the current billing cycle, then the full amount every month after."
+                                : "You'll be redirected to Stripe to complete payment - this is the organization's first paid site."}
+                        </DialogDescription>
+                    </DialogHeader>
+                    {subscribeError && (
+                        <p className="text-sm text-red-500">{subscribeError}</p>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setSubscribeTarget(null)}>Cancel</Button>
+                        <Button onClick={handleConfirmSubscribe} disabled={isSubscribing}>
+                            {isSubscribing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                            Confirm Subscribe
                         </Button>
                     </DialogFooter>
                 </DialogContent>
