@@ -54,7 +54,7 @@ export default function InvitePage({ params }: { params: Promise<{ token: string
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-white px-4 text-center">
-            <CheckCircle2 className="h-12 w-12 text-[#1DB954] mb-4" />
+            <CheckCircle2 className="h-12 w-12 text-[#009E8A] mb-4" />
             <h1 className="text-xl font-semibold text-slate-900 mb-2">Join {preview.organizationName}</h1>
             <p className="text-slate-500 mb-1">
                 You've been invited as <span className="font-medium">{preview.role.toLowerCase()}</span>.

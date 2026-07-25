@@ -91,9 +91,9 @@ export function AuthModal({ isOpen, onClose, initialView = "login" }: AuthModalP
                     {/* Logo */}
                     <div className="flex items-center gap-2">
                         <div className="flex items-end gap-[3px]">
-                            <div className="w-1.5 h-5 bg-[#1DB954] rounded-full"></div>
+                            <div className="w-1.5 h-5 bg-[#009E8A] rounded-full"></div>
                             <div className="w-1.5 h-7 bg-[#191414] rounded-full"></div>
-                            <div className="w-1.5 h-3 bg-[#1DB954]/60 rounded-full"></div>
+                            <div className="w-1.5 h-3 bg-[#009E8A]/60 rounded-full"></div>
                         </div>
                     </div>
 
@@ -161,7 +161,7 @@ export function AuthModal({ isOpen, onClose, initialView = "login" }: AuthModalP
                                     type="email"
                                     placeholder="name@example.com"
                                     required
-                                    className="h-11 text-[15px] bg-white border-slate-200 focus:border-[#1DB954] focus:ring-[#1DB954]/20 rounded-xl"
+                                    className="h-11 text-[15px] bg-white border-slate-200 focus:border-[#009E8A] focus:ring-[#009E8A]/20 rounded-xl"
                                 />
                             </div>
                             <div className="space-y-1.5">
@@ -173,7 +173,7 @@ export function AuthModal({ isOpen, onClose, initialView = "login" }: AuthModalP
                                     type="password"
                                     placeholder="••••••••"
                                     required
-                                    className="h-11 text-[15px] bg-white border-slate-200 focus:border-[#1DB954] focus:ring-[#1DB954]/20 rounded-xl"
+                                    className="h-11 text-[15px] bg-white border-slate-200 focus:border-[#009E8A] focus:ring-[#009E8A]/20 rounded-xl"
                                 />
                             </div>
                             <div className="flex justify-center scale-90 origin-center">
@@ -187,7 +187,7 @@ export function AuthModal({ isOpen, onClose, initialView = "login" }: AuthModalP
                             <Button
                                 type="submit"
                                 disabled={isLoading || !captchaToken}
-                                className="w-full h-11 text-[15px] font-semibold bg-[#1DB954] hover:bg-[#1ed760] text-white rounded-xl shadow-lg shadow-green-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full h-11 text-[15px] font-semibold bg-[#009E8A] hover:bg-[#00877A] text-white rounded-xl shadow-lg shadow-[#009E8A]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isLoading ? "Signing in..." : "Sign in with email"}
                             </Button>
@@ -203,7 +203,7 @@ export function AuthModal({ isOpen, onClose, initialView = "login" }: AuthModalP
                                     type="email"
                                     placeholder="name@example.com"
                                     required
-                                    className="h-11 text-[15px] bg-white border-slate-200 focus:border-[#1DB954] focus:ring-[#1DB954]/20 rounded-xl"
+                                    className="h-11 text-[15px] bg-white border-slate-200 focus:border-[#009E8A] focus:ring-[#009E8A]/20 rounded-xl"
                                 />
                             </div>
                             <div className="space-y-1.5">
@@ -216,7 +216,7 @@ export function AuthModal({ isOpen, onClose, initialView = "login" }: AuthModalP
                                     placeholder="••••••••"
                                     required
                                     minLength={6}
-                                    className="h-11 text-[15px] bg-white border-slate-200 focus:border-[#1DB954] focus:ring-[#1DB954]/20 rounded-xl"
+                                    className="h-11 text-[15px] bg-white border-slate-200 focus:border-[#009E8A] focus:ring-[#009E8A]/20 rounded-xl"
                                 />
                             </div>
                             <div className="flex justify-center scale-90 origin-center">
@@ -231,7 +231,7 @@ export function AuthModal({ isOpen, onClose, initialView = "login" }: AuthModalP
                             <Button
                                 type="submit"
                                 disabled={isLoading || !captchaToken}
-                                className="w-full h-11 text-[15px] font-semibold bg-[#1DB954] hover:bg-[#1ed760] text-white rounded-xl shadow-lg shadow-green-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="w-full h-11 text-[15px] font-semibold bg-[#009E8A] hover:bg-[#00877A] text-white rounded-xl shadow-lg shadow-[#009E8A]/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 {isLoading ? "Creating account..." : "Sign up with email"}
                             </Button>
@@ -246,7 +246,7 @@ export function AuthModal({ isOpen, onClose, initialView = "login" }: AuthModalP
                                     Don&apos;t have an account?{" "}
                                     <button
                                         onClick={() => switchView("signup")}
-                                        className="font-semibold text-[#1DB954] hover:underline"
+                                        className="font-semibold text-[#009E8A] hover:underline"
                                     >
                                         Sign up
                                     </button>
@@ -256,7 +256,7 @@ export function AuthModal({ isOpen, onClose, initialView = "login" }: AuthModalP
                                     Already have an account?{" "}
                                     <button
                                         onClick={() => switchView("login")}
-                                        className="font-semibold text-[#1DB954] hover:underline"
+                                        className="font-semibold text-[#009E8A] hover:underline"
                                     >
                                         Log in
                                     </button>

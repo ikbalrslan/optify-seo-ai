@@ -1,6 +1,6 @@
 import { BlogNavbar } from "@/components/blog/BlogNavbar";
 import Link from "next/link";
-import { ArrowLeft, BarChart } from "lucide-react";
+import { ArrowLeft, Sparkles } from "lucide-react";
 import { prisma } from "@/lib/db";
 
 export default async function BlogPostPage({
@@ -16,15 +16,15 @@ export default async function BlogPostPage({
 
     if (!post) {
         return (
-            <div className="min-h-screen bg-white">
+            <div className="min-h-screen bg-[#FAF6EF]">
                 <BlogNavbar />
                 <div className="pt-24 pb-12 px-4">
                     <div className="max-w-3xl mx-auto text-center">
-                        <h1 className="text-4xl font-bold text-gray-900 mb-4">Post Not Found</h1>
-                        <p className="text-gray-600 mb-8">The blog post you're looking for doesn't exist.</p>
+                        <h1 className="text-4xl font-bold text-[#1C1815] mb-4">Post Not Found</h1>
+                        <p className="text-[#6F675A] mb-8">The blog post you're looking for doesn't exist.</p>
                         <Link
                             href="/blog"
-                            className="inline-flex items-center gap-2 text-[#1DB954] hover:underline"
+                            className="inline-flex items-center gap-2 text-[#009E8A] hover:underline"
                         >
                             <ArrowLeft className="w-4 h-4" />
                             Back to Blog
@@ -36,7 +36,7 @@ export default async function BlogPostPage({
     }
 
     return (
-        <div className="min-h-screen bg-white">
+        <div className="min-h-screen bg-[#FAF6EF]">
             <BlogNavbar />
 
             {/* Article Header */}
@@ -44,15 +44,15 @@ export default async function BlogPostPage({
                 <div className="max-w-3xl mx-auto">
                     <Link
                         href="/blog"
-                        className="inline-flex items-center gap-2 text-gray-600 hover:text-[#1DB954] transition-colors mb-8"
+                        className="inline-flex items-center gap-2 text-[#6F675A] hover:text-[#009E8A] transition-colors mb-8"
                     >
                         <ArrowLeft className="w-4 h-4" />
                         Back to Blog
                     </Link>
-                    <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                    <h1 className="text-3xl md:text-4xl font-bold text-[#1C1815] mb-4">
                         {post.title}
                     </h1>
-                    <p className="text-lg text-gray-600">
+                    <p className="text-lg text-[#6F675A]">
                         {post.metaDescription}
                     </p>
                 </div>
@@ -61,30 +61,30 @@ export default async function BlogPostPage({
             {/* Article Content */}
             <article className="px-4 pb-20">
                 <div
-                    className="max-w-3xl mx-auto prose prose-lg prose-gray prose-headings:font-bold prose-headings:text-gray-900 prose-a:text-[#1DB954]"
+                    className="max-w-3xl mx-auto prose prose-lg prose-headings:font-bold prose-headings:text-[#1C1815] prose-p:text-[#3A342C] prose-a:text-[#009E8A]"
                     dangerouslySetInnerHTML={{ __html: post.content }}
                 />
             </article>
 
             {/* Footer */}
-            <footer className="border-t border-gray-100 py-8">
+            <footer className="border-t border-[#E7DFCF] py-8">
                 <div className="max-w-6xl mx-auto px-4">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                         <div className="flex items-center gap-2">
-                            <div className="bg-[#1DB954] p-1.5 rounded-lg">
-                                <BarChart className="w-4 h-4 text-white" />
+                            <div className="bg-[#009E8A] p-1.5 rounded-lg">
+                                <Sparkles className="w-4 h-4 text-white" strokeWidth={1.75} />
                             </div>
-                            <span className="font-semibold text-gray-900">Optify Blog</span>
+                            <span className="font-semibold text-[#1C1815]">Optify Blog</span>
                         </div>
                         <div className="flex items-center gap-6">
-                            <Link href="/" className="text-sm text-gray-600 hover:text-[#1DB954] transition-colors">
+                            <Link href="/" className="text-sm text-[#6F675A] hover:text-[#009E8A] transition-colors">
                                 Home
                             </Link>
-                            <Link href="/blog" className="text-sm text-gray-600 hover:text-[#1DB954] transition-colors">
+                            <Link href="/blog" className="text-sm text-[#6F675A] hover:text-[#009E8A] transition-colors">
                                 Blog
                             </Link>
                         </div>
-                        <p className="text-sm text-gray-500">
+                        <p className="text-sm text-[#9B927F]">
                             © {new Date().getFullYear()} Optify. All Rights Reserved.
                         </p>
                     </div>

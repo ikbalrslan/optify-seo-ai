@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Zap } from "lucide-react";
 import { useState, useEffect } from "react";
 import { AuthModal } from "@/components/auth/AuthModal";
 
@@ -24,28 +24,34 @@ export function Hero() {
     }, []);
 
     return (
-        <section className="relative pt-32 pb-20 md:pt-40 md:pb-32 overflow-hidden">
+        <section className="relative pt-32 pb-20 md:pt-40 md:pb-32 overflow-hidden bg-[#FAF6EF]">
             {/* Grid Background */}
             <div className="absolute inset-0 -z-10">
                 <div
-                    className="absolute inset-0 opacity-40"
+                    className="absolute inset-0 opacity-50"
                     style={{
                         backgroundImage: `
-                            linear-gradient(to right, #e5e7eb 1px, transparent 1px),
-                            linear-gradient(to bottom, #e5e7eb 1px, transparent 1px)
+                            linear-gradient(to right, #EBE2D2 1px, transparent 1px),
+                            linear-gradient(to bottom, #EBE2D2 1px, transparent 1px)
                         `,
                         backgroundSize: '60px 60px'
                     }}
                 />
-                {/* Green Glow Effects */}
-                <div className="absolute top-20 left-10 w-96 h-96 bg-[#1DB954]/20 rounded-full blur-[100px]" />
-                <div className="absolute bottom-20 right-10 w-80 h-80 bg-[#1ed760]/20 rounded-full blur-[100px]" />
+                {/* Warm Glow Effects */}
+                <div className="absolute top-20 left-10 w-96 h-96 bg-[#009E8A]/15 rounded-full blur-[100px]" />
+                <div className="absolute bottom-20 right-10 w-80 h-80 bg-[#C2704A]/15 rounded-full blur-[100px]" />
             </div>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="text-center">
+                    {/* Eyebrow */}
+                    <div className="inline-flex items-center gap-1.5 bg-white border border-[#E7DFCF] rounded-full px-3.5 py-1.5 mb-6 shadow-sm">
+                        <Zap className="w-3.5 h-3.5 text-[#C2704A]" strokeWidth={1.75} />
+                        <span className="text-xs font-semibold text-[#1C1815]">SEO on autopilot, built for founders</span>
+                    </div>
+
                     {/* Headline */}
-                    <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-gray-900 mb-6 max-w-5xl mx-auto leading-tight">
+                    <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-[#1C1815] mb-6 max-w-5xl mx-auto leading-tight">
                         Grow Organic Traffic{" "}
                         <br className="hidden md:block" />
                         <span className="relative inline-flex h-[1.14em] w-auto overflow-hidden align-baseline translate-y-1">
@@ -56,7 +62,7 @@ export function Hero() {
                                 {rotatingKeywords.map((keyword, index) => (
                                     <span
                                         key={index}
-                                        className="bg-gradient-to-r from-[#1DB954] to-[#0fa968] bg-clip-text text-transparent whitespace-nowrap h-[1.14em] flex items-center justify-center"
+                                        className="text-[#009E8A] whitespace-nowrap h-[1.14em] flex items-center justify-center"
                                     >
                                         {keyword}
                                     </span>
@@ -66,7 +72,7 @@ export function Hero() {
                     </h1>
 
                     {/* Subheadline */}
-                    <p className="text-lg md:text-xl text-gray-600 mb-10 max-w-2xl mx-auto leading-relaxed">
+                    <p className="text-lg md:text-xl text-[#6F675A] mb-10 max-w-2xl mx-auto leading-relaxed">
                         Get recommended by ChatGPT & Rank on Google. Get done-for-you
                         Blog Posts, Keywords Research and SEO Tools while you sleep.
                     </p>
@@ -75,7 +81,7 @@ export function Hero() {
                     <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
                         <Button
                             variant="outline"
-                            className="h-12 px-6 text-base font-medium border-gray-300 hover:bg-gray-50 rounded-lg flex items-center gap-2"
+                            className="h-12 px-6 text-base font-medium border-[#E7DFCF] hover:bg-white rounded-full flex items-center gap-2 text-[#1C1815]"
                             onClick={() => setIsAuthModalOpen(true)}
                         >
                             <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -87,7 +93,7 @@ export function Hero() {
                             Join with Google
                         </Button>
                         <Button
-                            className="h-12 px-8 text-base font-medium bg-[#1DB954] hover:bg-[#1ed760] text-white rounded-lg flex items-center gap-2 transition-colors"
+                            className="h-12 px-8 text-base font-medium bg-[#009E8A] hover:bg-[#00877A] text-white rounded-full flex items-center gap-2 transition-colors"
                             onClick={() => setIsAuthModalOpen(true)}
                         >
                             Get Started for Free
@@ -99,7 +105,7 @@ export function Hero() {
                     <div className="flex items-center justify-center gap-4">
                         <div className="flex -space-x-3">
                             {[1, 2, 3, 4, 5].map((i) => (
-                                <div key={i} className="w-10 h-10 rounded-full border-2 border-white bg-gray-200 overflow-hidden shadow-sm">
+                                <div key={i} className="w-10 h-10 rounded-full border-2 border-[#FAF6EF] bg-[#F5EFE4] overflow-hidden shadow-sm">
                                     <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${i + 10}`} alt="User" />
                                 </div>
                             ))}
@@ -107,12 +113,12 @@ export function Hero() {
                         <div className="text-left">
                             <div className="flex items-center gap-1">
                                 {[1, 2, 3, 4, 5].map((star) => (
-                                    <svg key={star} className="w-4 h-4 text-yellow-400 fill-current" viewBox="0 0 20 20">
+                                    <svg key={star} className="w-4 h-4 text-[#C2704A] fill-current" viewBox="0 0 20 20">
                                         <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
                                     </svg>
                                 ))}
                             </div>
-                            <p className="text-sm font-medium text-gray-700">
+                            <p className="text-sm font-medium text-[#1C1815]/80">
                                 <span className="font-bold">50k+</span> Articles Created
                             </p>
                         </div>
@@ -122,20 +128,20 @@ export function Hero() {
                 {/* Floating UI Elements */}
                 < div className="relative mt-16 hidden lg:block" >
                     {/* SEO Content Score Card - Left */}
-                    < div className="absolute -left-4 top-0 bg-white rounded-xl shadow-xl border border-gray-100 p-4 w-48 transform -rotate-6 hover:rotate-0 transition-transform duration-300" >
-                        <p className="text-xs text-gray-500 font-medium mb-2">SEO Content Score</p>
+                    < div className="absolute -left-4 top-0 bg-white rounded-xl shadow-xl border border-[#E7DFCF] p-4 w-48 transform -rotate-6 hover:rotate-0 transition-transform duration-300" >
+                        <p className="text-xs text-[#6F675A] font-medium mb-2">SEO Content Score</p>
                         <div className="flex items-center gap-3">
                             <div className="relative w-14 h-14">
                                 <svg className="w-14 h-14 -rotate-90" viewBox="0 0 36 36">
                                     <path
-                                        className="text-gray-200"
+                                        className="text-[#E7DFCF]"
                                         strokeWidth="3"
                                         stroke="currentColor"
                                         fill="none"
                                         d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                                     />
                                     <path
-                                        className="text-[#1DB954]"
+                                        className="text-[#009E8A]"
                                         strokeWidth="3"
                                         strokeDasharray="97, 100"
                                         strokeLinecap="round"
@@ -144,13 +150,13 @@ export function Hero() {
                                         d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                                     />
                                 </svg>
-                                <span className="absolute inset-0 flex items-center justify-center text-lg font-bold text-gray-900">97%</span>
+                                <span className="absolute inset-0 flex items-center justify-center text-lg font-bold text-[#1C1815]">97%</span>
                             </div>
                             <div>
-                                <p className="text-xs text-gray-500">Excellent</p>
+                                <p className="text-xs text-[#6F675A]">Excellent</p>
                                 <div className="flex gap-0.5 mt-1">
                                     {[1, 2, 3, 4, 5].map((i) => (
-                                        <div key={i} className="w-1.5 h-3 bg-[#1DB954] rounded-full" />
+                                        <div key={i} className="w-1.5 h-3 bg-[#009E8A] rounded-full" />
                                     ))}
                                 </div>
                             </div>
@@ -158,57 +164,57 @@ export function Hero() {
                     </div >
 
                     {/* Power Keywords Card - Left Bottom */}
-                    < div className="absolute left-8 top-40 bg-white rounded-xl shadow-xl border border-gray-100 p-3 transform rotate-3 hover:rotate-0 transition-transform duration-300" >
+                    < div className="absolute left-8 top-40 bg-white rounded-xl shadow-xl border border-[#E7DFCF] p-3 transform rotate-3 hover:rotate-0 transition-transform duration-300" >
                         <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-[#1DB954]/10 rounded-lg flex items-center justify-center">
-                                <svg className="w-4 h-4 text-[#1DB954]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="w-8 h-8 bg-[#009E8A]/10 rounded-lg flex items-center justify-center">
+                                <svg className="w-4 h-4 text-[#009E8A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                 </svg>
                             </div>
-                            <span className="text-sm font-medium text-gray-700">Power Keywords</span>
+                            <span className="text-sm font-medium text-[#1C1815]/80">Power Keywords</span>
                         </div>
                     </div >
 
                     {/* Personal Images Tag - Right Top */}
-                    < div className="absolute right-8 top-0 bg-white rounded-xl shadow-xl border border-gray-100 p-3 transform rotate-6 hover:rotate-0 transition-transform duration-300" >
+                    < div className="absolute right-8 top-0 bg-white rounded-xl shadow-xl border border-[#E7DFCF] p-3 transform rotate-6 hover:rotate-0 transition-transform duration-300" >
                         <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                                <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="w-8 h-8 bg-[#C2704A]/10 rounded-lg flex items-center justify-center">
+                                <svg className="w-4 h-4 text-[#C2704A]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                 </svg>
                             </div>
-                            <span className="text-sm font-medium text-gray-700">Personal Images</span>
+                            <span className="text-sm font-medium text-[#1C1815]/80">Personal Images</span>
                         </div>
                     </div >
 
                     {/* Blog Post Card - Right */}
-                    < div className="absolute -right-4 top-20 bg-white rounded-xl shadow-xl border border-gray-100 p-4 w-56 transform -rotate-3 hover:rotate-0 transition-transform duration-300" >
+                    < div className="absolute -right-4 top-20 bg-white rounded-xl shadow-xl border border-[#E7DFCF] p-4 w-56 transform -rotate-3 hover:rotate-0 transition-transform duration-300" >
                         <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] font-medium text-[#1DB954] bg-[#1DB954]/10 px-2 py-0.5 rounded-full">Published</span>
-                            <span className="text-[10px] text-gray-400">Just now</span>
+                            <span className="text-[10px] font-medium text-[#009E8A] bg-[#009E8A]/10 px-2 py-0.5 rounded-full">Published</span>
+                            <span className="text-[10px] text-[#9B927F]">Just now</span>
                         </div>
-                        <p className="text-sm font-semibold text-gray-900 mb-1 line-clamp-2">How to write blog posts that rank on Google</p>
-                        <p className="text-xs text-gray-500 line-clamp-2">Complete guide to SEO content writing...</p>
+                        <p className="text-sm font-semibold text-[#1C1815] mb-1 line-clamp-2">How to write blog posts that rank on Google</p>
+                        <p className="text-xs text-[#6F675A] line-clamp-2">Complete guide to SEO content writing...</p>
                     </div >
                 </div >
 
                 {/* Video/Demo Section */}
                 < div className="mt-20 lg:mt-32 relative max-w-4xl mx-auto" >
-                    <div className="absolute -inset-4 bg-gradient-to-r from-[#1DB954]/20 via-[#1ed760]/10 to-[#1DB954]/20 rounded-2xl blur-2xl" />
-                    <div className="relative rounded-xl border border-gray-200 bg-white shadow-2xl overflow-hidden">
-                        <div className="h-8 bg-gray-50 border-b border-gray-100 flex items-center px-4 gap-2">
+                    <div className="absolute -inset-4 bg-gradient-to-r from-[#009E8A]/15 via-[#C2704A]/10 to-[#009E8A]/15 rounded-2xl blur-2xl" />
+                    <div className="relative rounded-xl border border-[#E7DFCF] bg-white shadow-2xl overflow-hidden">
+                        <div className="h-8 bg-[#F5EFE4] border-b border-[#E7DFCF] flex items-center px-4 gap-2">
                             <div className="w-3 h-3 rounded-full bg-red-400" />
                             <div className="w-3 h-3 rounded-full bg-yellow-400" />
                             <div className="w-3 h-3 rounded-full bg-green-400" />
                         </div>
-                        <div className="aspect-video bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+                        <div className="aspect-video bg-gradient-to-br from-[#FAF6EF] to-[#F5EFE4] flex items-center justify-center">
                             <div className="text-center">
-                                <div className="w-20 h-20 bg-[#1DB954] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg cursor-pointer hover:bg-[#1ed760] transition-colors">
+                                <div className="w-20 h-20 bg-[#009E8A] rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg cursor-pointer hover:bg-[#00877A] transition-colors">
                                     <svg className="w-8 h-8 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
                                         <path d="M8 5v14l11-7z" />
                                     </svg>
                                 </div>
-                                <p className="text-gray-500 text-sm">Watch how Optify works</p>
+                                <p className="text-[#6F675A] text-sm">Watch how Optify works</p>
                             </div>
                         </div>
                     </div>

@@ -35,14 +35,14 @@ export function FAQ() {
     const [openIndex, setOpenIndex] = useState<number | null>(null);
 
     return (
-        <section className="py-24 bg-gray-50">
+        <section className="py-24 bg-[#F5EFE4]">
             <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
                 <ScrollReveal>
                     <div className="text-center mb-16">
-                        <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                        <h2 className="text-3xl md:text-4xl font-bold text-[#1C1815] mb-4">
                             Have Questions?
                         </h2>
-                        <p className="text-lg text-gray-600">
+                        <p className="text-lg text-[#6F675A]">
                             Everything you need to know about Optify
                         </p>
                     </div>
@@ -53,20 +53,20 @@ export function FAQ() {
                         {faqs.map((faq, index) => (
                             <div
                                 key={index}
-                                className="bg-white rounded-xl border border-gray-100 overflow-hidden transition-shadow hover:shadow-md"
+                                className="bg-white rounded-xl border border-[#E7DFCF] overflow-hidden transition-shadow hover:shadow-md"
                             >
                                 <button
                                     onClick={() => setOpenIndex(openIndex === index ? null : index)}
                                     className="w-full px-8 py-6 flex items-center justify-between text-left"
                                 >
-                                    <span className="text-lg font-semibold text-gray-900 pr-4">
+                                    <span className="text-lg font-semibold text-[#1C1815] pr-4">
                                         {faq.question}
                                     </span>
-                                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${openIndex === index ? "bg-[#1DB954] text-white" : "bg-gray-100 text-gray-600"}`}>
+                                    <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${openIndex === index ? "bg-[#009E8A] text-white" : "bg-[#F5EFE4] text-[#6F675A]"}`}>
                                         {openIndex === index ? (
-                                            <Minus className="w-5 h-5" />
+                                            <Minus className="w-5 h-5" strokeWidth={1.75} />
                                         ) : (
-                                            <Plus className="w-5 h-5" />
+                                            <Plus className="w-5 h-5" strokeWidth={1.75} />
                                         )}
                                     </div>
                                 </button>
@@ -75,7 +75,7 @@ export function FAQ() {
                                     className={`overflow-hidden transition-all duration-300 ease-in-out ${openIndex === index ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
                                         }`}
                                 >
-                                    <div className="px-6 pb-5 text-gray-600 leading-relaxed">
+                                    <div className="px-6 pb-5 text-[#6F675A] leading-relaxed">
                                         {faq.answer}
                                     </div>
                                 </div>
