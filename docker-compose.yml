@@ -2,6 +2,9 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
+    dns:
+      - 185.12.64.1
+      - 185.12.64.2
     ports:
       - "80:80"
       - "443:443"
@@ -13,6 +16,9 @@ services:
   prod:
     image: ghcr.io/ikbalrslan/optify-seo-ai:latest
     restart: unless-stopped
+    dns:
+      - 185.12.64.1
+      - 185.12.64.2
     env_file:
       - .env
     environment:
@@ -32,6 +38,9 @@ services:
   acceptance:
     image: ghcr.io/ikbalrslan/optify-seo-ai:acceptance
     restart: unless-stopped
+    dns:
+      - 185.12.64.1
+      - 185.12.64.2
     env_file:
       - .env
     environment:
