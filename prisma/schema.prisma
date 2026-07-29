@@ -157,11 +157,25 @@ model Project {
   scheduledPosts ScheduledPost[]
   connectedSites ConnectedSite[]
   subscription Subscription?
+  competitors Competitor[]
 
   // Fully-autonomous monthly discovery + scheduling (Phase 3)
   autopilotEnabled Boolean @default(false)
   autopilotSeedKeyword String? // topic fed to keyword discovery each month
   autopilotConnectedSiteId String? // manual reference to ConnectedSite.id, no relation (matches User.activeConnectedSiteId) - null means publish to the internal blog
+
+  // Onboarding "Audience & Competitors" step
+  targetAudiences String? // JSON-encoded string[] (max 7), e.g. '["Developers","Project Managers"]'
+
+  // Onboarding "Articles" step - default preferences for future article generation.
+  // NOT YET consumed by src/actions/generate-blog.ts or the autopilot scheduling paths
+  // (src/actions/autopilot.ts still hardcodes tone/length/language/publishStatus) - that
+  // wiring is a separate follow-up, this only captures the user's stated preference.
+  autoPublishArticles Boolean @default(false) // if true, generated articles should be published rather than left as drafts
+  articleStyle String? @default("Informative")
+  articleInstructions String? // free-form global instructions applied to all future articles
+  internalLinksPerArticle Int @default(3)
+  articleImageStyle String? @default("None")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -169,7 +183,7 @@ model Project {
 
 model Analysis {
   id            String   @id @default(cuid())
-  projectId     String   
+  projectId     String
   project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   url           String
   score         Int
@@ -180,6 +194,17 @@ model Analysis {
   status        String   @default("COMPLETED")
   results       String? // Stored as JSON string
   createdAt     DateTime @default(now())
+}
+
+// Captured on the onboarding "Audience & Competitors" step (max 7 per Project, enforced in
+// src/actions/onboarding.ts, not at the DB level). Just a domain today - no scraped/analyzed
+// data about the competitor yet.
+model Competitor {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  domain    String
+  createdAt DateTime @default(now())
 }
 
 model Plan {

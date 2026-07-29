@@ -11,3 +11,22 @@ export interface ExistingProject {
     description: string | null;
     language: string | null;
 }
+
+export interface ConnectedSiteSummary {
+    id: string;
+    name: string;
+    url: string;
+    username?: string;
+}
+
+export interface OnboardingInitialData {
+    project: ExistingProject | null;
+    targetAudiences: string[];
+    competitors: string[];
+    connectedSites: ConnectedSiteSummary[];
+    autoPublishArticles: boolean;
+    articleStyle: string;
+    articleInstructions: string;
+    internalLinksPerArticle: number;
+    articleImageStyle: string;
+}

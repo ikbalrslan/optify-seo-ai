@@ -2,9 +2,11 @@
 
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { getActiveOrganization, requireOrgRole } from "@/lib/org";
+import { getActiveOrganization, requireOrgRole, requireOrgProjectAccess } from "@/lib/org";
 import { createProject } from "@/actions/projects";
 import { revalidatePath } from "next/cache";
+
+const MAX_TAGS = 7;
 
 interface BusinessStepInput {
     domain: string;
@@ -57,6 +59,79 @@ export async function completeBusinessStep(
         });
         revalidatePath("/onboarding");
         return { success: true, projectId: project.id };
+    } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : "Failed to save" };
+    }
+}
+
+/**
+ * Audience & Competitors step. Replaces the full set each time (delete + recreate Competitor
+ * rows) rather than diffing, since this is a small bounded list (max 7) edited as a whole via
+ * the step's tag inputs, not incrementally elsewhere.
+ */
+export async function completeAudienceCompetitorsStep(
+    projectId: string,
+    targetAudiences: string[],
+    competitorDomains: string[]
+): Promise<{ success: true } | { success: false; error: string }> {
+    try {
+        await requireOrgProjectAccess(projectId, "MEMBER");
+
+        const audiences = targetAudiences.map((a) => a.trim()).filter(Boolean).slice(0, MAX_TAGS);
+        const competitors = competitorDomains.map((c) => c.trim()).filter(Boolean).slice(0, MAX_TAGS);
+
+        await prisma.project.update({
+            where: { id: projectId },
+            data: { targetAudiences: JSON.stringify(audiences) },
+        });
+        await prisma.competitor.deleteMany({ where: { projectId } });
+        if (competitors.length > 0) {
+            await prisma.competitor.createMany({
+                data: competitors.map((domain) => ({ projectId, domain })),
+            });
+        }
+
+        revalidatePath("/onboarding");
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : "Failed to save" };
+    }
+}
+
+interface ArticlesStepInput {
+    autoPublish: boolean;
+    articleStyle: string;
+    instructions?: string;
+    internalLinks: number;
+    imageStyle: string;
+}
+
+/**
+ * Articles step. Persists default article-generation preferences onto the Project. Not yet
+ * consumed by src/actions/generate-blog.ts or src/actions/autopilot.ts - both still hardcode
+ * their own tone/length/language/publishStatus literals (see field comments in
+ * prisma/schema.prisma). Wiring these defaults into actual generation is a separate follow-up.
+ */
+export async function completeArticlesStep(
+    projectId: string,
+    input: ArticlesStepInput
+): Promise<{ success: true } | { success: false; error: string }> {
+    try {
+        await requireOrgProjectAccess(projectId, "MEMBER");
+
+        await prisma.project.update({
+            where: { id: projectId },
+            data: {
+                autoPublishArticles: input.autoPublish,
+                articleStyle: input.articleStyle,
+                articleInstructions: input.instructions?.trim() || null,
+                internalLinksPerArticle: Math.max(0, Math.min(10, input.internalLinks)),
+                articleImageStyle: input.imageStyle,
+            },
+        });
+
+        revalidatePath("/onboarding");
+        return { success: true };
     } catch (e) {
         return { success: false, error: e instanceof Error ? e.message : "Failed to save" };
     }
