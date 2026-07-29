@@ -113,7 +113,7 @@ export function AuthModal({ isOpen, onClose, initialView = "login" }: AuthModalP
 
                     {/* Google Button */}
                     <Button
-                        onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+                        onClick={() => signIn("google", { callbackUrl: "/onboarding" })}
                         className="w-full h-11 text-[15px] font-medium bg-[#1a1a1a] hover:bg-black text-white rounded-xl flex items-center justify-center gap-2.5 transition-all"
                     >
                         <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">

@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getProjects, createProject, updateProjectAutopilotSettings } from "@/actions/projects";
 import { discoverKeywords, promoteSnapshotToKeyword } from "@/actions/keyword-discovery";
 import { getConnectedSites } from "@/actions/wordpress";
+import { COUNTRIES } from "@/config/countries";
 
 const BLOG_TARGET = "BLOG";
 
@@ -27,19 +28,6 @@ type Snapshot = {
   relativeValue: number;
   rawGrowthLabel: string | null;
 };
-
-const COUNTRIES = [
-  { code: "US", label: "United States" },
-  { code: "GB", label: "United Kingdom" },
-  { code: "DE", label: "Germany" },
-  { code: "FR", label: "France" },
-  { code: "TR", label: "Turkey" },
-  { code: "ES", label: "Spain" },
-  { code: "IT", label: "Italy" },
-  { code: "CA", label: "Canada" },
-  { code: "AU", label: "Australia" },
-  { code: "IN", label: "India" },
-];
 
 export default function KeywordGeneratorPage() {
   const [projects, setProjects] = useState<Project[]>([]);

@@ -38,6 +38,7 @@ model User {
   backlinkExchangeEnabled Boolean @default(false)
   memberships   OrganizationMember[]
   activeOrganizationId String? // Currently selected organization, same pattern as activeConnectedSiteId
+  hasCompletedOnboarding Boolean? // null/false = onboarding wizard not finished; true only once the user reaches the end (see completeOnboarding in src/actions/onboarding.ts). Existing rows are backfilled to true by the migration that adds this column.
 }
 
 model Organization {
@@ -144,6 +145,8 @@ model Project {
   name      String
   domain    String
   country   String   @default("US") // ISO-2 target market for keyword discovery
+  description String? // Business description captured on the onboarding "Business" step; optional, not used elsewhere yet
+  language    String? // Content/site language captured on the onboarding "Business" step (e.g. "English")
   userId    String // Original creator; ownership/access is scoped by organizationId, this is unchanged audit info
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   organizationId String

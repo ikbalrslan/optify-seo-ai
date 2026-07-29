@@ -22,7 +22,12 @@ export async function getProjects() {
     });
 }
 
-export async function createProject(name: string, domain: string, country: string = "US") {
+export async function createProject(
+    name: string,
+    domain: string,
+    country: string = "US",
+    extra?: { description?: string; language?: string }
+) {
     const organization = await getActiveOrganization();
     if (!organization) {
         throw new Error("No active organization");
@@ -40,6 +45,8 @@ export async function createProject(name: string, domain: string, country: strin
             name: name.trim(),
             domain: domain.trim(),
             country,
+            description: extra?.description?.trim() || null,
+            language: extra?.language || null,
         },
     });
 
