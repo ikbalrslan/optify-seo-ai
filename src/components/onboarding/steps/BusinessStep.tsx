@@ -12,11 +12,14 @@ import type { ExistingProject } from "@/components/onboarding/steps/types";
 
 interface BusinessStepProps {
     existingProject: ExistingProject | null;
+    /** When set, always update this exact project (per-site setup wizard) instead of the
+     * "org's first project" lookup used by the initial signup onboarding flow. */
+    projectId?: string;
     onProjectSaved: (project: ExistingProject) => void;
     onContinue: () => void;
 }
 
-export function BusinessStep({ existingProject, onProjectSaved, onContinue }: BusinessStepProps) {
+export function BusinessStep({ existingProject, projectId, onProjectSaved, onContinue }: BusinessStepProps) {
     const [domain, setDomain] = useState(existingProject?.domain ?? "");
     const [name, setName] = useState(existingProject?.name ?? "");
     const [country, setCountry] = useState(existingProject?.country ?? "US");
@@ -30,7 +33,7 @@ export function BusinessStep({ existingProject, onProjectSaved, onContinue }: Bu
     const handleContinue = async () => {
         setError("");
         setIsSubmitting(true);
-        const result = await completeBusinessStep({ domain, name, country, language, description });
+        const result = await completeBusinessStep({ domain, name, country, language, description }, projectId);
         setIsSubmitting(false);
 
         if (!result.success) {

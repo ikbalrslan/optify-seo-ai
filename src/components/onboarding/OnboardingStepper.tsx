@@ -1,16 +1,17 @@
 import { Fragment } from "react";
 import { cn } from "@/lib/utils";
-import { ONBOARDING_STEPS } from "@/config/onboarding";
+import type { OnboardingStep } from "@/config/onboarding";
 
 interface OnboardingStepperProps {
     /** 0-based index of the currently active step */
     currentIndex: number;
+    steps: OnboardingStep[];
 }
 
-export function OnboardingStepper({ currentIndex }: OnboardingStepperProps) {
+export function OnboardingStepper({ currentIndex, steps }: OnboardingStepperProps) {
     return (
         <div className="flex items-start w-full max-w-2xl mx-auto">
-            {ONBOARDING_STEPS.map((step, i) => (
+            {steps.map((step, i) => (
                 <Fragment key={step.key}>
                     <div className="flex flex-col items-center gap-2 shrink-0">
                         <div
@@ -30,7 +31,7 @@ export function OnboardingStepper({ currentIndex }: OnboardingStepperProps) {
                             {step.label}
                         </span>
                     </div>
-                    {i < ONBOARDING_STEPS.length - 1 && (
+                    {i < steps.length - 1 && (
                         <div
                             className={cn(
                                 "flex-1 h-0.5 mx-2 mt-[7px]",

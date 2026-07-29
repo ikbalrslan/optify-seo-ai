@@ -21,6 +21,7 @@ interface ArticlesStepProps {
     onSaved: (data: { articleStyle: string }) => void;
     onBack: () => void;
     onContinue: () => void;
+    continueLabel?: string;
 }
 
 export function ArticlesStep({
@@ -33,6 +34,7 @@ export function ArticlesStep({
     onSaved,
     onBack,
     onContinue,
+    continueLabel = "Continue",
 }: ArticlesStepProps) {
     const [autoPublish, setAutoPublish] = useState(initialAutoPublish);
     const [articleStyle, setArticleStyle] = useState(initialArticleStyle);
@@ -137,7 +139,12 @@ export function ArticlesStep({
 
             {error && <div className="p-3 text-sm text-red-500 bg-red-50 rounded-lg">{error}</div>}
 
-            <OnboardingNav onBack={onBack} onContinue={handleContinue} isLoading={isSubmitting} />
+            <OnboardingNav
+                onBack={onBack}
+                onContinue={handleContinue}
+                continueLabel={continueLabel}
+                isLoading={isSubmitting}
+            />
         </div>
     );
 }

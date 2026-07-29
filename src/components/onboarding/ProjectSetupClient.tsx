@@ -1,55 +1,72 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { OnboardingShell } from "@/components/onboarding/OnboardingShell";
-import { ONBOARDING_STEPS } from "@/config/onboarding";
+import { SITE_SETUP_STEPS } from "@/config/onboarding";
 import { BusinessStep } from "@/components/onboarding/steps/BusinessStep";
 import { AudienceCompetitorsStep } from "@/components/onboarding/steps/AudienceCompetitorsStep";
 import { BlogStep } from "@/components/onboarding/steps/BlogStep";
 import { ArticlesStep } from "@/components/onboarding/steps/ArticlesStep";
-import { IntroductionStep } from "@/components/onboarding/steps/IntroductionStep";
 import type { OnboardingInitialData } from "@/components/onboarding/steps/types";
 
 const STEP_SUBTITLES = [
-    "Based on your website, tell us a bit about your business so we can tailor your strategy.",
+    "Confirm this site's details.",
     "Who are you trying to reach, and who are you up against?",
     "Connect where your content gets published.",
-    "Set the starting point for your content plan.",
-    "You're all set.",
+    "Set the starting point for this site's content plan.",
 ];
 
-interface OnboardingClientProps {
+interface ProjectSetupClientProps {
     initialData: OnboardingInitialData;
 }
 
-export function OnboardingClient({ initialData }: OnboardingClientProps) {
-    // If a Project already exists (e.g. the user refreshed mid-flow), skip straight past
-    // the Business step instead of risking a duplicate Project on re-submit.
-    const [stepIndex, setStepIndex] = useState(initialData.project ? 1 : 0);
+/**
+ * Per-site setup wizard for websites added after the initial signup onboarding (e.g. via
+ * Billing's "Add Website" dialog, which only collects a name/domain) - reuses the exact same
+ * step components as src/components/onboarding/OnboardingClient.tsx, scoped to one explicit
+ * existing Project rather than "the org's first project". No Introduction/completion-flag step
+ * since this doesn't gate anything - it just ends after Articles.
+ */
+export function ProjectSetupClient({ initialData }: ProjectSetupClientProps) {
+    const router = useRouter();
+    const [stepIndex, setStepIndex] = useState(0);
     const [project, setProject] = useState(initialData.project);
     const [targetAudiences, setTargetAudiences] = useState(initialData.targetAudiences);
     const [competitors, setCompetitors] = useState(initialData.competitors);
-    const [connectedSiteName, setConnectedSiteName] = useState<string | null>(
-        initialData.connectedSites[0]?.name ?? null
-    );
-    const [articleStyle, setArticleStyle] = useState(initialData.articleStyle);
 
     const goBack = () => setStepIndex((i) => Math.max(0, i - 1));
-    const goContinue = () => setStepIndex((i) => Math.min(ONBOARDING_STEPS.length - 1, i + 1));
+    const goContinue = () => {
+        if (stepIndex === SITE_SETUP_STEPS.length - 1) {
+            router.push("/organization/billing");
+            return;
+        }
+        setStepIndex((i) => i + 1);
+    };
 
-    const step = ONBOARDING_STEPS[stepIndex];
+    // page.tsx guarantees a Project exists before rendering this component at all.
+    if (!project) {
+        return null;
+    }
+
+    const step = SITE_SETUP_STEPS[stepIndex];
 
     return (
         <OnboardingShell
             currentIndex={stepIndex}
-            steps={ONBOARDING_STEPS}
+            steps={SITE_SETUP_STEPS}
             title={step.label}
             subtitle={STEP_SUBTITLES[stepIndex]}
         >
             {stepIndex === 0 && (
-                <BusinessStep existingProject={project} onProjectSaved={setProject} onContinue={goContinue} />
+                <BusinessStep
+                    existingProject={project}
+                    projectId={project.id}
+                    onProjectSaved={setProject}
+                    onContinue={goContinue}
+                />
             )}
-            {stepIndex === 1 && project && (
+            {stepIndex === 1 && (
                 <AudienceCompetitorsStep
                     projectId={project.id}
                     initialTargetAudiences={targetAudiences}
@@ -62,32 +79,27 @@ export function OnboardingClient({ initialData }: OnboardingClientProps) {
                     onContinue={goContinue}
                 />
             )}
-            {stepIndex === 2 && project && (
+            {stepIndex === 2 && (
                 <BlogStep
                     projectId={project.id}
                     initialConnectedSites={initialData.connectedSites}
-                    onSaved={(data) => setConnectedSiteName(data.connectedSiteName)}
+                    onSaved={() => {}}
                     onBack={goBack}
                     onContinue={goContinue}
                 />
             )}
-            {stepIndex === 3 && project && (
+            {stepIndex === 3 && (
                 <ArticlesStep
                     projectId={project.id}
                     initialAutoPublish={initialData.autoPublishArticles}
-                    initialArticleStyle={articleStyle}
+                    initialArticleStyle={initialData.articleStyle}
                     initialInstructions={initialData.articleInstructions}
                     initialInternalLinks={initialData.internalLinksPerArticle}
                     initialImageStyle={initialData.articleImageStyle}
-                    onSaved={(data) => setArticleStyle(data.articleStyle)}
+                    onSaved={() => {}}
                     onBack={goBack}
                     onContinue={goContinue}
-                />
-            )}
-            {stepIndex === 4 && (
-                <IntroductionStep
-                    summary={{ project, targetAudiences, competitors, connectedSiteName, articleStyle }}
-                    onBack={goBack}
+                    continueLabel="Done"
                 />
             )}
         </OnboardingShell>

@@ -17,24 +17,46 @@ interface BusinessStepInput {
 }
 
 /**
- * Business step of the onboarding wizard. Idempotent by design: if the org already has a
- * Project (e.g. the user refreshed mid-flow, or clicked Back into this step after already
- * continuing once), this updates that Project in place instead of creating a second one, since
- * src/app/onboarding/page.tsx re-renders this step whenever an existing Project is found.
+ * Business step - shared by two flows:
+ *  - Initial signup onboarding (no `projectId` passed): operates on "the org's first Project",
+ *    idempotent by design (if the org already has a Project - e.g. the user refreshed mid-flow
+ *    or clicked Back - this updates it in place instead of creating a second one, since
+ *    src/app/onboarding/page.tsx re-renders this step whenever an existing Project is found).
+ *  - Per-site setup wizard for an additional website (`projectId` passed explicitly, from
+ *    src/app/projects/[projectId]/setup/page.tsx after Billing's "Add Website" dialog already
+ *    created the Project with just a name/domain): always updates that exact project, never the
+ *    "first project" lookup - critical for orgs with more than one site.
  */
 export async function completeBusinessStep(
-    input: BusinessStepInput
+    input: BusinessStepInput,
+    projectId?: string
 ): Promise<{ success: true; projectId: string } | { success: false; error: string }> {
     if (!input.name.trim() || !input.domain.trim()) {
         return { success: false, error: "Business name and website are required" };
     }
 
-    const organization = await getActiveOrganization();
-    if (!organization) {
-        return { success: false, error: "No organization found" };
-    }
-
     try {
+        if (projectId) {
+            await requireOrgProjectAccess(projectId, "ADMIN");
+            const project = await prisma.project.update({
+                where: { id: projectId },
+                data: {
+                    name: input.name.trim(),
+                    domain: input.domain.trim(),
+                    country: input.country,
+                    description: input.description?.trim() || null,
+                    language: input.language || "English",
+                },
+            });
+            revalidatePath("/organization/billing");
+            return { success: true, projectId: project.id };
+        }
+
+        const organization = await getActiveOrganization();
+        if (!organization) {
+            return { success: false, error: "No organization found" };
+        }
+
         const existing = await prisma.project.findFirst({ where: { organizationId: organization.id } });
 
         if (existing) {
