@@ -2,6 +2,10 @@ optifyseo.ai {
     reverse_proxy prod:3000
 }
 
+www.optifyseo.ai {
+    redir https://optifyseo.ai{uri} permanent
+}
+
 acceptance.optifyseo.ai {
     reverse_proxy acceptance:3000
 }
