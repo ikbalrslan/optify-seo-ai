@@ -75,6 +75,14 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
         }
     }, [isAdmin, publishTarget, formData.publishStatus]);
 
+    // "Internal Blog" isn't offered as a target to non-admins at all (see the Select below) -
+    // once a connected site loads, default to it instead of leaving the picker on a hidden value.
+    useEffect(() => {
+        if (!isAdmin && publishTarget === BLOG_TARGET && sites.length > 0) {
+            setPublishTarget(sites[0].id);
+        }
+    }, [isAdmin, publishTarget, sites]);
+
     const loadSites = async (projectId: string) => {
         setIsLoadingSites(true);
         try {
@@ -237,7 +245,7 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
                                     <SelectValue placeholder="Select where to publish..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value={BLOG_TARGET}>Internal Blog (no site connected)</SelectItem>
+                                    {isAdmin && <SelectItem value={BLOG_TARGET}>Internal Blog (no site connected)</SelectItem>}
                                     {sites.map(site => (
                                         <SelectItem key={site.id} value={site.id}>
                                             {site.name || site.url}
@@ -245,6 +253,11 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
                                     ))}
                                 </SelectContent>
                             </Select>
+                        )}
+                        {!isLoadingSites && !isAdmin && sites.length === 0 && (
+                            <p className="text-xs text-slate-500">
+                                Connect a WordPress site to schedule posts - the internal blog (optifyseo.ai) is staff-only.
+                            </p>
                         )}
                     </div>
 
@@ -362,7 +375,7 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
                     {/* Submit Button */}
                     <Button
                         onClick={handleSubmit}
-                        disabled={isSubmitting || (!!quota && quota.limit !== -1 && (quota.limit === 0 || quota.remaining <= 0))}
+                        disabled={isSubmitting || !publishTarget || (!isAdmin && publishTarget === BLOG_TARGET) || (!!quota && quota.limit !== -1 && (quota.limit === 0 || quota.remaining <= 0))}
                         className="w-full bg-[#1DB954] hover:bg-[#1aa34a] text-white"
                     >
                         {isSubmitting ? (

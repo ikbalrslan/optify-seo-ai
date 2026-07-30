@@ -146,8 +146,14 @@ export default function KeywordGeneratorPage() {
     setPromotedIds(new Set());
     try {
       const result = await discoverKeywords(selectedProjectId, seedKeyword);
-      setTopQueries(result.top as Snapshot[]);
-      setRisingQueries(result.rising as Snapshot[]);
+      if (!result.success) {
+        setError(result.error);
+        setTopQueries([]);
+        setRisingQueries([]);
+      } else {
+        setTopQueries(result.top as Snapshot[]);
+        setRisingQueries(result.rising as Snapshot[]);
+      }
     } catch (e: any) {
       setError(e.message || "Failed to discover keywords");
       setTopQueries([]);
