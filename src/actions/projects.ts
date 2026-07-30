@@ -64,6 +64,10 @@ export async function updateProjectAutopilotSettings(
         throw new Error("A seed keyword is required to enable autopilot");
     }
 
+    // The monthly discovery cron only runs on the 1st - without this, a project enabled on,
+    // say, the 15th would sit with zero scheduled posts until the 1st of next month.
+    const isNewlyEnabled = input.autopilotEnabled && !project.autopilotEnabled;
+
     await prisma.project.update({
         where: { id: projectId },
         data: {
@@ -74,6 +78,20 @@ export async function updateProjectAutopilotSettings(
     });
 
     revalidatePath("/generators/keyword");
+
+    if (isNewlyEnabled) {
+        // Not awaited - discovery+generation can take minutes (one Claude call per day left in
+        // the month), and the user shouldn't have to wait for that just to save a toggle. This
+        // process stays alive as a long-running container (not serverless), so the background
+        // work continues after this response is sent. Errors are only logged, not surfaced to
+        // this action's caller, since by then the toggle has already saved successfully.
+        import("@/actions/autopilot").then(({ runAutopilotDiscoveryAndScheduling }) =>
+            runAutopilotDiscoveryAndScheduling(projectId).catch(err =>
+                console.error(`[Autopilot] Immediate scheduling failed for project ${projectId}:`, err)
+            )
+        );
+    }
+
     return { success: true };
 }
 

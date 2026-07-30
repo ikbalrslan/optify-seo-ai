@@ -757,17 +757,20 @@ async function discoverCandidateKeywords(
 }
 
 /**
- * For every project with autopilot enabled: discover keywords (Search Console queries,
- * preferred, falling back to Trends - see discoverCandidateKeywords), skip ones already
- * scheduled for that project, and auto-create scheduled posts (one per day via
- * getNextAvailableDate) filling out the rest of the current calendar month, up to that
- * project's own remaining monthly quota - not just a handful per run.
+ * For every project with autopilot enabled (or just one, if projectId is given - see
+ * updateProjectAutopilotSettings in src/actions/projects.ts, which calls this immediately when
+ * a project is newly enabled mid-month rather than making it wait for the 1st): discover
+ * keywords (Search Console queries, preferred, falling back to Trends - see
+ * discoverCandidateKeywords), skip ones already scheduled for that project, and auto-create
+ * scheduled posts (one per day via getNextAvailableDate) filling out the rest of the current
+ * calendar month, up to that project's own remaining monthly quota - not just a handful per run.
  */
-export async function runAutopilotDiscoveryAndScheduling() {
+export async function runAutopilotDiscoveryAndScheduling(projectId?: string) {
     const projects = await prisma.project.findMany({
         where: {
             autopilotEnabled: true,
             autopilotSeedKeyword: { not: null },
+            ...(projectId && { id: projectId }),
         },
     });
 
