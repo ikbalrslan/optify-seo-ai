@@ -694,16 +694,57 @@ export async function retryScheduledPost(id: string) {
 // FULLY AUTONOMOUS MONTHLY DISCOVERY + SCHEDULING (called by cron)
 // ============================================
 
-const MAX_AUTO_SCHEDULED_PER_PROJECT_PER_RUN = 5; // cap per run even on unlimited plans
+// Below this many usable Search Console queries, there isn't enough real search data yet
+// (e.g. a brand new site) to build a month of content around - fall back to Trends discovery
+// entirely for this run rather than blending a handful of GSC queries with Trends ones.
+const MIN_SEARCH_CONSOLE_QUERIES = 5;
+
+function daysRemainingInMonth(): number {
+    const now = new Date();
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return lastDayOfMonth - now.getDate() + 1; // inclusive of today
+}
 
 /**
- * For every project with autopilot enabled: discover this month's rising keywords for its
- * seed keyword, skip ones already scheduled for that project, and auto-create scheduled
- * posts (spaced via getNextAvailableDate) up to that project's own remaining monthly quota.
+ * Prefers real Search Console search queries (the site's own actual search visibility) over
+ * Trends-based discovery, since those reflect what people are already finding this site for
+ * rather than a third-party trend estimate. Falls back to the existing seed-keyword Trends
+ * discovery (src/actions/keyword-discovery.ts) whenever Search Console has too little data yet
+ * - a new project's owner may not have Search Console access/data at all, which is normal, not
+ * an error.
+ */
+async function discoverCandidateKeywords(
+    project: { id: string; userId: string; domain: string; country: string; autopilotSeedKeyword: string | null },
+    usedKeywords: Set<string>,
+    slots: number
+): Promise<{ relatedQuery: string }[]> {
+    const { getTopSearchQueriesForUser } = await import("@/actions/search-console");
+    const gscRows = await getTopSearchQueriesForUser(project.userId, project.domain);
+    const gscCandidates = gscRows
+        .map(row => ({ relatedQuery: row.query }))
+        .filter(candidate => candidate.relatedQuery && !usedKeywords.has(candidate.relatedQuery));
+
+    if (gscCandidates.length >= MIN_SEARCH_CONSOLE_QUERIES) {
+        console.log(`[Autopilot] Project ${project.id}: using ${gscCandidates.length} Search Console quer(y/ies)`);
+        return gscCandidates.slice(0, slots);
+    }
+
+    console.log(`[Autopilot] Project ${project.id}: only ${gscCandidates.length} Search Console quer(y/ies) - falling back to Trends discovery`);
+    const { discoverKeywordsInternal } = await import("@/actions/keyword-discovery");
+    const discovery = await discoverKeywordsInternal(project, project.autopilotSeedKeyword!);
+    return discovery.rising
+        .filter(row => !usedKeywords.has(row.relatedQuery))
+        .slice(0, slots);
+}
+
+/**
+ * For every project with autopilot enabled: discover keywords (Search Console queries,
+ * preferred, falling back to Trends - see discoverCandidateKeywords), skip ones already
+ * scheduled for that project, and auto-create scheduled posts (one per day via
+ * getNextAvailableDate) filling out the rest of the current calendar month, up to that
+ * project's own remaining monthly quota - not just a handful per run.
  */
 export async function runAutopilotDiscoveryAndScheduling() {
-    const { discoverKeywordsInternal } = await import("@/actions/keyword-discovery");
-
     const projects = await prisma.project.findMany({
         where: {
             autopilotEnabled: true,
@@ -714,6 +755,7 @@ export async function runAutopilotDiscoveryAndScheduling() {
     console.log(`[Autopilot] Monthly discovery: ${projects.length} project(s) enabled`);
 
     let totalScheduled = 0;
+    const daysLeft = daysRemainingInMonth();
 
     for (const project of projects) {
         try {
@@ -725,21 +767,20 @@ export async function runAutopilotDiscoveryAndScheduling() {
                 continue;
             }
 
-            const discovery = await discoverKeywordsInternal(project, project.autopilotSeedKeyword!);
-
             const existing = await prisma.scheduledPost.findMany({
                 where: { projectId: project.id },
                 select: { keyword: true },
             });
             const usedKeywords = new Set(existing.map(p => p.keyword));
 
+            // Fill the rest of this calendar month, one post per day, bounded by whatever
+            // quota is actually left (unlimited plans still only get one post per remaining
+            // day - "daily for the month," not an unbounded dump into the scheduler).
             const slots = limitCheck.remaining === -1
-                ? MAX_AUTO_SCHEDULED_PER_PROJECT_PER_RUN
-                : Math.min(limitCheck.remaining, MAX_AUTO_SCHEDULED_PER_PROJECT_PER_RUN);
+                ? daysLeft
+                : Math.min(limitCheck.remaining, daysLeft);
 
-            const candidates = discovery.rising
-                .filter(row => !usedKeywords.has(row.relatedQuery))
-                .slice(0, slots);
+            const candidates = await discoverCandidateKeywords(project, usedKeywords, slots);
 
             for (const candidate of candidates) {
                 const nextDate = await getNextAvailableDate(project.id);
