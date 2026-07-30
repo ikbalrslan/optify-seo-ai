@@ -34,6 +34,9 @@ export function ProjectSetupClient({ initialData }: ProjectSetupClientProps) {
     const [project, setProject] = useState(initialData.project);
     const [targetAudiences, setTargetAudiences] = useState(initialData.targetAudiences);
     const [competitors, setCompetitors] = useState(initialData.competitors);
+    const [connectedSiteName, setConnectedSiteName] = useState<string | null>(
+        initialData.connectedSites[0]?.name ?? null
+    );
 
     const goBack = () => setStepIndex((i) => Math.max(0, i - 1));
     const goContinue = () => {
@@ -83,7 +86,7 @@ export function ProjectSetupClient({ initialData }: ProjectSetupClientProps) {
                 <BlogStep
                     projectId={project.id}
                     initialConnectedSites={initialData.connectedSites}
-                    onSaved={() => {}}
+                    onSaved={(data) => setConnectedSiteName(data.connectedSiteName)}
                     onBack={goBack}
                     onContinue={goContinue}
                 />
@@ -96,6 +99,7 @@ export function ProjectSetupClient({ initialData }: ProjectSetupClientProps) {
                     initialInstructions={initialData.articleInstructions}
                     initialInternalLinks={initialData.internalLinksPerArticle}
                     initialImageStyle={initialData.articleImageStyle}
+                    hasConnectedSite={connectedSiteName !== null}
                     onSaved={() => {}}
                     onBack={goBack}
                     onContinue={goContinue}

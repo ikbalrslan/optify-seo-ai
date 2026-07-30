@@ -141,6 +141,20 @@ export async function completeArticlesStep(
     try {
         await requireOrgProjectAccess(projectId, "MEMBER");
 
+        // Auto-publish must never silently fall back to publishing into Optify's own shared
+        // /blog (see processDueScheduledPosts in src/actions/autopilot.ts - no ConnectedSite
+        // means the generated post lands on this app's own public blog, not the customer's
+        // site). Require a real connection before this can be turned on.
+        if (input.autoPublish) {
+            const connectedSite = await prisma.connectedSite.findFirst({ where: { projectId } });
+            if (!connectedSite) {
+                return {
+                    success: false,
+                    error: "Connect a WordPress site in the Blog step before enabling auto-publish.",
+                };
+            }
+        }
+
         await prisma.project.update({
             where: { id: projectId },
             data: {

@@ -61,7 +61,7 @@ export function BlogStep({ projectId, initialConnectedSites, onSaved, onBack, on
         <div className="space-y-5">
             <div className="flex items-center justify-between">
                 <p className="text-sm text-[#6F675A]">
-                    Connect WordPress to publish automatically, or skip and publish to Optify&apos;s internal blog for now.
+                    Connect WordPress to enable auto-publish. You can skip this for now, but auto-publish won&apos;t be available until a site is connected.
                 </p>
                 <a
                     href="/plugins/optify-connector.zip"

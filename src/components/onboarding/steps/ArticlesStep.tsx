@@ -18,6 +18,9 @@ interface ArticlesStepProps {
     initialInstructions: string;
     initialInternalLinks: number;
     initialImageStyle: string;
+    /** Whether a WordPress site is connected for this project (Blog step). Auto-publish can't
+     * be enabled without one - see completeArticlesStep in src/actions/onboarding.ts. */
+    hasConnectedSite: boolean;
     onSaved: (data: { articleStyle: string }) => void;
     onBack: () => void;
     onContinue: () => void;
@@ -31,12 +34,15 @@ export function ArticlesStep({
     initialInstructions,
     initialInternalLinks,
     initialImageStyle,
+    hasConnectedSite,
     onSaved,
     onBack,
     onContinue,
     continueLabel = "Continue",
 }: ArticlesStepProps) {
-    const [autoPublish, setAutoPublish] = useState(initialAutoPublish);
+    // Auto-publish requires a connected site - if one isn't connected (yet), force this off
+    // rather than trusting stale initial state from before a site was disconnected.
+    const [autoPublish, setAutoPublish] = useState(initialAutoPublish && hasConnectedSite);
     const [articleStyle, setArticleStyle] = useState(initialArticleStyle);
     const [instructions, setInstructions] = useState(initialInstructions);
     const [internalLinks, setInternalLinks] = useState(initialInternalLinks);
@@ -73,9 +79,17 @@ export function ArticlesStep({
                     <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
                             <label className="text-sm font-medium text-[#1C1815]">Auto-publish</label>
-                            <Switch checked={autoPublish} onCheckedChange={setAutoPublish} />
+                            <Switch
+                                checked={autoPublish}
+                                onCheckedChange={setAutoPublish}
+                                disabled={!hasConnectedSite}
+                            />
                         </div>
-                        <p className="text-xs text-[#9B927F]">Publish new articles automatically</p>
+                        <p className="text-xs text-[#9B927F]">
+                            {hasConnectedSite
+                                ? "Publish new articles automatically"
+                                : "Connect a WordPress site in the Blog step to enable this"}
+                        </p>
                     </div>
                     <div className="space-y-1.5">
                         <label className="text-sm font-medium text-[#1C1815]">Internal Links</label>

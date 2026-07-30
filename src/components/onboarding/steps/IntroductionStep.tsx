@@ -70,7 +70,7 @@ export function IntroductionStep({ summary, onBack }: IntroductionStepProps) {
                 />
                 <SummaryRow
                     label="Blog"
-                    value={summary.connectedSiteName ?? "Not connected — publishing to Optify's internal blog"}
+                    value={summary.connectedSiteName ?? "Not connected — auto-publish unavailable until you connect a site"}
                 />
                 <SummaryRow label="Article style" value={summary.articleStyle} />
             </div>

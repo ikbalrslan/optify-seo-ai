@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,8 @@ interface SchedulePostModalProps {
 }
 
 export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeyword, onSuccess, projectId }: SchedulePostModalProps) {
+    const { data: session } = useSession();
+    const isAdmin = session?.user?.role === "ADMIN";
     const [sites, setSites] = useState<any[]>([]);
     const [isLoadingSites, setIsLoadingSites] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,6 +64,16 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
             }
         }
     }, [isOpen, defaultKeyword, projectId]);
+
+    // Publishing to the internal blog (no connected site) is staff-only - see
+    // createScheduledPost in src/actions/autopilot.ts, which rejects this combination
+    // server-side regardless. Force it back to draft here too so non-admins get an
+    // immediately-visible UI state instead of a rejection after submitting.
+    useEffect(() => {
+        if (!isAdmin && publishTarget === BLOG_TARGET && formData.publishStatus === "publish") {
+            setFormData(prev => ({ ...prev, publishStatus: "draft" }));
+        }
+    }, [isAdmin, publishTarget, formData.publishStatus]);
 
     const loadSites = async (projectId: string) => {
         setIsLoadingSites(true);
@@ -333,9 +346,16 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="draft">Draft</SelectItem>
-                                    <SelectItem value="publish">Publish Immediately</SelectItem>
+                                    {(isAdmin || publishTarget !== BLOG_TARGET) && (
+                                        <SelectItem value="publish">Publish Immediately</SelectItem>
+                                    )}
                                 </SelectContent>
                             </Select>
+                            {!isAdmin && publishTarget === BLOG_TARGET && (
+                                <p className="text-xs text-slate-500">
+                                    Connect a WordPress site to publish immediately - the internal blog is staff-only.
+                                </p>
+                            )}
                         </div>
                     </div>
 

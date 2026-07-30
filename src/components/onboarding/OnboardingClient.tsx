@@ -79,6 +79,7 @@ export function OnboardingClient({ initialData }: OnboardingClientProps) {
                     initialInstructions={initialData.articleInstructions}
                     initialInternalLinks={initialData.internalLinksPerArticle}
                     initialImageStyle={initialData.articleImageStyle}
+                    hasConnectedSite={connectedSiteName !== null}
                     onSaved={(data) => setArticleStyle(data.articleStyle)}
                     onBack={goBack}
                     onContinue={goContinue}

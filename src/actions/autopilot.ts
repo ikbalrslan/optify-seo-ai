@@ -218,6 +218,16 @@ export async function createScheduledPost(
         }
     }
 
+    // Publishing with no connected site falls back to this app's own shared /blog (see
+    // processDueScheduledPosts) - that's an Optify-staff-only publishing target, never a
+    // regular customer's. Draft-only is fine without a site (nothing goes live anywhere).
+    if (input.publishStatus === "publish" && !input.connectedSiteId && !(await isPlatformAdmin(userId))) {
+        return {
+            success: false,
+            error: "Connect a WordPress site before publishing - there's nowhere else for this to go live.",
+        };
+    }
+
     // Validate scheduled date is today or in the future (compare dates only, not time)
     const scheduledDate = new Date(input.scheduledDate);
     const today = new Date();
@@ -362,7 +372,7 @@ export async function updateScheduledPost(id: string, input: Partial<ScheduledPo
     if (!existing) {
         throw new Error("Scheduled post not found.");
     }
-    await requireOrgProjectAccess(existing.projectId, "MEMBER");
+    const { userId } = await requireOrgProjectAccess(existing.projectId, "MEMBER");
 
     if (existing.status !== "SCHEDULED") {
         throw new Error("Cannot edit a post that has already been processed.");
@@ -377,6 +387,14 @@ export async function updateScheduledPost(id: string, input: Partial<ScheduledPo
         if (!site) {
             throw new Error("Connected site not found or does not belong to your organization.");
         }
+    }
+
+    // Same rule as createScheduledPost - resolve the fields as they'll end up after this
+    // update (input is a partial patch) before checking, not just the literal input.
+    const resultingConnectedSiteId = input.connectedSiteId !== undefined ? input.connectedSiteId : existing.connectedSiteId;
+    const resultingPublishStatus = input.publishStatus ?? existing.publishStatus;
+    if (resultingPublishStatus === "publish" && !resultingConnectedSiteId && !(await isPlatformAdmin(userId))) {
+        throw new Error("Connect a WordPress site before publishing - there's nowhere else for this to go live.");
     }
 
     await prisma.scheduledPost.update({
@@ -508,6 +526,21 @@ export async function processDueScheduledPosts() {
                 where: { id: post.id },
                 data: { status: "GENERATING" }
             });
+
+            // Defense-in-depth: createScheduledPost/updateScheduledPost already reject this
+            // combination for non-admins, but this is the actual point where content would go
+            // live on this app's own shared /blog if it ever slipped through (or predates that
+            // check) - never let a regular customer's post publish there.
+            if (post.publishStatus === "publish" && !post.connectedSite && post.user.role !== "ADMIN") {
+                await prisma.scheduledPost.update({
+                    where: { id: post.id },
+                    data: {
+                        status: "FAILED",
+                        errorMessage: "No connected site - publishing to Optify's own blog is staff-only. Connect a WordPress site and reschedule.",
+                    },
+                });
+                continue;
+            }
 
             console.log(`[Autopilot] Generating post for keyword: ${post.keyword}`);
 
