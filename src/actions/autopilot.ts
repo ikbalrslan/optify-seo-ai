@@ -542,31 +542,50 @@ export async function processDueScheduledPosts() {
                 continue;
             }
 
-            console.log(`[Autopilot] Generating post for keyword: ${post.keyword}`);
+            let selectedTitle: string;
+            let selectedDescription: string;
+            let contentHTML: string;
+            let metaKeywordsJson: string;
 
-            // Generate blog content
-            const blogInput: BlogInput = {
-                keyword: post.keyword,
-                intent: post.intent as "informational" | "commercial" | "navigational",
-                length: post.length,
-                tone: post.tone,
-                competitors: "",
-            };
+            if (post.generatedTitle && post.generatedContent) {
+                // Monthly discovery already wrote this one up front (see
+                // runAutopilotDiscoveryAndScheduling) - today is just its publish day, no need
+                // to generate again.
+                console.log(`[Autopilot] Using pre-generated draft for: ${post.keyword}`);
+                selectedTitle = post.generatedTitle;
+                selectedDescription = post.generatedDescription ?? "";
+                contentHTML = post.generatedContent;
+                // meta_keywords isn't persisted on ScheduledPost separately from the generated
+                // content - fall back to the seed keyword itself rather than losing it entirely.
+                metaKeywordsJson = JSON.stringify([post.keyword]);
+            } else {
+                // No pre-generated draft (pre-generation failed, or this post predates it) -
+                // generate now, same as always.
+                console.log(`[Autopilot] Generating post for keyword: ${post.keyword}`);
+                const blogInput: BlogInput = {
+                    keyword: post.keyword,
+                    intent: post.intent as "informational" | "commercial" | "navigational",
+                    length: post.length,
+                    tone: post.tone,
+                    competitors: "",
+                };
 
-            // Note: We call the generation logic directly here
-            // We need to bypass auth since this is a cron job
-            const result = await generateBlogContent(blogInput);
+                // Note: We call the generation logic directly here
+                // We need to bypass auth since this is a cron job
+                const result = await generateBlogContent(blogInput);
 
-            if (!result.success || !result.data) {
-                throw new Error("Blog generation failed");
+                if (!result.success || !result.data) {
+                    throw new Error("Blog generation failed");
+                }
+
+                const generated = result.data;
+                selectedTitle = generated.titles[0];
+                selectedDescription = generated.meta_descriptions[0];
+                contentHTML = generated.sections
+                    .map((s: { h2: string; content: string }) => `<h2>${s.h2}</h2>${s.content}`)
+                    .join("");
+                metaKeywordsJson = JSON.stringify(generated.meta_keywords ?? []);
             }
-
-            const generated = result.data;
-            const selectedTitle = generated.titles[0];
-            const selectedDescription = generated.meta_descriptions[0];
-            const contentHTML = generated.sections
-                .map((s: { h2: string; content: string }) => `<h2>${s.h2}</h2>${s.content}`)
-                .join("");
 
             let publishedPostUrl: string;
 
@@ -580,7 +599,7 @@ export async function processDueScheduledPosts() {
                         slug,
                         title: selectedTitle,
                         metaDescription: selectedDescription,
-                        metaKeywords: JSON.stringify(generated.meta_keywords ?? []),
+                        metaKeywords: metaKeywordsJson,
                         content: contentHTML,
                         status: isPublished ? "PUBLISHED" : "DRAFT",
                         publishedAt: isPublished ? new Date() : null,
@@ -784,6 +803,39 @@ export async function runAutopilotDiscoveryAndScheduling() {
 
             for (const candidate of candidates) {
                 const nextDate = await getNextAvailableDate(project.id);
+
+                // Write the article now rather than waiting for its scheduled day - the whole
+                // month's drafts should exist up front for review, with each day just being a
+                // publish event (see processDueScheduledPosts, which skips regeneration when
+                // these fields are already filled in). A failed pre-generation isn't fatal:
+                // the post still gets scheduled with just its keyword, and
+                // processDueScheduledPosts falls back to generating it just-in-time on its
+                // scheduled day instead, same as before this existed.
+                let pregenerated: { generatedTitle: string; generatedContent: string; generatedDescription: string } | null = null;
+                try {
+                    const result = await generateBlogContent({
+                        keyword: candidate.relatedQuery,
+                        intent: "informational",
+                        length: 1500,
+                        tone: "professional",
+                        competitors: "",
+                    });
+                    if (result.success && result.data) {
+                        const generated = result.data;
+                        pregenerated = {
+                            generatedTitle: generated.titles[0],
+                            generatedDescription: generated.meta_descriptions[0],
+                            generatedContent: generated.sections
+                                .map((s: { h2: string; content: string }) => `<h2>${s.h2}</h2>${s.content}`)
+                                .join(""),
+                        };
+                    } else {
+                        console.warn(`[Autopilot] Project ${project.id}: pre-generation returned no data for "${candidate.relatedQuery}" - will generate just-in-time instead`);
+                    }
+                } catch (genError) {
+                    console.warn(`[Autopilot] Project ${project.id}: pre-generation failed for "${candidate.relatedQuery}" - will generate just-in-time instead`, genError);
+                }
+
                 await prisma.scheduledPost.create({
                     data: {
                         userId: project.userId,
@@ -797,6 +849,7 @@ export async function runAutopilotDiscoveryAndScheduling() {
                         scheduledDate: nextDate,
                         publishStatus: "draft",
                         status: "SCHEDULED",
+                        ...pregenerated,
                     },
                 });
                 totalScheduled++;
