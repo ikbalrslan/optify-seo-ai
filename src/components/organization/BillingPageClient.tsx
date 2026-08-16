@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2, CreditCard, X, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +43,7 @@ type Summary = {
 type Plan = { id: string; name: string; price: number };
 
 export default function BillingPageClient({ organizationId }: { organizationId: string }) {
+    const router = useRouter();
     const [summary, setSummary] = useState<Summary | null>(null);
     const [plan, setPlan] = useState<Plan | null>(null);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -135,14 +137,16 @@ export default function BillingPageClient({ organizationId }: { organizationId: 
         setAddSiteError("");
         setIsAddingSite(true);
         try {
-            await createProject(newSiteName, newSiteDomain);
+            const project = await createProject(newSiteName, newSiteDomain);
             setNewSiteName("");
             setNewSiteDomain("");
             setIsAddSiteOpen(false);
-            await load();
+            // Send them straight into the per-site setup wizard (audience/competitors, blog,
+            // article preferences) rather than reloading this page - the dialog only collected
+            // a name/domain, same as the original signup onboarding's Business step.
+            router.push(`/projects/${project.id}/setup`);
         } catch (e: any) {
             setAddSiteError(e.message || "Failed to add website");
-        } finally {
             setIsAddingSite(false);
         }
     };

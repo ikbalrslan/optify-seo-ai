@@ -55,7 +55,7 @@ function SignInContent() {
         setError("");
 
         try {
-            const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+            const callbackUrl = searchParams.get("callbackUrl") || "/onboarding";
             await register(formData, callbackUrl);
 
             // Auto login after register
@@ -69,7 +69,7 @@ function SignInContent() {
             });
 
             if (res?.ok) {
-                const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
+                const callbackUrl = searchParams.get("callbackUrl") || "/onboarding";
                 router.push(callbackUrl);
             } else {
                 router.push("/signin");
@@ -121,7 +121,7 @@ function SignInContent() {
 
                     {/* Google Button */}
                     <SignInButton
-                        callbackUrl={searchParams.get("callbackUrl") || "/dashboard"}
+                        callbackUrl={searchParams.get("callbackUrl") || "/onboarding"}
                         text={view === "login" ? "Sign in with Google" : "Sign up with Google"}
                     />
 

@@ -22,7 +22,43 @@ export async function getProjects() {
     });
 }
 
-export async function createProject(name: string, domain: string, country: string = "US") {
+/**
+ * The onboarding-captured content preferences for a project (Audience & Competitors / Articles
+ * steps - see src/actions/onboarding.ts), in the shape the standalone manual Blog Generator
+ * (src/app/(app)/generators/blog/page.tsx) prefills its form from - same fields
+ * src/actions/autopilot.ts's projectContentContext() maps onto BlogInput for automated
+ * generation, just fetched on demand here instead of already being on hand from a cron query.
+ */
+export async function getProjectContentPreferences(projectId: string) {
+    const { project } = await requireOrgProjectAccess(projectId, "MEMBER");
+    const competitors = await prisma.competitor.findMany({
+        where: { projectId },
+        select: { domain: true },
+        orderBy: { createdAt: "asc" },
+    });
+
+    let targetAudiences: string[] = [];
+    try {
+        targetAudiences = project.targetAudiences ? JSON.parse(project.targetAudiences) : [];
+    } catch {
+        targetAudiences = [];
+    }
+
+    return {
+        targetAudiences,
+        competitors: competitors.map(c => c.domain),
+        articleStyle: project.articleStyle ?? "Informative",
+        articleInstructions: project.articleInstructions ?? "",
+        internalLinksPerArticle: project.internalLinksPerArticle,
+    };
+}
+
+export async function createProject(
+    name: string,
+    domain: string,
+    country: string = "US",
+    extra?: { description?: string; language?: string }
+) {
     const organization = await getActiveOrganization();
     if (!organization) {
         throw new Error("No active organization");
@@ -40,6 +76,8 @@ export async function createProject(name: string, domain: string, country: strin
             name: name.trim(),
             domain: domain.trim(),
             country,
+            description: extra?.description?.trim() || null,
+            language: extra?.language || null,
         },
     });
 
@@ -57,6 +95,10 @@ export async function updateProjectAutopilotSettings(
         throw new Error("A seed keyword is required to enable autopilot");
     }
 
+    // The monthly discovery cron only runs on the 1st - without this, a project enabled on,
+    // say, the 15th would sit with zero scheduled posts until the 1st of next month.
+    const isNewlyEnabled = input.autopilotEnabled && !project.autopilotEnabled;
+
     await prisma.project.update({
         where: { id: projectId },
         data: {
@@ -67,6 +109,20 @@ export async function updateProjectAutopilotSettings(
     });
 
     revalidatePath("/generators/keyword");
+
+    if (isNewlyEnabled) {
+        // Not awaited - discovery+generation can take minutes (one Claude call per day left in
+        // the month), and the user shouldn't have to wait for that just to save a toggle. This
+        // process stays alive as a long-running container (not serverless), so the background
+        // work continues after this response is sent. Errors are only logged, not surfaced to
+        // this action's caller, since by then the toggle has already saved successfully.
+        import("@/actions/autopilot").then(({ runAutopilotDiscoveryAndScheduling }) =>
+            runAutopilotDiscoveryAndScheduling(projectId).catch(err =>
+                console.error(`[Autopilot] Immediate scheduling failed for project ${projectId}:`, err)
+            )
+        );
+    }
+
     return { success: true };
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,8 @@ interface SchedulePostModalProps {
 }
 
 export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeyword, onSuccess, projectId }: SchedulePostModalProps) {
+    const { data: session } = useSession();
+    const isAdmin = session?.user?.role === "ADMIN";
     const [sites, setSites] = useState<any[]>([]);
     const [isLoadingSites, setIsLoadingSites] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -61,6 +64,24 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
             }
         }
     }, [isOpen, defaultKeyword, projectId]);
+
+    // Publishing to the internal blog (no connected site) is staff-only - see
+    // createScheduledPost in src/actions/autopilot.ts, which rejects this combination
+    // server-side regardless. Force it back to draft here too so non-admins get an
+    // immediately-visible UI state instead of a rejection after submitting.
+    useEffect(() => {
+        if (!isAdmin && publishTarget === BLOG_TARGET && formData.publishStatus === "publish") {
+            setFormData(prev => ({ ...prev, publishStatus: "draft" }));
+        }
+    }, [isAdmin, publishTarget, formData.publishStatus]);
+
+    // "Internal Blog" isn't offered as a target to non-admins at all (see the Select below) -
+    // once a connected site loads, default to it instead of leaving the picker on a hidden value.
+    useEffect(() => {
+        if (!isAdmin && publishTarget === BLOG_TARGET && sites.length > 0) {
+            setPublishTarget(sites[0].id);
+        }
+    }, [isAdmin, publishTarget, sites]);
 
     const loadSites = async (projectId: string) => {
         setIsLoadingSites(true);
@@ -224,7 +245,7 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
                                     <SelectValue placeholder="Select where to publish..." />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value={BLOG_TARGET}>Internal Blog (no site connected)</SelectItem>
+                                    {isAdmin && <SelectItem value={BLOG_TARGET}>Internal Blog (optifyseo.ai - staff only)</SelectItem>}
                                     {sites.map(site => (
                                         <SelectItem key={site.id} value={site.id}>
                                             {site.name || site.url}
@@ -232,6 +253,11 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
                                     ))}
                                 </SelectContent>
                             </Select>
+                        )}
+                        {!isLoadingSites && !isAdmin && sites.length === 0 && (
+                            <p className="text-xs text-slate-500">
+                                Connect a WordPress site to schedule posts - the internal blog (optifyseo.ai) is staff-only.
+                            </p>
                         )}
                     </div>
 
@@ -333,16 +359,23 @@ export function SchedulePostModal({ isOpen, onClose, selectedDate, defaultKeywor
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="draft">Draft</SelectItem>
-                                    <SelectItem value="publish">Publish Immediately</SelectItem>
+                                    {(isAdmin || publishTarget !== BLOG_TARGET) && (
+                                        <SelectItem value="publish">Publish Immediately</SelectItem>
+                                    )}
                                 </SelectContent>
                             </Select>
+                            {!isAdmin && publishTarget === BLOG_TARGET && (
+                                <p className="text-xs text-slate-500">
+                                    Connect a WordPress site to publish immediately - the internal blog is staff-only.
+                                </p>
+                            )}
                         </div>
                     </div>
 
                     {/* Submit Button */}
                     <Button
                         onClick={handleSubmit}
-                        disabled={isSubmitting || (!!quota && quota.limit !== -1 && (quota.limit === 0 || quota.remaining <= 0))}
+                        disabled={isSubmitting || !publishTarget || (!isAdmin && publishTarget === BLOG_TARGET) || (!!quota && quota.limit !== -1 && (quota.limit === 0 || quota.remaining <= 0))}
                         className="w-full bg-[#1DB954] hover:bg-[#1aa34a] text-white"
                     >
                         {isSubmitting ? (

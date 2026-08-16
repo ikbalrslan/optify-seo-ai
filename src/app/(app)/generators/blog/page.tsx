@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -10,7 +10,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { Loader2, Wand2, Copy, Check, Globe } from "lucide-react";
 import { generateBlogPost, type BlogInput } from "@/actions/generate-blog";
 import { getConnectedSites, publishToWordPress } from "@/actions/wordpress";
+import { getProjects, getProjectContentPreferences } from "@/actions/projects";
+import { TagInput } from "@/components/onboarding/TagInput";
+import { ARTICLE_STYLES } from "@/config/articlePreferences";
 import { cn } from "@/lib/utils";
+
+const MAX_AUDIENCE_TAGS = 7;
 
 export default function BlogGeneratorPage() {
     const [isLoading, setIsLoading] = useState(false);
@@ -33,13 +38,50 @@ export default function BlogGeneratorPage() {
 
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
+    // Optional: pick a site to prefill its onboarding-captured preferences (target audiences,
+    // writing style, global instructions, internal links target - see
+    // getProjectContentPreferences) below. This page has no required project association -
+    // generating without picking one works exactly as before, just without the prefill.
+    const [projects, setProjects] = useState<{ id: string; name: string }[]>([]);
+    const [selectedProjectId, setSelectedProjectId] = useState("");
+    const [isLoadingPreferences, setIsLoadingPreferences] = useState(false);
+
     const [formData, setFormData] = useState<BlogInput>({
         keyword: "okul",
         intent: "informational",
         length: 350,
         tone: "professional",
         competitors: "",
+        targetAudiences: [],
+        articleStyle: "",
+        customInstructions: "",
+        internalLinksTarget: undefined,
     });
+
+    useEffect(() => {
+        getProjects().then(setProjects).catch(e => console.error("Failed to load projects", e));
+    }, []);
+
+    // Prefill (not lock) the new preference fields from whichever site is selected - the user
+    // can still edit everything before generating, this is just a starting point instead of
+    // re-typing the same target audience/style/instructions every time.
+    useEffect(() => {
+        if (!selectedProjectId) return;
+        setIsLoadingPreferences(true);
+        getProjectContentPreferences(selectedProjectId)
+            .then(prefs => {
+                setFormData(prev => ({
+                    ...prev,
+                    targetAudiences: prefs.targetAudiences,
+                    articleStyle: prefs.articleStyle,
+                    customInstructions: prefs.articleInstructions,
+                    internalLinksTarget: prefs.internalLinksPerArticle || undefined,
+                    competitors: prefs.competitors.length > 0 ? prefs.competitors.join(", ") : prev.competitors,
+                }));
+            })
+            .catch(e => console.error("Failed to load project preferences", e))
+            .finally(() => setIsLoadingPreferences(false));
+    }, [selectedProjectId]);
 
     const validateForm = () => {
         const errors: Record<string, string> = {};
@@ -64,6 +106,8 @@ export default function BlogGeneratorPage() {
                 if (result.data.titles?.length > 0) setSelectedTitle(result.data.titles[0]);
                 if (result.data.meta_descriptions?.length > 0) setSelectedDescription(result.data.meta_descriptions[0]);
                 if (result.data.meta_keywords?.length > 0) setSelectedKeywords(result.data.meta_keywords);
+            } else {
+                setError(result.error);
             }
         } catch (err: any) {
             setError(err.message || "Something went wrong");
@@ -154,6 +198,28 @@ export default function BlogGeneratorPage() {
                 <Card className="h-fit">
                     <CardContent className="p-6 space-y-6">
 
+                        {projects.length > 0 && (
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-900">
+                                    Site (optional - prefills audience/style/instructions below)
+                                </label>
+                                <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="None - generate standalone" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {projects.map((p) => (
+                                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {isLoadingPreferences && (
+                                    <p className="text-xs text-slate-400 flex items-center gap-1.5">
+                                        <Loader2 className="h-3 w-3 animate-spin" /> Loading saved preferences...
+                                    </p>
+                                )}
+                            </div>
+                        )}
 
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-slate-900">
@@ -226,6 +292,52 @@ export default function BlogGeneratorPage() {
                             </div>
                         </div>
 
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-900">
+                                    Writing Style
+                                </label>
+                                <Select
+                                    value={formData.articleStyle || undefined}
+                                    onValueChange={(val: string) => setFormData({ ...formData, articleStyle: val })}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Default" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {ARTICLE_STYLES.map((s) => (
+                                            <SelectItem key={s} value={s}>{s}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-slate-900">
+                                    Internal Links
+                                </label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    max={10}
+                                    placeholder="e.g. 3"
+                                    value={formData.internalLinksTarget ?? ""}
+                                    onChange={(e) => setFormData({ ...formData, internalLinksTarget: e.target.value ? Number(e.target.value) : undefined })}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-slate-900">
+                                Target Audience(s) (Optional)
+                            </label>
+                            <TagInput
+                                values={formData.targetAudiences ?? []}
+                                onChange={(values) => setFormData({ ...formData, targetAudiences: values })}
+                                placeholder="e.g. Developers, Project Managers"
+                                max={MAX_AUDIENCE_TAGS}
+                            />
+                        </div>
+
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-slate-900">
                                 Competitor URLs (Optional)
@@ -235,6 +347,18 @@ export default function BlogGeneratorPage() {
                                 value={formData.competitors}
                                 onChange={(e) => setFormData({ ...formData, competitors: e.target.value })}
                                 className="h-24 resize-none"
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-slate-900">
+                                Global Instructions (Optional)
+                            </label>
+                            <Textarea
+                                placeholder="e.g. Always include practical examples"
+                                value={formData.customInstructions}
+                                onChange={(e) => setFormData({ ...formData, customInstructions: e.target.value })}
+                                className="h-20 resize-none"
                             />
                         </div>
 

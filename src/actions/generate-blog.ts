@@ -13,6 +13,14 @@ const BlogInputSchema = z.object({
     length: z.number().min(300).max(5000),
     tone: z.string().min(1, "Tone is required"),
     competitors: z.string().optional(),
+    // Project-level preferences captured during onboarding (src/actions/onboarding.ts) - all
+    // optional since not every caller has a Project to pull these from (the standalone manual
+    // generator at src/app/(app)/generators/blog/page.tsx has no project context, only
+    // autopilot's project-scoped generation - src/actions/autopilot.ts - populates these).
+    targetAudiences: z.array(z.string()).optional(),
+    articleStyle: z.string().optional(),
+    customInstructions: z.string().optional(),
+    internalLinksTarget: z.number().optional(),
 });
 
 export type BlogInput = z.infer<typeof BlogInputSchema>;
@@ -33,7 +41,9 @@ const GeneratorResponseSchema = z.object({
     internal_links: z.array(z.string()).optional(),
 });
 
-export async function generateBlogContent(input: BlogInput) {
+export async function generateBlogContent(
+    input: BlogInput
+): Promise<{ success: true; data: z.infer<typeof GeneratorResponseSchema> }> {
     const client = createAnthropicClient();
 
     const systemPrompt = `You are an expert SEO content writer. Generate a comprehensive blog post based on the user's input.
@@ -41,11 +51,15 @@ export async function generateBlogContent(input: BlogInput) {
     Ensure the content is optimized for the keyword: "${input.keyword}".
     Search Intent: ${input.intent}.
     Tone: ${input.tone}.
+    ${input.articleStyle ? `Writing style: ${input.articleStyle}.` : ""}
     Approx Word Count: ${input.length}.
+    ${input.targetAudiences?.length ? `Target audience(s): ${input.targetAudiences.join(", ")}.` : ""}
     ${input.competitors ? "Competitors to analyze/outrank: " + input.competitors : ""}
+    ${input.customInstructions ? `Additional instructions to follow: ${input.customInstructions}` : ""}
 
     Provide 3 distinct options for "titles" and "meta_descriptions" (150-160 chars each).
     Provide 5-8 relevant "meta_keywords".
+    ${input.internalLinksTarget ? `Suggest exactly ${input.internalLinksTarget} "internal_links" anchor-text suggestions relevant to the topic.` : ""}
     Each section's "content" should be HTML (paragraphs and lists only, no h1/h2 tags within it).`;
 
     const response = await client.messages.parse({
@@ -67,20 +81,30 @@ export async function generateBlogContent(input: BlogInput) {
     return { success: true, data: response.parsed_output };
 }
 
-export async function generateBlogPost(input: BlogInput) {
+// Next.js strips thrown Server Action error messages down to a generic digest-only string in
+// production (see the identical note in src/actions/register.ts and
+// src/actions/keyword-discovery.ts) - this client-facing action returns failures as data
+// instead of throwing, so a real error (e.g. a missing ANTHROPIC_API_KEY) actually reaches the
+// user instead of the generic "error occurred in Server Components render" box.
+export async function generateBlogPost(
+    input: BlogInput
+): Promise<
+    | { success: true; data: z.infer<typeof GeneratorResponseSchema> }
+    | { success: false; error: string }
+> {
     console.log("Starting generateBlogPost with input:", JSON.stringify(input));
     let session;
     try {
         session = await auth();
         console.log("Session retrieved:", session?.user?.email);
-    } catch (e: any) {
+    } catch (e) {
         console.error("Auth error:", e);
-        throw new Error("Authentication failed: " + e.message);
+        return { success: false, error: "Authentication failed" };
     }
 
     if (!session?.user?.email) {
         console.error("No session found");
-        throw new Error("Not authenticated");
+        return { success: false, error: "Not authenticated" };
     }
 
     const user = await prisma.user.findUnique({
@@ -95,7 +119,7 @@ export async function generateBlogPost(input: BlogInput) {
 
         if (diff < twoMinutes) {
             const remaining = Math.ceil((twoMinutes - diff) / 1000);
-            throw new Error(`Rate limit exceeded. Please wait ${remaining} seconds.`);
+            return { success: false, error: `Rate limit exceeded. Please wait ${remaining} seconds.` };
         }
     }
 
@@ -109,16 +133,16 @@ export async function generateBlogPost(input: BlogInput) {
         // Continue anyway, don't fail generation for this
     }
 
-    const result = BlogInputSchema.safeParse(input);
-    if (!result.success) {
-        throw new Error("Invalid input: " + result.error.message);
+    const parsed = BlogInputSchema.safeParse(input);
+    if (!parsed.success) {
+        return { success: false, error: "Invalid input: " + parsed.error.message };
     }
 
     try {
         console.log("Calling Claude API...");
         return await generateBlogContent(input);
-    } catch (error: any) {
+    } catch (error) {
         console.error("Claude Error Detail:", error);
-        throw new Error(error.message || "Failed to generate blog post");
+        return { success: false, error: error instanceof Error ? error.message : "Failed to generate blog post" };
     }
 }

@@ -7,7 +7,7 @@ import { ensurePersonalOrganization } from "@/lib/org";
 
 const prisma = new PrismaClient();
 
-export async function register(formData: FormData, redirectTo: string = "/dashboard") {
+export async function register(formData: FormData, redirectTo: string = "/onboarding") {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
     const captchaToken = formData.get("captchaToken") as string;

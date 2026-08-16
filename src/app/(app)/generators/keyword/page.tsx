@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import { Sparkles, TrendingUp, Flame, Loader2, Plus, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { getProjects, createProject, updateProjectAutopilotSettings } from "@/actions/projects";
 import { discoverKeywords, promoteSnapshotToKeyword } from "@/actions/keyword-discovery";
 import { getConnectedSites } from "@/actions/wordpress";
+import { COUNTRIES } from "@/config/countries";
 
 const BLOG_TARGET = "BLOG";
 
@@ -28,20 +30,9 @@ type Snapshot = {
   rawGrowthLabel: string | null;
 };
 
-const COUNTRIES = [
-  { code: "US", label: "United States" },
-  { code: "GB", label: "United Kingdom" },
-  { code: "DE", label: "Germany" },
-  { code: "FR", label: "France" },
-  { code: "TR", label: "Turkey" },
-  { code: "ES", label: "Spain" },
-  { code: "IT", label: "Italy" },
-  { code: "CA", label: "Canada" },
-  { code: "AU", label: "Australia" },
-  { code: "IN", label: "India" },
-];
-
 export default function KeywordGeneratorPage() {
+  const { data: session } = useSession();
+  const isAdmin = session?.user?.role === "ADMIN";
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [selectedProjectId, setSelectedProjectId] = useState("");
@@ -106,6 +97,15 @@ export default function KeywordGeneratorPage() {
     }
   }, [selectedProjectId, projects]);
 
+  // "Internal Blog" publishes to Optify's own shared /blog - staff-only (see
+  // processDueScheduledPosts in src/actions/autopilot.ts). Non-admins can't select or keep it;
+  // fall back to the first connected site once one loads, matching SchedulePostModal's fix.
+  useEffect(() => {
+    if (!isAdmin && autopilotTarget === BLOG_TARGET && sites.length > 0) {
+      setAutopilotTarget(sites[0].id);
+    }
+  }, [isAdmin, autopilotTarget, sites]);
+
   const handleSaveAutopilot = async () => {
     if (!selectedProjectId) return;
     setIsSavingAutopilot(true);
@@ -146,8 +146,14 @@ export default function KeywordGeneratorPage() {
     setPromotedIds(new Set());
     try {
       const result = await discoverKeywords(selectedProjectId, seedKeyword);
-      setTopQueries(result.top as Snapshot[]);
-      setRisingQueries(result.rising as Snapshot[]);
+      if (!result.success) {
+        setError(result.error);
+        setTopQueries([]);
+        setRisingQueries([]);
+      } else {
+        setTopQueries(result.top as Snapshot[]);
+        setRisingQueries(result.rising as Snapshot[]);
+      }
     } catch (e: any) {
       setError(e.message || "Failed to discover keywords");
       setTopQueries([]);
@@ -313,12 +319,18 @@ export default function KeywordGeneratorPage() {
               <button
                 role="switch"
                 aria-checked={autopilotEnabled}
+                disabled={!autopilotEnabled && !isAdmin && sites.length === 0}
                 onClick={() => setAutopilotEnabled(v => !v)}
-                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${autopilotEnabled ? "bg-[#1DB954]" : "bg-slate-200"}`}
+                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${autopilotEnabled ? "bg-[#1DB954]" : "bg-slate-200"}`}
               >
                 <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${autopilotEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
               </button>
             </div>
+            {!isAdmin && sites.length === 0 && (
+              <p className="text-xs text-slate-500 border-t border-slate-100 pt-2">
+                Connect a WordPress site to enable Monthly Autopilot - the internal blog (optifyseo.ai) is staff-only.
+              </p>
+            )}
             {autopilotEnabled && (
               <div className="flex flex-wrap items-end gap-3 pt-2 border-t border-slate-100">
                 <div className="space-y-1">
@@ -328,7 +340,7 @@ export default function KeywordGeneratorPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={BLOG_TARGET}>Internal Blog (no site connected)</SelectItem>
+                      {isAdmin && <SelectItem value={BLOG_TARGET}>Internal Blog (optifyseo.ai - staff only)</SelectItem>}
                       {sites.map(site => (
                         <SelectItem key={site.id} value={site.id}>{site.name || site.url}</SelectItem>
                       ))}

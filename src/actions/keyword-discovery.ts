@@ -10,9 +10,25 @@ function currentPeriod(): string {
     return new Date().toISOString().slice(0, 7); // "YYYY-MM"
 }
 
-export async function discoverKeywords(projectId: string, seedKeyword: string) {
+// Next.js strips thrown Server Action error messages down to a generic digest-only string in
+// production (see the identical note in src/actions/register.ts) - discoverKeywordsInternal
+// throws (fine for the cron caller in autopilot.ts, which never crosses that boundary), but
+// this client-facing wrapper catches it and returns the real message as data instead, so a
+// SerpApi timeout actually reaches the UI as something the user can act on.
+export async function discoverKeywords(
+    projectId: string,
+    seedKeyword: string
+): Promise<
+    | { success: true; top: Awaited<ReturnType<typeof getSnapshotsForPeriod>>["top"]; rising: Awaited<ReturnType<typeof getSnapshotsForPeriod>>["rising"] }
+    | { success: false; error: string }
+> {
     const { project } = await requireOrgProjectAccess(projectId, "MEMBER");
-    return discoverKeywordsInternal(project, seedKeyword);
+    try {
+        const result = await discoverKeywordsInternal(project, seedKeyword);
+        return { success: true, ...result };
+    } catch (e) {
+        return { success: false, error: e instanceof Error ? e.message : "Failed to discover keywords" };
+    }
 }
 
 // Auth-free variant for the cron context (mirrors generateBlogContent vs generateBlogPost in
@@ -26,13 +42,13 @@ export async function discoverKeywordsInternal(project: { id: string; country: s
     }
 
     const result = await fetchTopRisingQueries(trimmedSeed, project.country, "today 1-m");
-    if (!result) {
-        throw new Error("Failed to fetch keyword data from SerpApi");
+    if (!result.success) {
+        throw new Error(result.error);
     }
 
     const rows = [
-        ...result.top.map(q => ({ type: "TOP", ...q })),
-        ...result.rising.map(q => ({ type: "RISING", ...q })),
+        ...result.data.top.map(q => ({ type: "TOP", ...q })),
+        ...result.data.rising.map(q => ({ type: "RISING", ...q })),
     ];
 
     for (const row of rows) {

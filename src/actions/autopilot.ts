@@ -218,6 +218,16 @@ export async function createScheduledPost(
         }
     }
 
+    // Publishing with no connected site falls back to this app's own shared /blog (see
+    // processDueScheduledPosts) - that's an Optify-staff-only publishing target, never a
+    // regular customer's. Draft-only is fine without a site (nothing goes live anywhere).
+    if (input.publishStatus === "publish" && !input.connectedSiteId && !(await isPlatformAdmin(userId))) {
+        return {
+            success: false,
+            error: "Connect a WordPress site before publishing - there's nowhere else for this to go live.",
+        };
+    }
+
     // Validate scheduled date is today or in the future (compare dates only, not time)
     const scheduledDate = new Date(input.scheduledDate);
     const today = new Date();
@@ -362,7 +372,7 @@ export async function updateScheduledPost(id: string, input: Partial<ScheduledPo
     if (!existing) {
         throw new Error("Scheduled post not found.");
     }
-    await requireOrgProjectAccess(existing.projectId, "MEMBER");
+    const { userId } = await requireOrgProjectAccess(existing.projectId, "MEMBER");
 
     if (existing.status !== "SCHEDULED") {
         throw new Error("Cannot edit a post that has already been processed.");
@@ -377,6 +387,14 @@ export async function updateScheduledPost(id: string, input: Partial<ScheduledPo
         if (!site) {
             throw new Error("Connected site not found or does not belong to your organization.");
         }
+    }
+
+    // Same rule as createScheduledPost - resolve the fields as they'll end up after this
+    // update (input is a partial patch) before checking, not just the literal input.
+    const resultingConnectedSiteId = input.connectedSiteId !== undefined ? input.connectedSiteId : existing.connectedSiteId;
+    const resultingPublishStatus = input.publishStatus ?? existing.publishStatus;
+    if (resultingPublishStatus === "publish" && !resultingConnectedSiteId && !(await isPlatformAdmin(userId))) {
+        throw new Error("Connect a WordPress site before publishing - there's nowhere else for this to go live.");
     }
 
     await prisma.scheduledPost.update({
@@ -495,7 +513,8 @@ export async function processDueScheduledPosts() {
         },
         include: {
             connectedSite: true,
-            user: true
+            user: true,
+            project: { include: { competitors: true } },
         }
     });
 
@@ -509,31 +528,65 @@ export async function processDueScheduledPosts() {
                 data: { status: "GENERATING" }
             });
 
-            console.log(`[Autopilot] Generating post for keyword: ${post.keyword}`);
-
-            // Generate blog content
-            const blogInput: BlogInput = {
-                keyword: post.keyword,
-                intent: post.intent as "informational" | "commercial" | "navigational",
-                length: post.length,
-                tone: post.tone,
-                competitors: "",
-            };
-
-            // Note: We call the generation logic directly here
-            // We need to bypass auth since this is a cron job
-            const result = await generateBlogContent(blogInput);
-
-            if (!result.success || !result.data) {
-                throw new Error("Blog generation failed");
+            // Defense-in-depth: createScheduledPost/updateScheduledPost already reject this
+            // combination for non-admins, but this is the actual point where content would go
+            // live on this app's own shared /blog if it ever slipped through (or predates that
+            // check) - never let a regular customer's post publish there.
+            if (post.publishStatus === "publish" && !post.connectedSite && post.user.role !== "ADMIN") {
+                await prisma.scheduledPost.update({
+                    where: { id: post.id },
+                    data: {
+                        status: "FAILED",
+                        errorMessage: "No connected site - publishing to Optify's own blog is staff-only. Connect a WordPress site and reschedule.",
+                    },
+                });
+                continue;
             }
 
-            const generated = result.data;
-            const selectedTitle = generated.titles[0];
-            const selectedDescription = generated.meta_descriptions[0];
-            const contentHTML = generated.sections
-                .map((s: { h2: string; content: string }) => `<h2>${s.h2}</h2>${s.content}`)
-                .join("");
+            let selectedTitle: string;
+            let selectedDescription: string;
+            let contentHTML: string;
+            let metaKeywordsJson: string;
+
+            if (post.generatedTitle && post.generatedContent) {
+                // Monthly discovery already wrote this one up front (see
+                // runAutopilotDiscoveryAndScheduling) - today is just its publish day, no need
+                // to generate again.
+                console.log(`[Autopilot] Using pre-generated draft for: ${post.keyword}`);
+                selectedTitle = post.generatedTitle;
+                selectedDescription = post.generatedDescription ?? "";
+                contentHTML = post.generatedContent;
+                // meta_keywords isn't persisted on ScheduledPost separately from the generated
+                // content - fall back to the seed keyword itself rather than losing it entirely.
+                metaKeywordsJson = JSON.stringify([post.keyword]);
+            } else {
+                // No pre-generated draft (pre-generation failed, or this post predates it) -
+                // generate now, same as always.
+                console.log(`[Autopilot] Generating post for keyword: ${post.keyword}`);
+                const blogInput: BlogInput = {
+                    keyword: post.keyword,
+                    intent: post.intent as "informational" | "commercial" | "navigational",
+                    length: post.length,
+                    tone: post.tone,
+                    ...(post.project ? projectContentContext(post.project) : { competitors: "" }),
+                };
+
+                // Note: We call the generation logic directly here
+                // We need to bypass auth since this is a cron job
+                const result = await generateBlogContent(blogInput);
+
+                if (!result.success || !result.data) {
+                    throw new Error("Blog generation failed");
+                }
+
+                const generated = result.data;
+                selectedTitle = generated.titles[0];
+                selectedDescription = generated.meta_descriptions[0];
+                contentHTML = generated.sections
+                    .map((s: { h2: string; content: string }) => `<h2>${s.h2}</h2>${s.content}`)
+                    .join("");
+                metaKeywordsJson = JSON.stringify(generated.meta_keywords ?? []);
+            }
 
             let publishedPostUrl: string;
 
@@ -547,7 +600,7 @@ export async function processDueScheduledPosts() {
                         slug,
                         title: selectedTitle,
                         metaDescription: selectedDescription,
-                        metaKeywords: JSON.stringify(generated.meta_keywords ?? []),
+                        metaKeywords: metaKeywordsJson,
                         content: contentHTML,
                         status: isPublished ? "PUBLISHED" : "DRAFT",
                         publishedAt: isPublished ? new Date() : null,
@@ -661,26 +714,102 @@ export async function retryScheduledPost(id: string) {
 // FULLY AUTONOMOUS MONTHLY DISCOVERY + SCHEDULING (called by cron)
 // ============================================
 
-const MAX_AUTO_SCHEDULED_PER_PROJECT_PER_RUN = 5; // cap per run even on unlimited plans
+// Below this many usable Search Console queries, there isn't enough real search data yet
+// (e.g. a brand new site) to build a month of content around - fall back to Trends discovery
+// entirely for this run rather than blending a handful of GSC queries with Trends ones.
+const MIN_SEARCH_CONSOLE_QUERIES = 5;
+
+function daysRemainingInMonth(): number {
+    const now = new Date();
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return lastDayOfMonth - now.getDate() + 1; // inclusive of today
+}
 
 /**
- * For every project with autopilot enabled: discover this month's rising keywords for its
- * seed keyword, skip ones already scheduled for that project, and auto-create scheduled
- * posts (spaced via getNextAvailableDate) up to that project's own remaining monthly quota.
+ * Maps a Project's onboarding-captured preferences (Business/Audience & Competitors/Articles
+ * steps - see src/actions/onboarding.ts) onto the extra BlogInput fields generate-blog.ts's
+ * prompt actually reads. Shared by both the pre-generation loop in
+ * runAutopilotDiscoveryAndScheduling and the just-in-time fallback in
+ * processDueScheduledPosts so the two paths can't drift apart.
  */
-export async function runAutopilotDiscoveryAndScheduling() {
-    const { discoverKeywordsInternal } = await import("@/actions/keyword-discovery");
+function projectContentContext(project: {
+    targetAudiences: string | null;
+    articleStyle: string | null;
+    articleInstructions: string | null;
+    internalLinksPerArticle: number;
+    competitors: { domain: string }[];
+}): Pick<BlogInput, "targetAudiences" | "articleStyle" | "customInstructions" | "internalLinksTarget" | "competitors"> {
+    let targetAudiences: string[] | undefined;
+    try {
+        targetAudiences = project.targetAudiences ? JSON.parse(project.targetAudiences) : undefined;
+    } catch {
+        targetAudiences = undefined;
+    }
 
+    return {
+        targetAudiences,
+        articleStyle: project.articleStyle ?? undefined,
+        customInstructions: project.articleInstructions ?? undefined,
+        internalLinksTarget: project.internalLinksPerArticle || undefined,
+        competitors: project.competitors.length > 0 ? project.competitors.map(c => c.domain).join(", ") : "",
+    };
+}
+
+/**
+ * Prefers real Search Console search queries (the site's own actual search visibility) over
+ * Trends-based discovery, since those reflect what people are already finding this site for
+ * rather than a third-party trend estimate. Falls back to the existing seed-keyword Trends
+ * discovery (src/actions/keyword-discovery.ts) whenever Search Console has too little data yet
+ * - a new project's owner may not have Search Console access/data at all, which is normal, not
+ * an error.
+ */
+async function discoverCandidateKeywords(
+    project: { id: string; userId: string; domain: string; country: string; autopilotSeedKeyword: string | null },
+    usedKeywords: Set<string>,
+    slots: number
+): Promise<{ relatedQuery: string }[]> {
+    const { getTopSearchQueriesForUser } = await import("@/actions/search-console");
+    const gscRows = await getTopSearchQueriesForUser(project.userId, project.domain);
+    const gscCandidates = gscRows
+        .map(row => ({ relatedQuery: row.query }))
+        .filter(candidate => candidate.relatedQuery && !usedKeywords.has(candidate.relatedQuery));
+
+    if (gscCandidates.length >= MIN_SEARCH_CONSOLE_QUERIES) {
+        console.log(`[Autopilot] Project ${project.id}: using ${gscCandidates.length} Search Console quer(y/ies)`);
+        return gscCandidates.slice(0, slots);
+    }
+
+    console.log(`[Autopilot] Project ${project.id}: only ${gscCandidates.length} Search Console quer(y/ies) - falling back to Trends discovery`);
+    const { discoverKeywordsInternal } = await import("@/actions/keyword-discovery");
+    const discovery = await discoverKeywordsInternal(project, project.autopilotSeedKeyword!);
+    return discovery.rising
+        .filter(row => !usedKeywords.has(row.relatedQuery))
+        .slice(0, slots);
+}
+
+/**
+ * For every project with autopilot enabled (or just one, if projectId is given - see
+ * updateProjectAutopilotSettings in src/actions/projects.ts, which calls this immediately when
+ * a project is newly enabled mid-month rather than making it wait for the 1st): discover
+ * keywords (Search Console queries, preferred, falling back to Trends - see
+ * discoverCandidateKeywords), skip ones already scheduled for that project, and auto-create
+ * scheduled posts (one per day via getNextAvailableDate) filling out the rest of the current
+ * calendar month, up to that project's own remaining monthly quota - not just a handful per run.
+ */
+export async function runAutopilotDiscoveryAndScheduling(projectId?: string) {
     const projects = await prisma.project.findMany({
         where: {
             autopilotEnabled: true,
             autopilotSeedKeyword: { not: null },
+            ...(projectId && { id: projectId }),
         },
+        include: { competitors: true },
     });
 
     console.log(`[Autopilot] Monthly discovery: ${projects.length} project(s) enabled`);
 
     let totalScheduled = 0;
+    const daysLeft = daysRemainingInMonth();
 
     for (const project of projects) {
         try {
@@ -692,24 +821,56 @@ export async function runAutopilotDiscoveryAndScheduling() {
                 continue;
             }
 
-            const discovery = await discoverKeywordsInternal(project, project.autopilotSeedKeyword!);
-
             const existing = await prisma.scheduledPost.findMany({
                 where: { projectId: project.id },
                 select: { keyword: true },
             });
             const usedKeywords = new Set(existing.map(p => p.keyword));
 
+            // Fill the rest of this calendar month, one post per day, bounded by whatever
+            // quota is actually left (unlimited plans still only get one post per remaining
+            // day - "daily for the month," not an unbounded dump into the scheduler).
             const slots = limitCheck.remaining === -1
-                ? MAX_AUTO_SCHEDULED_PER_PROJECT_PER_RUN
-                : Math.min(limitCheck.remaining, MAX_AUTO_SCHEDULED_PER_PROJECT_PER_RUN);
+                ? daysLeft
+                : Math.min(limitCheck.remaining, daysLeft);
 
-            const candidates = discovery.rising
-                .filter(row => !usedKeywords.has(row.relatedQuery))
-                .slice(0, slots);
+            const candidates = await discoverCandidateKeywords(project, usedKeywords, slots);
 
             for (const candidate of candidates) {
                 const nextDate = await getNextAvailableDate(project.id);
+
+                // Write the article now rather than waiting for its scheduled day - the whole
+                // month's drafts should exist up front for review, with each day just being a
+                // publish event (see processDueScheduledPosts, which skips regeneration when
+                // these fields are already filled in). A failed pre-generation isn't fatal:
+                // the post still gets scheduled with just its keyword, and
+                // processDueScheduledPosts falls back to generating it just-in-time on its
+                // scheduled day instead, same as before this existed.
+                let pregenerated: { generatedTitle: string; generatedContent: string; generatedDescription: string } | null = null;
+                try {
+                    const result = await generateBlogContent({
+                        keyword: candidate.relatedQuery,
+                        intent: "informational",
+                        length: 1500,
+                        tone: "professional",
+                        ...projectContentContext(project),
+                    });
+                    if (result.success && result.data) {
+                        const generated = result.data;
+                        pregenerated = {
+                            generatedTitle: generated.titles[0],
+                            generatedDescription: generated.meta_descriptions[0],
+                            generatedContent: generated.sections
+                                .map((s: { h2: string; content: string }) => `<h2>${s.h2}</h2>${s.content}`)
+                                .join(""),
+                        };
+                    } else {
+                        console.warn(`[Autopilot] Project ${project.id}: pre-generation returned no data for "${candidate.relatedQuery}" - will generate just-in-time instead`);
+                    }
+                } catch (genError) {
+                    console.warn(`[Autopilot] Project ${project.id}: pre-generation failed for "${candidate.relatedQuery}" - will generate just-in-time instead`, genError);
+                }
+
                 await prisma.scheduledPost.create({
                     data: {
                         userId: project.userId,
@@ -723,6 +884,7 @@ export async function runAutopilotDiscoveryAndScheduling() {
                         scheduledDate: nextDate,
                         publishStatus: "draft",
                         status: "SCHEDULED",
+                        ...pregenerated,
                     },
                 });
                 totalScheduled++;

@@ -4,7 +4,7 @@ import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { LayoutDashboard } from "lucide-react";
 
-export function SignInButton({ callbackUrl = "/dashboard", text = "Sign up with Google" }: { callbackUrl?: string, text?: string }) {
+export function SignInButton({ callbackUrl = "/onboarding", text = "Sign up with Google" }: { callbackUrl?: string, text?: string }) {
     return (
         <Button
             onClick={() => signIn("google", { callbackUrl })}
