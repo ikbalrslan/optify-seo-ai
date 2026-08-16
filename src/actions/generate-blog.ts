@@ -13,6 +13,14 @@ const BlogInputSchema = z.object({
     length: z.number().min(300).max(5000),
     tone: z.string().min(1, "Tone is required"),
     competitors: z.string().optional(),
+    // Project-level preferences captured during onboarding (src/actions/onboarding.ts) - all
+    // optional since not every caller has a Project to pull these from (the standalone manual
+    // generator at src/app/(app)/generators/blog/page.tsx has no project context, only
+    // autopilot's project-scoped generation - src/actions/autopilot.ts - populates these).
+    targetAudiences: z.array(z.string()).optional(),
+    articleStyle: z.string().optional(),
+    customInstructions: z.string().optional(),
+    internalLinksTarget: z.number().optional(),
 });
 
 export type BlogInput = z.infer<typeof BlogInputSchema>;
@@ -41,11 +49,15 @@ export async function generateBlogContent(input: BlogInput) {
     Ensure the content is optimized for the keyword: "${input.keyword}".
     Search Intent: ${input.intent}.
     Tone: ${input.tone}.
+    ${input.articleStyle ? `Writing style: ${input.articleStyle}.` : ""}
     Approx Word Count: ${input.length}.
+    ${input.targetAudiences?.length ? `Target audience(s): ${input.targetAudiences.join(", ")}.` : ""}
     ${input.competitors ? "Competitors to analyze/outrank: " + input.competitors : ""}
+    ${input.customInstructions ? `Additional instructions to follow: ${input.customInstructions}` : ""}
 
     Provide 3 distinct options for "titles" and "meta_descriptions" (150-160 chars each).
     Provide 5-8 relevant "meta_keywords".
+    ${input.internalLinksTarget ? `Suggest exactly ${input.internalLinksTarget} "internal_links" anchor-text suggestions relevant to the topic.` : ""}
     Each section's "content" should be HTML (paragraphs and lists only, no h1/h2 tags within it).`;
 
     const response = await client.messages.parse({

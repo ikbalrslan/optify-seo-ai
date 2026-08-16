@@ -513,7 +513,8 @@ export async function processDueScheduledPosts() {
         },
         include: {
             connectedSite: true,
-            user: true
+            user: true,
+            project: { include: { competitors: true } },
         }
     });
 
@@ -567,7 +568,7 @@ export async function processDueScheduledPosts() {
                     intent: post.intent as "informational" | "commercial" | "navigational",
                     length: post.length,
                     tone: post.tone,
-                    competitors: "",
+                    ...(post.project ? projectContentContext(post.project) : { competitors: "" }),
                 };
 
                 // Note: We call the generation logic directly here
@@ -725,6 +726,36 @@ function daysRemainingInMonth(): number {
 }
 
 /**
+ * Maps a Project's onboarding-captured preferences (Business/Audience & Competitors/Articles
+ * steps - see src/actions/onboarding.ts) onto the extra BlogInput fields generate-blog.ts's
+ * prompt actually reads. Shared by both the pre-generation loop in
+ * runAutopilotDiscoveryAndScheduling and the just-in-time fallback in
+ * processDueScheduledPosts so the two paths can't drift apart.
+ */
+function projectContentContext(project: {
+    targetAudiences: string | null;
+    articleStyle: string | null;
+    articleInstructions: string | null;
+    internalLinksPerArticle: number;
+    competitors: { domain: string }[];
+}): Pick<BlogInput, "targetAudiences" | "articleStyle" | "customInstructions" | "internalLinksTarget" | "competitors"> {
+    let targetAudiences: string[] | undefined;
+    try {
+        targetAudiences = project.targetAudiences ? JSON.parse(project.targetAudiences) : undefined;
+    } catch {
+        targetAudiences = undefined;
+    }
+
+    return {
+        targetAudiences,
+        articleStyle: project.articleStyle ?? undefined,
+        customInstructions: project.articleInstructions ?? undefined,
+        internalLinksTarget: project.internalLinksPerArticle || undefined,
+        competitors: project.competitors.length > 0 ? project.competitors.map(c => c.domain).join(", ") : "",
+    };
+}
+
+/**
  * Prefers real Search Console search queries (the site's own actual search visibility) over
  * Trends-based discovery, since those reflect what people are already finding this site for
  * rather than a third-party trend estimate. Falls back to the existing seed-keyword Trends
@@ -772,6 +803,7 @@ export async function runAutopilotDiscoveryAndScheduling(projectId?: string) {
             autopilotSeedKeyword: { not: null },
             ...(projectId && { id: projectId }),
         },
+        include: { competitors: true },
     });
 
     console.log(`[Autopilot] Monthly discovery: ${projects.length} project(s) enabled`);
@@ -821,7 +853,7 @@ export async function runAutopilotDiscoveryAndScheduling(projectId?: string) {
                         intent: "informational",
                         length: 1500,
                         tone: "professional",
-                        competitors: "",
+                        ...projectContentContext(project),
                     });
                     if (result.success && result.data) {
                         const generated = result.data;
