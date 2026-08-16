@@ -7,8 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { Loader2, Wand2, Copy, Check, Globe } from "lucide-react";
-import { generateBlogPost, type BlogInput } from "@/actions/generate-blog";
+import { Loader2, Wand2, Copy, Check, Globe, Image as ImageIcon } from "lucide-react";
+import { generateBlogPost, renderBlogHtml, type BlogInput } from "@/actions/generate-blog";
 import { getConnectedSites, publishToWordPress } from "@/actions/wordpress";
 import { getProjects, getProjectContentPreferences } from "@/actions/projects";
 import { TagInput } from "@/components/onboarding/TagInput";
@@ -131,7 +131,7 @@ export default function BlogGeneratorPage() {
         setIsPublishing(true);
         setPublishResult(null);
         try {
-            const contentHTML = generatedContent.sections.map((s: any) => `<h2>${s.h2}</h2>${s.content}`).join("");
+            const contentHTML = await renderBlogHtml(generatedContent);
 
             const result = await publishToWordPress(selectedSiteId, {
                 title: selectedTitle,
@@ -561,9 +561,39 @@ export default function BlogGeneratorPage() {
 
                                         {/* Blog Content */}
                                         <div className="prose prose-slate max-w-none animate-in fade-in zoom-in-95 duration-300">
+                                            {generatedContent.sections.length > 2 && (
+                                                <div className="not-prose mb-6 p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                                                        Table of Contents (auto-generated on publish)
+                                                    </p>
+                                                    <ul className="space-y-1 text-sm">
+                                                        {generatedContent.sections.map((section: any, idx: number) => (
+                                                            <li key={idx}>
+                                                                <a href={`#section-preview-${idx}`} className="text-blue-600 hover:underline">
+                                                                    {section.h2}
+                                                                </a>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+
+                                            {generatedContent.hero_image_query && (
+                                                <div className="not-prose mb-4 flex items-center gap-2 text-xs text-slate-500 bg-slate-50 border border-dashed border-slate-200 rounded-lg p-3">
+                                                    <ImageIcon className="h-4 w-4 shrink-0" />
+                                                    Hero image will be auto-fetched on publish: &ldquo;{generatedContent.hero_image_query}&rdquo;
+                                                </div>
+                                            )}
+
                                             {generatedContent.sections.map((section: any, idx: number) => (
-                                                <div key={idx} className="mb-6">
+                                                <div key={idx} id={`section-preview-${idx}`} className="mb-6">
                                                     <h3 className="text-lg font-semibold mb-2">{section.h2}</h3>
+                                                    {section.image_query && (
+                                                        <div className="not-prose mb-3 flex items-center gap-2 text-xs text-slate-500 bg-slate-50 border border-dashed border-slate-200 rounded-lg p-2">
+                                                            <ImageIcon className="h-3.5 w-3.5 shrink-0" />
+                                                            Image will be auto-fetched on publish: &ldquo;{section.image_query}&rdquo;
+                                                        </div>
+                                                    )}
                                                     <div dangerouslySetInnerHTML={{ __html: section.content }} />
                                                 </div>
                                             ))}
@@ -579,19 +609,6 @@ export default function BlogGeneratorPage() {
                                                             </div>
                                                         ))}
                                                     </dl>
-                                                </div>
-                                            )}
-
-                                            {generatedContent.internal_links && (
-                                                <div className="mt-6 pt-6 border-t border-slate-100 bg-slate-50 p-4 rounded-lg">
-                                                    <h4 className="font-semibold text-sm uppercase tracking-wide text-slate-500 mb-3">Internal Linking Suggestions</h4>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {generatedContent.internal_links.map((link: string, idx: number) => (
-                                                            <span key={idx} className="px-2 py-1 bg-white border border-slate-200 rounded text-sm text-blue-600 font-medium">
-                                                                {link}
-                                                            </span>
-                                                        ))}
-                                                    </div>
                                                 </div>
                                             )}
                                         </div>

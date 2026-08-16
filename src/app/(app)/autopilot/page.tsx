@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Calendar } from "@/components/autopilot/Calendar";
 import { SchedulePostModal } from "@/components/autopilot/SchedulePostModal";
-import { getScheduledPosts, deleteScheduledPost, retryScheduledPost } from "@/actions/autopilot";
+import { getScheduledPosts, deleteScheduledPost, retryScheduledPost, publishScheduledPostNow } from "@/actions/autopilot";
 import { getProjects } from "@/actions/projects";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,9 +11,11 @@ import {
     Trash2,
     RefreshCw,
     ExternalLink,
-    Loader2
+    Loader2,
+    Send
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getEffectiveScheduledPostStatus } from "@/lib/scheduled-post-status";
 import {
     Dialog,
     DialogContent,
@@ -35,10 +37,13 @@ type ScheduledPost = {
     publishStatus: string;
     status: string;
     generatedTitle?: string | null;
+    generatedDescription?: string | null;
+    generatedContent?: string | null;
     publishedPostUrl?: string | null;
     errorMessage?: string | null;
     executedAt?: Date | null;
     connectedSite: { name: string; url: string } | null;
+    canPublishInternally: boolean;
     createdAt: Date;
 };
 
@@ -58,6 +63,8 @@ export default function AutopilotPage() {
     const [isPostDetailOpen, setIsPostDetailOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isRetrying, setIsRetrying] = useState(false);
+    const [isPublishing, setIsPublishing] = useState(false);
+    const [publishError, setPublishError] = useState<string | null>(null);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
 
     const loadData = async (showFullLoader = false) => {
@@ -106,6 +113,7 @@ export default function AutopilotPage() {
         const fullPost = posts.find(p => p.id === post.id);
         if (fullPost) {
             setSelectedPost(fullPost);
+            setPublishError(null);
             setIsPostDetailOpen(true);
         }
     };
@@ -155,16 +163,32 @@ export default function AutopilotPage() {
         }
     };
 
-    const getStatusBadge = (status: string) => {
-        const styles: Record<string, string> = {
-            SCHEDULED: "bg-blue-100 text-blue-700",
-            GENERATING: "bg-yellow-100 text-yellow-700",
-            PUBLISHED: "bg-green-100 text-green-700",
-            FAILED: "bg-red-100 text-red-700",
-        };
+    const handlePublishNow = async () => {
+        if (!selectedPost) return;
+        setIsPublishing(true);
+        setPublishError(null);
+        try {
+            const result = await publishScheduledPostNow(selectedPost.id);
+            if (!result.success) {
+                setPublishError(result.error);
+                return;
+            }
+            setIsPostDetailOpen(false);
+            setSelectedPost(null);
+            loadData();
+        } catch (e) {
+            console.error("Failed to publish", e);
+            setPublishError("Failed to publish. Please try again.");
+        } finally {
+            setIsPublishing(false);
+        }
+    };
+
+    const getStatusBadge = (post: ScheduledPost) => {
+        const { label, bg, text } = getEffectiveScheduledPostStatus(post.status, post.publishStatus);
         return (
-            <span className={cn("px-2 py-1 rounded-full text-xs font-medium", styles[status] || "bg-gray-100")}>
-                {status}
+            <span className={cn("px-2 py-1 rounded-full text-xs font-medium", bg, text)}>
+                {label}
             </span>
         );
     };
@@ -243,7 +267,7 @@ export default function AutopilotPage() {
                     <DialogHeader>
                         <DialogTitle>Scheduled Post</DialogTitle>
                         <DialogDescription>
-                            {selectedPost && getStatusBadge(selectedPost.status)}
+                            {selectedPost && getStatusBadge(selectedPost)}
                         </DialogDescription>
                     </DialogHeader>
 
@@ -256,7 +280,12 @@ export default function AutopilotPage() {
                                 </div>
                                 <div>
                                     <p className="text-slate-500">Site</p>
-                                    <p className="font-medium">{selectedPost.connectedSite?.name ?? "Internal Blog (optifyseo.ai)"}</p>
+                                    <p className="font-medium">
+                                        {selectedPost.connectedSite?.name
+                                            ?? (selectedPost.canPublishInternally
+                                                ? "Internal Blog (optifyseo.ai)"
+                                                : "No site connected (draft only)")}
+                                    </p>
                                 </div>
                                 <div>
                                     <p className="text-slate-500">Tone</p>
@@ -283,6 +312,26 @@ export default function AutopilotPage() {
                                 </div>
                             )}
 
+                            {/* Once generated, a post that isn't yet live anywhere (no
+                                publishedPostUrl) is reviewable right here instead of only via an
+                                external link that would 404. Once actually published,
+                                publishedPostUrl is set and the footer's "View Post" button
+                                takes over instead. */}
+                            {selectedPost.generatedContent && !selectedPost.publishedPostUrl && (
+                                <div className="space-y-2">
+                                    <p className="text-xs text-slate-500">Draft Preview (not yet published)</p>
+                                    {selectedPost.generatedDescription && (
+                                        <p className="text-sm text-slate-600 italic">
+                                            {selectedPost.generatedDescription}
+                                        </p>
+                                    )}
+                                    <div
+                                        className="prose prose-sm max-w-none max-h-64 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 p-3"
+                                        dangerouslySetInnerHTML={{ __html: selectedPost.generatedContent }}
+                                    />
+                                </div>
+                            )}
+
                             {selectedPost.errorMessage && (
                                 <div className="p-3 bg-red-50 rounded-lg border border-red-100">
                                     <p className="text-xs text-red-600 mb-1">Error</p>
@@ -292,7 +341,28 @@ export default function AutopilotPage() {
                                 </div>
                             )}
 
+                            {publishError && (
+                                <div className="p-3 bg-red-50 rounded-lg border border-red-100">
+                                    <p className="text-xs text-red-600 mb-1">Could not publish</p>
+                                    <p className="text-sm text-red-900">{publishError}</p>
+                                </div>
+                            )}
+
                             <DialogFooter className="flex gap-2">
+                                {selectedPost.status === "PUBLISHED" &&
+                                    selectedPost.publishStatus === "draft" &&
+                                    !selectedPost.connectedSite &&
+                                    selectedPost.canPublishInternally && (
+                                        <Button onClick={handlePublishNow} disabled={isPublishing}>
+                                            {isPublishing ? (
+                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                            ) : (
+                                                <Send className="h-4 w-4 mr-2" />
+                                            )}
+                                            Publish Now
+                                        </Button>
+                                    )}
+
                                 {selectedPost.publishedPostUrl && (
                                     <Button
                                         variant="outline"

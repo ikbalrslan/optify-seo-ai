@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db";
 import { getActiveOrganization, requireOrgProjectAccess, requireOrgRole } from "@/lib/org";
 import { generateBlogPost, generateBlogContent, type BlogInput } from "@/actions/generate-blog";
+import { assembleBlogHtml } from "@/lib/blog-content";
 import { decrypt } from "@/lib/encryption";
 import { slugify } from "@/lib/slug";
 import { revalidatePath } from "next/cache";
@@ -97,6 +98,54 @@ async function isPlatformAdmin(userId: string): Promise<boolean> {
     return user?.role === "ADMIN";
 }
 
+// Only the literal Optifyseo company project (Project.isPlatformSite) may publish to the
+// internal /blog without a connected site - deliberately NOT "any project an admin happens to
+// own," since admin accounts also own their own test/demo projects, which must behave like any
+// regular customer's site (require a connected site to actually go live anywhere).
+function canPublishToInternalBlog(project: { isPlatformSite: boolean }): boolean {
+    return project.isPlatformSite;
+}
+
+// Real, existing pages a generated post is allowed to link to - see internalLinkCandidates on
+// BlogInput (src/actions/generate-blog.ts). Never returns anything unverified: the internal
+// blog branch only lists posts already known to be PUBLISHED, and the WordPress branch is a
+// best-effort public REST fetch that silently degrades to an empty list on any failure (a
+// missing internal-link opportunity is fine; a broken link in published content is not).
+async function getInternalLinkCandidates(
+    project: { isPlatformSite: boolean },
+    connectedSite: { type: string; url: string } | null
+): Promise<{ title: string; url: string }[]> {
+    if (connectedSite) {
+        if (connectedSite.type !== "WORDPRESS") return [];
+        try {
+            const response = await fetch(`${connectedSite.url}/wp-json/wp/v2/posts?per_page=15&_fields=title,link`, {
+                signal: AbortSignal.timeout(6000),
+            });
+            if (!response.ok) return [];
+            const posts = await response.json();
+            if (!Array.isArray(posts)) return [];
+            return posts
+                .map((p: { title?: { rendered?: string }; link?: string }) => ({
+                    title: p.title?.rendered ?? "",
+                    url: p.link ?? "",
+                }))
+                .filter((c): c is { title: string; url: string } => Boolean(c.title && c.url));
+        } catch {
+            return [];
+        }
+    }
+
+    if (!canPublishToInternalBlog(project)) return [];
+
+    const posts = await prisma.blogPost.findMany({
+        where: { status: "PUBLISHED" },
+        select: { title: true, slug: true },
+        orderBy: { createdAt: "desc" },
+        take: 15,
+    });
+    return posts.map(p => ({ title: p.title, url: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/blog/${p.slug}` }));
+}
+
 // ============================================
 // PUBLIC ACTIONS
 // ============================================
@@ -187,8 +236,9 @@ export async function createScheduledPost(
     input: ScheduledPostInput
 ): Promise<{ success: true; id: string } | { success: false; error: string }> {
     let userId: string;
+    let project: Awaited<ReturnType<typeof requireOrgProjectAccess>>["project"];
     try {
-        ({ userId } = await requireOrgProjectAccess(input.projectId, "MEMBER"));
+        ({ userId, project } = await requireOrgProjectAccess(input.projectId, "MEMBER"));
     } catch {
         return { success: false, error: "Not authorized" };
     }
@@ -208,7 +258,6 @@ export async function createScheduledPost(
 
     if (input.connectedSiteId) {
         // Verify the connected site belongs to the same project's organization
-        const project = await prisma.project.findUniqueOrThrow({ where: { id: input.projectId } });
         const site = await prisma.connectedSite.findFirst({
             where: { id: input.connectedSiteId, organizationId: project.organizationId }
         });
@@ -219,9 +268,10 @@ export async function createScheduledPost(
     }
 
     // Publishing with no connected site falls back to this app's own shared /blog (see
-    // processDueScheduledPosts) - that's an Optify-staff-only publishing target, never a
-    // regular customer's. Draft-only is fine without a site (nothing goes live anywhere).
-    if (input.publishStatus === "publish" && !input.connectedSiteId && !(await isPlatformAdmin(userId))) {
+    // processDueScheduledPosts) - only the literal Optifyseo project may target that, never a
+    // regular customer's (or an admin's own unrelated test) project. Draft-only is fine without
+    // a site (nothing goes live anywhere).
+    if (input.publishStatus === "publish" && !input.connectedSiteId && !canPublishToInternalBlog(project)) {
         return {
             success: false,
             error: "Connect a WordPress site before publishing - there's nowhere else for this to go live.",
@@ -372,7 +422,7 @@ export async function updateScheduledPost(id: string, input: Partial<ScheduledPo
     if (!existing) {
         throw new Error("Scheduled post not found.");
     }
-    const { userId } = await requireOrgProjectAccess(existing.projectId, "MEMBER");
+    const { project } = await requireOrgProjectAccess(existing.projectId, "MEMBER");
 
     if (existing.status !== "SCHEDULED") {
         throw new Error("Cannot edit a post that has already been processed.");
@@ -380,7 +430,6 @@ export async function updateScheduledPost(id: string, input: Partial<ScheduledPo
 
     // If changing connected site, verify it belongs to the same organization
     if (input.connectedSiteId && input.connectedSiteId !== existing.connectedSiteId) {
-        const project = await prisma.project.findUniqueOrThrow({ where: { id: existing.projectId } });
         const site = await prisma.connectedSite.findFirst({
             where: { id: input.connectedSiteId, organizationId: project.organizationId }
         });
@@ -393,7 +442,7 @@ export async function updateScheduledPost(id: string, input: Partial<ScheduledPo
     // update (input is a partial patch) before checking, not just the literal input.
     const resultingConnectedSiteId = input.connectedSiteId !== undefined ? input.connectedSiteId : existing.connectedSiteId;
     const resultingPublishStatus = input.publishStatus ?? existing.publishStatus;
-    if (resultingPublishStatus === "publish" && !resultingConnectedSiteId && !(await isPlatformAdmin(userId))) {
+    if (resultingPublishStatus === "publish" && !resultingConnectedSiteId && !canPublishToInternalBlog(project)) {
         throw new Error("Connect a WordPress site before publishing - there's nowhere else for this to go live.");
     }
 
@@ -437,7 +486,7 @@ export async function deleteScheduledPost(id: string) {
  * Get scheduled posts for a specific project, for a given month/year (calendar view)
  */
 export async function getScheduledPosts(projectId: string, month: number, year: number) {
-    await requireOrgProjectAccess(projectId, "MEMBER");
+    const { project } = await requireOrgProjectAccess(projectId, "MEMBER");
 
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
@@ -458,6 +507,11 @@ export async function getScheduledPosts(projectId: string, month: number, year: 
         orderBy: { scheduledDate: "asc" }
     });
 
+    // Scoped to a single project, so eligibility is the same for every post here - see
+    // canPublishToInternalBlog(). The UI uses this to label the "no connected site" case
+    // correctly: "will publish to our internal blog" vs. "genuinely has nowhere to go yet".
+    const canPublishInternally = canPublishToInternalBlog(project);
+
     return posts.map(post => ({
         id: post.id,
         keyword: post.keyword,
@@ -469,10 +523,13 @@ export async function getScheduledPosts(projectId: string, month: number, year: 
         publishStatus: post.publishStatus,
         status: post.status,
         generatedTitle: post.generatedTitle,
+        generatedDescription: post.generatedDescription,
+        generatedContent: post.generatedContent,
         publishedPostUrl: post.publishedPostUrl,
         errorMessage: post.errorMessage,
         executedAt: post.executedAt,
         connectedSite: post.connectedSite,
+        canPublishInternally,
         createdAt: post.createdAt,
     }));
 }
@@ -529,10 +586,10 @@ export async function processDueScheduledPosts() {
             });
 
             // Defense-in-depth: createScheduledPost/updateScheduledPost already reject this
-            // combination for non-admins, but this is the actual point where content would go
-            // live on this app's own shared /blog if it ever slipped through (or predates that
-            // check) - never let a regular customer's post publish there.
-            if (post.publishStatus === "publish" && !post.connectedSite && post.user.role !== "ADMIN") {
+            // combination for non-platform-site projects, but this is the actual point where
+            // content would go live on this app's own shared /blog if it ever slipped through
+            // (or predates that check) - never let a non-platform project's post publish there.
+            if (post.publishStatus === "publish" && !post.connectedSite && !canPublishToInternalBlog(post.project)) {
                 await prisma.scheduledPost.update({
                     where: { id: post.id },
                     data: {
@@ -563,11 +620,15 @@ export async function processDueScheduledPosts() {
                 // No pre-generated draft (pre-generation failed, or this post predates it) -
                 // generate now, same as always.
                 console.log(`[Autopilot] Generating post for keyword: ${post.keyword}`);
+                const internalLinkCandidates = post.project
+                    ? await getInternalLinkCandidates(post.project, post.connectedSite)
+                    : [];
                 const blogInput: BlogInput = {
                     keyword: post.keyword,
                     intent: post.intent as "informational" | "commercial" | "navigational",
                     length: post.length,
                     tone: post.tone,
+                    internalLinkCandidates,
                     ...(post.project ? projectContentContext(post.project) : { competitors: "" }),
                 };
 
@@ -582,18 +643,21 @@ export async function processDueScheduledPosts() {
                 const generated = result.data;
                 selectedTitle = generated.titles[0];
                 selectedDescription = generated.meta_descriptions[0];
-                contentHTML = generated.sections
-                    .map((s: { h2: string; content: string }) => `<h2>${s.h2}</h2>${s.content}`)
-                    .join("");
+                contentHTML = await assembleBlogHtml(generated);
                 metaKeywordsJson = JSON.stringify(generated.meta_keywords ?? []);
             }
 
-            let publishedPostUrl: string;
+            // Only set once the content is actually live somewhere a visitor could open - a
+            // draft's URL isn't real (the internal /blog page hides non-PUBLISHED posts; a
+            // WordPress draft's permalink isn't publicly reachable either), so leaving this
+            // null for drafts is what makes the dialog's "View Post" button only appear when
+            // there's really something to view.
+            let publishedPostUrl: string | null = null;
+            const isPublished = post.publishStatus === "publish";
 
             if (!post.connectedSite) {
                 // No connected site - publish directly into this app's own /blog
                 const slug = await uniqueBlogSlug(selectedTitle);
-                const isPublished = post.publishStatus === "publish";
 
                 await prisma.blogPost.create({
                     data: {
@@ -608,7 +672,9 @@ export async function processDueScheduledPosts() {
                     },
                 });
 
-                publishedPostUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/blog/${slug}`;
+                if (isPublished) {
+                    publishedPostUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/blog/${slug}`;
+                }
             } else {
                 // Publish to a connected external site - dispatch on its type.
                 // Add a new case here (plus a matching credential shape in ConnectedSite.credentials)
@@ -641,7 +707,9 @@ export async function processDueScheduledPosts() {
                             throw new Error(wpResult.message || `WordPress publishing failed: ${wpResponse.status}`);
                         }
 
-                        publishedPostUrl = wpResult.permalink;
+                        if (isPublished) {
+                            publishedPostUrl = wpResult.permalink;
+                        }
                         break;
                     }
                     default:
@@ -649,7 +717,10 @@ export async function processDueScheduledPosts() {
                 }
             }
 
-            // Mark as published
+            // Mark as processed. Note "PUBLISHED" here means "the scheduling run finished
+            // processing this post," not "the content is live" - that's publishStatus/
+            // publishedPostUrl. See getEffectiveStatusLabel in the Autopilot page for how the
+            // UI disambiguates the two instead of just showing this raw value.
             await prisma.scheduledPost.update({
                 where: { id: post.id },
                 data: {
@@ -708,6 +779,65 @@ export async function retryScheduledPost(id: string) {
 
     revalidatePath("/autopilot");
     return { success: true };
+}
+
+/**
+ * Manually publish an already-generated draft ("Draft Ready" in the UI - generation finished
+ * but publishStatus is still "draft") right now, instead of it sitting there until someone
+ * re-schedules it. Internal-blog posts only: flipping an already-created WordPress draft to
+ * live would need a matching "update status" route on the customer's WP plugin, which doesn't
+ * exist yet, so that case returns a clear error instead of silently doing nothing.
+ *
+ * Returned as data, not thrown, for the same reason as the rest of this file's client-facing
+ * actions - see the comment on createScheduledPost.
+ */
+export async function publishScheduledPostNow(
+    id: string
+): Promise<{ success: true; publishedPostUrl: string } | { success: false; error: string }> {
+    const post = await prisma.scheduledPost.findUnique({ where: { id }, include: { connectedSite: true, blogPost: true } });
+    if (!post) {
+        return { success: false, error: "Scheduled post not found." };
+    }
+
+    let project: Awaited<ReturnType<typeof requireOrgProjectAccess>>["project"];
+    try {
+        ({ project } = await requireOrgProjectAccess(post.projectId, "MEMBER"));
+    } catch {
+        return { success: false, error: "Not authorized" };
+    }
+
+    if (post.status !== "PUBLISHED" || post.publishStatus !== "draft") {
+        return { success: false, error: "This post isn't a ready draft." };
+    }
+
+    if (post.connectedSite) {
+        return { success: false, error: "Publishing an already-generated WordPress draft isn't supported yet - delete and reschedule it with \"Publish As: Publish\" instead." };
+    }
+
+    if (!canPublishToInternalBlog(project)) {
+        return { success: false, error: "Connect a WordPress site before publishing - there's nowhere else for this to go live." };
+    }
+
+    if (!post.blogPost) {
+        return { success: false, error: "Generated content not found." };
+    }
+
+    const publishedPostUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/blog/${post.blogPost.slug}`;
+
+    await prisma.$transaction([
+        prisma.blogPost.update({
+            where: { id: post.blogPost.id },
+            data: { status: "PUBLISHED", publishedAt: new Date() }
+        }),
+        prisma.scheduledPost.update({
+            where: { id: post.id },
+            data: { publishStatus: "publish", publishedPostUrl }
+        })
+    ]);
+
+    revalidatePath("/autopilot");
+    revalidatePath(`/blog/${post.blogPost.slug}`);
+    return { success: true, publishedPostUrl };
 }
 
 // ============================================
@@ -827,6 +957,13 @@ export async function runAutopilotDiscoveryAndScheduling(projectId?: string) {
             });
             const usedKeywords = new Set(existing.map(p => p.keyword));
 
+            // Resolved once per project (not per candidate below) - the same set of real pages
+            // is valid to link to for every post scheduled in this run.
+            const connectedSite = project.autopilotConnectedSiteId
+                ? await prisma.connectedSite.findUnique({ where: { id: project.autopilotConnectedSiteId }, select: { type: true, url: true } })
+                : null;
+            const internalLinkCandidates = await getInternalLinkCandidates(project, connectedSite ?? null);
+
             // Fill the rest of this calendar month, one post per day, bounded by whatever
             // quota is actually left (unlimited plans still only get one post per remaining
             // day - "daily for the month," not an unbounded dump into the scheduler).
@@ -853,6 +990,7 @@ export async function runAutopilotDiscoveryAndScheduling(projectId?: string) {
                         intent: "informational",
                         length: 1500,
                         tone: "professional",
+                        internalLinkCandidates,
                         ...projectContentContext(project),
                     });
                     if (result.success && result.data) {
@@ -860,9 +998,7 @@ export async function runAutopilotDiscoveryAndScheduling(projectId?: string) {
                         pregenerated = {
                             generatedTitle: generated.titles[0],
                             generatedDescription: generated.meta_descriptions[0],
-                            generatedContent: generated.sections
-                                .map((s: { h2: string; content: string }) => `<h2>${s.h2}</h2>${s.content}`)
-                                .join(""),
+                            generatedContent: await assembleBlogHtml(generated),
                         };
                     } else {
                         console.warn(`[Autopilot] Project ${project.id}: pre-generation returned no data for "${candidate.relatedQuery}" - will generate just-in-time instead`);
