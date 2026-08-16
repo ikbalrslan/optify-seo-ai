@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@plugin "@tailwindcss/typography";
 
 @theme inline {
   --color-background: var(--background);
@@ -95,4 +96,47 @@
 
 .animate-shimmer {
   animation: shimmer 2s linear infinite;
+}
+
+/* Generated-blog-content elements from assembleBlogHtml (src/lib/blog-content.ts) - not part of
+   the standard typography-plugin element set, so they need explicit styling wherever raw blog
+   HTML is rendered inside a `.prose` container (public /blog/[slug] page, autopilot draft
+   preview). Scoped under .prose so these two class names can't collide with anything else. */
+.prose .toc {
+  margin: 1.5em 0;
+  padding: 1rem 1.25rem;
+  border: 1px solid #E7DFCF;
+  border-radius: 0.75rem;
+  background: #FAF6EF;
+}
+.prose .toc .toc-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9B927F;
+}
+.prose .toc ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+.prose .toc a {
+  text-decoration: none;
+}
+.prose .toc a:hover {
+  text-decoration: underline;
+}
+.prose .blog-image {
+  margin: 1.75em 0;
+}
+.prose .blog-image img {
+  margin: 0;
+  border-radius: 0.75rem;
+}
+.prose .blog-image figcaption {
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+  color: #9B927F;
+  text-align: center;
 }
