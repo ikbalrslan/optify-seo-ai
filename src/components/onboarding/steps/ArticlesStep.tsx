@@ -7,9 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { OnboardingNav } from "@/components/onboarding/OnboardingNav";
 import { completeArticlesStep } from "@/actions/onboarding";
-
-const ARTICLE_STYLES = ["Informative", "Persuasive", "Technical", "Conversational", "Storytelling"];
-const IMAGE_STYLES = ["None", "Illustration", "Photographic", "Minimalist", "3D Render"];
+import { ARTICLE_STYLES, IMAGE_STYLES } from "@/config/articlePreferences";
 
 interface ArticlesStepProps {
     projectId: string;

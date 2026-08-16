@@ -22,6 +22,37 @@ export async function getProjects() {
     });
 }
 
+/**
+ * The onboarding-captured content preferences for a project (Audience & Competitors / Articles
+ * steps - see src/actions/onboarding.ts), in the shape the standalone manual Blog Generator
+ * (src/app/(app)/generators/blog/page.tsx) prefills its form from - same fields
+ * src/actions/autopilot.ts's projectContentContext() maps onto BlogInput for automated
+ * generation, just fetched on demand here instead of already being on hand from a cron query.
+ */
+export async function getProjectContentPreferences(projectId: string) {
+    const { project } = await requireOrgProjectAccess(projectId, "MEMBER");
+    const competitors = await prisma.competitor.findMany({
+        where: { projectId },
+        select: { domain: true },
+        orderBy: { createdAt: "asc" },
+    });
+
+    let targetAudiences: string[] = [];
+    try {
+        targetAudiences = project.targetAudiences ? JSON.parse(project.targetAudiences) : [];
+    } catch {
+        targetAudiences = [];
+    }
+
+    return {
+        targetAudiences,
+        competitors: competitors.map(c => c.domain),
+        articleStyle: project.articleStyle ?? "Informative",
+        articleInstructions: project.articleInstructions ?? "",
+        internalLinksPerArticle: project.internalLinksPerArticle,
+    };
+}
+
 export async function createProject(
     name: string,
     domain: string,
