@@ -42,6 +42,7 @@ type ScheduledPost = {
     errorMessage?: string | null;
     executedAt?: Date | null;
     connectedSite: { name: string; url: string } | null;
+    isOwnerPlatformAdmin: boolean;
     createdAt: Date;
 };
 
@@ -256,7 +257,7 @@ export default function AutopilotPage() {
                                     <p className="text-slate-500">Site</p>
                                     <p className="font-medium">
                                         {selectedPost.connectedSite?.name
-                                            ?? (selectedPost.publishedPostUrl
+                                            ?? (selectedPost.isOwnerPlatformAdmin
                                                 ? "Internal Blog (optifyseo.ai)"
                                                 : "No site connected (draft only)")}
                                     </p>

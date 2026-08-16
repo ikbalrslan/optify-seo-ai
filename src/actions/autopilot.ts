@@ -453,7 +453,13 @@ export async function getScheduledPosts(projectId: string, month: number, year: 
         include: {
             connectedSite: {
                 select: { name: true, url: true, type: true }
-            }
+            },
+            // Only a platform admin's posts can ever go out with no connected site (see the
+            // isPlatformAdmin() guard in createScheduledPost/updateScheduledPost/
+            // processDueScheduledPosts) - a non-admin's unconnected-site post can only ever
+            // stay a draft. The UI uses this to label the "no connected site" case correctly:
+            // "will publish to our internal blog" vs. "genuinely has nowhere to go yet".
+            user: { select: { role: true } }
         },
         orderBy: { scheduledDate: "asc" }
     });
@@ -475,6 +481,7 @@ export async function getScheduledPosts(projectId: string, month: number, year: 
         errorMessage: post.errorMessage,
         executedAt: post.executedAt,
         connectedSite: post.connectedSite,
+        isOwnerPlatformAdmin: post.user.role === "ADMIN",
         createdAt: post.createdAt,
     }));
 }
