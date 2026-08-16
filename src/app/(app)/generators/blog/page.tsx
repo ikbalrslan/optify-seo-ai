@@ -106,6 +106,8 @@ export default function BlogGeneratorPage() {
                 if (result.data.titles?.length > 0) setSelectedTitle(result.data.titles[0]);
                 if (result.data.meta_descriptions?.length > 0) setSelectedDescription(result.data.meta_descriptions[0]);
                 if (result.data.meta_keywords?.length > 0) setSelectedKeywords(result.data.meta_keywords);
+            } else {
+                setError(result.error);
             }
         } catch (err: any) {
             setError(err.message || "Something went wrong");
