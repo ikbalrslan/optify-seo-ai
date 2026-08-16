@@ -97,6 +97,14 @@ async function isPlatformAdmin(userId: string): Promise<boolean> {
     return user?.role === "ADMIN";
 }
 
+// Only the literal Optifyseo company project (Project.isPlatformSite) may publish to the
+// internal /blog without a connected site - deliberately NOT "any project an admin happens to
+// own," since admin accounts also own their own test/demo projects, which must behave like any
+// regular customer's site (require a connected site to actually go live anywhere).
+function canPublishToInternalBlog(project: { isPlatformSite: boolean }): boolean {
+    return project.isPlatformSite;
+}
+
 // ============================================
 // PUBLIC ACTIONS
 // ============================================
@@ -187,8 +195,9 @@ export async function createScheduledPost(
     input: ScheduledPostInput
 ): Promise<{ success: true; id: string } | { success: false; error: string }> {
     let userId: string;
+    let project: Awaited<ReturnType<typeof requireOrgProjectAccess>>["project"];
     try {
-        ({ userId } = await requireOrgProjectAccess(input.projectId, "MEMBER"));
+        ({ userId, project } = await requireOrgProjectAccess(input.projectId, "MEMBER"));
     } catch {
         return { success: false, error: "Not authorized" };
     }
@@ -208,7 +217,6 @@ export async function createScheduledPost(
 
     if (input.connectedSiteId) {
         // Verify the connected site belongs to the same project's organization
-        const project = await prisma.project.findUniqueOrThrow({ where: { id: input.projectId } });
         const site = await prisma.connectedSite.findFirst({
             where: { id: input.connectedSiteId, organizationId: project.organizationId }
         });
@@ -219,9 +227,10 @@ export async function createScheduledPost(
     }
 
     // Publishing with no connected site falls back to this app's own shared /blog (see
-    // processDueScheduledPosts) - that's an Optify-staff-only publishing target, never a
-    // regular customer's. Draft-only is fine without a site (nothing goes live anywhere).
-    if (input.publishStatus === "publish" && !input.connectedSiteId && !(await isPlatformAdmin(userId))) {
+    // processDueScheduledPosts) - only the literal Optifyseo project may target that, never a
+    // regular customer's (or an admin's own unrelated test) project. Draft-only is fine without
+    // a site (nothing goes live anywhere).
+    if (input.publishStatus === "publish" && !input.connectedSiteId && !canPublishToInternalBlog(project)) {
         return {
             success: false,
             error: "Connect a WordPress site before publishing - there's nowhere else for this to go live.",
@@ -372,7 +381,7 @@ export async function updateScheduledPost(id: string, input: Partial<ScheduledPo
     if (!existing) {
         throw new Error("Scheduled post not found.");
     }
-    const { userId } = await requireOrgProjectAccess(existing.projectId, "MEMBER");
+    const { project } = await requireOrgProjectAccess(existing.projectId, "MEMBER");
 
     if (existing.status !== "SCHEDULED") {
         throw new Error("Cannot edit a post that has already been processed.");
@@ -380,7 +389,6 @@ export async function updateScheduledPost(id: string, input: Partial<ScheduledPo
 
     // If changing connected site, verify it belongs to the same organization
     if (input.connectedSiteId && input.connectedSiteId !== existing.connectedSiteId) {
-        const project = await prisma.project.findUniqueOrThrow({ where: { id: existing.projectId } });
         const site = await prisma.connectedSite.findFirst({
             where: { id: input.connectedSiteId, organizationId: project.organizationId }
         });
@@ -393,7 +401,7 @@ export async function updateScheduledPost(id: string, input: Partial<ScheduledPo
     // update (input is a partial patch) before checking, not just the literal input.
     const resultingConnectedSiteId = input.connectedSiteId !== undefined ? input.connectedSiteId : existing.connectedSiteId;
     const resultingPublishStatus = input.publishStatus ?? existing.publishStatus;
-    if (resultingPublishStatus === "publish" && !resultingConnectedSiteId && !(await isPlatformAdmin(userId))) {
+    if (resultingPublishStatus === "publish" && !resultingConnectedSiteId && !canPublishToInternalBlog(project)) {
         throw new Error("Connect a WordPress site before publishing - there's nowhere else for this to go live.");
     }
 
@@ -437,7 +445,7 @@ export async function deleteScheduledPost(id: string) {
  * Get scheduled posts for a specific project, for a given month/year (calendar view)
  */
 export async function getScheduledPosts(projectId: string, month: number, year: number) {
-    await requireOrgProjectAccess(projectId, "MEMBER");
+    const { project } = await requireOrgProjectAccess(projectId, "MEMBER");
 
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0, 23, 59, 59);
@@ -453,16 +461,15 @@ export async function getScheduledPosts(projectId: string, month: number, year: 
         include: {
             connectedSite: {
                 select: { name: true, url: true, type: true }
-            },
-            // Only a platform admin's posts can ever go out with no connected site (see the
-            // isPlatformAdmin() guard in createScheduledPost/updateScheduledPost/
-            // processDueScheduledPosts) - a non-admin's unconnected-site post can only ever
-            // stay a draft. The UI uses this to label the "no connected site" case correctly:
-            // "will publish to our internal blog" vs. "genuinely has nowhere to go yet".
-            user: { select: { role: true } }
+            }
         },
         orderBy: { scheduledDate: "asc" }
     });
+
+    // Scoped to a single project, so eligibility is the same for every post here - see
+    // canPublishToInternalBlog(). The UI uses this to label the "no connected site" case
+    // correctly: "will publish to our internal blog" vs. "genuinely has nowhere to go yet".
+    const canPublishInternally = canPublishToInternalBlog(project);
 
     return posts.map(post => ({
         id: post.id,
@@ -481,7 +488,7 @@ export async function getScheduledPosts(projectId: string, month: number, year: 
         errorMessage: post.errorMessage,
         executedAt: post.executedAt,
         connectedSite: post.connectedSite,
-        isOwnerPlatformAdmin: post.user.role === "ADMIN",
+        canPublishInternally,
         createdAt: post.createdAt,
     }));
 }
@@ -538,10 +545,10 @@ export async function processDueScheduledPosts() {
             });
 
             // Defense-in-depth: createScheduledPost/updateScheduledPost already reject this
-            // combination for non-admins, but this is the actual point where content would go
-            // live on this app's own shared /blog if it ever slipped through (or predates that
-            // check) - never let a regular customer's post publish there.
-            if (post.publishStatus === "publish" && !post.connectedSite && post.user.role !== "ADMIN") {
+            // combination for non-platform-site projects, but this is the actual point where
+            // content would go live on this app's own shared /blog if it ever slipped through
+            // (or predates that check) - never let a non-platform project's post publish there.
+            if (post.publishStatus === "publish" && !post.connectedSite && !canPublishToInternalBlog(post.project)) {
                 await prisma.scheduledPost.update({
                     where: { id: post.id },
                     data: {
