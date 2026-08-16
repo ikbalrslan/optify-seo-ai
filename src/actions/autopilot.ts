@@ -469,6 +469,8 @@ export async function getScheduledPosts(projectId: string, month: number, year: 
         publishStatus: post.publishStatus,
         status: post.status,
         generatedTitle: post.generatedTitle,
+        generatedDescription: post.generatedDescription,
+        generatedContent: post.generatedContent,
         publishedPostUrl: post.publishedPostUrl,
         errorMessage: post.errorMessage,
         executedAt: post.executedAt,
@@ -588,12 +590,17 @@ export async function processDueScheduledPosts() {
                 metaKeywordsJson = JSON.stringify(generated.meta_keywords ?? []);
             }
 
-            let publishedPostUrl: string;
+            // Only set once the content is actually live somewhere a visitor could open - a
+            // draft's URL isn't real (the internal /blog page hides non-PUBLISHED posts; a
+            // WordPress draft's permalink isn't publicly reachable either), so leaving this
+            // null for drafts is what makes the dialog's "View Post" button only appear when
+            // there's really something to view.
+            let publishedPostUrl: string | null = null;
+            const isPublished = post.publishStatus === "publish";
 
             if (!post.connectedSite) {
                 // No connected site - publish directly into this app's own /blog
                 const slug = await uniqueBlogSlug(selectedTitle);
-                const isPublished = post.publishStatus === "publish";
 
                 await prisma.blogPost.create({
                     data: {
@@ -608,7 +615,9 @@ export async function processDueScheduledPosts() {
                     },
                 });
 
-                publishedPostUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/blog/${slug}`;
+                if (isPublished) {
+                    publishedPostUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/blog/${slug}`;
+                }
             } else {
                 // Publish to a connected external site - dispatch on its type.
                 // Add a new case here (plus a matching credential shape in ConnectedSite.credentials)
@@ -641,7 +650,9 @@ export async function processDueScheduledPosts() {
                             throw new Error(wpResult.message || `WordPress publishing failed: ${wpResponse.status}`);
                         }
 
-                        publishedPostUrl = wpResult.permalink;
+                        if (isPublished) {
+                            publishedPostUrl = wpResult.permalink;
+                        }
                         break;
                     }
                     default:
@@ -649,7 +660,10 @@ export async function processDueScheduledPosts() {
                 }
             }
 
-            // Mark as published
+            // Mark as processed. Note "PUBLISHED" here means "the scheduling run finished
+            // processing this post," not "the content is live" - that's publishStatus/
+            // publishedPostUrl. See getEffectiveStatusLabel in the Autopilot page for how the
+            // UI disambiguates the two instead of just showing this raw value.
             await prisma.scheduledPost.update({
                 where: { id: post.id },
                 data: {
