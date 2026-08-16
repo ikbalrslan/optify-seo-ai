@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Calendar } from "@/components/autopilot/Calendar";
 import { SchedulePostModal } from "@/components/autopilot/SchedulePostModal";
-import { getScheduledPosts, deleteScheduledPost, retryScheduledPost } from "@/actions/autopilot";
+import { getScheduledPosts, deleteScheduledPost, retryScheduledPost, publishScheduledPostNow } from "@/actions/autopilot";
 import { getProjects } from "@/actions/projects";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,7 +11,8 @@ import {
     Trash2,
     RefreshCw,
     ExternalLink,
-    Loader2
+    Loader2,
+    Send
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getEffectiveScheduledPostStatus } from "@/lib/scheduled-post-status";
@@ -62,6 +63,8 @@ export default function AutopilotPage() {
     const [isPostDetailOpen, setIsPostDetailOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [isRetrying, setIsRetrying] = useState(false);
+    const [isPublishing, setIsPublishing] = useState(false);
+    const [publishError, setPublishError] = useState<string | null>(null);
     const [isInitialLoad, setIsInitialLoad] = useState(true);
 
     const loadData = async (showFullLoader = false) => {
@@ -110,6 +113,7 @@ export default function AutopilotPage() {
         const fullPost = posts.find(p => p.id === post.id);
         if (fullPost) {
             setSelectedPost(fullPost);
+            setPublishError(null);
             setIsPostDetailOpen(true);
         }
     };
@@ -156,6 +160,27 @@ export default function AutopilotPage() {
             console.error("Failed to retry", e);
         } finally {
             setIsRetrying(false);
+        }
+    };
+
+    const handlePublishNow = async () => {
+        if (!selectedPost) return;
+        setIsPublishing(true);
+        setPublishError(null);
+        try {
+            const result = await publishScheduledPostNow(selectedPost.id);
+            if (!result.success) {
+                setPublishError(result.error);
+                return;
+            }
+            setIsPostDetailOpen(false);
+            setSelectedPost(null);
+            loadData();
+        } catch (e) {
+            console.error("Failed to publish", e);
+            setPublishError("Failed to publish. Please try again.");
+        } finally {
+            setIsPublishing(false);
         }
     };
 
@@ -316,7 +341,28 @@ export default function AutopilotPage() {
                                 </div>
                             )}
 
+                            {publishError && (
+                                <div className="p-3 bg-red-50 rounded-lg border border-red-100">
+                                    <p className="text-xs text-red-600 mb-1">Could not publish</p>
+                                    <p className="text-sm text-red-900">{publishError}</p>
+                                </div>
+                            )}
+
                             <DialogFooter className="flex gap-2">
+                                {selectedPost.status === "PUBLISHED" &&
+                                    selectedPost.publishStatus === "draft" &&
+                                    !selectedPost.connectedSite &&
+                                    selectedPost.canPublishInternally && (
+                                        <Button onClick={handlePublishNow} disabled={isPublishing}>
+                                            {isPublishing ? (
+                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                            ) : (
+                                                <Send className="h-4 w-4 mr-2" />
+                                            )}
+                                            Publish Now
+                                        </Button>
+                                    )}
+
                                 {selectedPost.publishedPostUrl && (
                                     <Button
                                         variant="outline"

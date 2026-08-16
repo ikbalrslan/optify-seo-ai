@@ -738,6 +738,65 @@ export async function retryScheduledPost(id: string) {
     return { success: true };
 }
 
+/**
+ * Manually publish an already-generated draft ("Draft Ready" in the UI - generation finished
+ * but publishStatus is still "draft") right now, instead of it sitting there until someone
+ * re-schedules it. Internal-blog posts only: flipping an already-created WordPress draft to
+ * live would need a matching "update status" route on the customer's WP plugin, which doesn't
+ * exist yet, so that case returns a clear error instead of silently doing nothing.
+ *
+ * Returned as data, not thrown, for the same reason as the rest of this file's client-facing
+ * actions - see the comment on createScheduledPost.
+ */
+export async function publishScheduledPostNow(
+    id: string
+): Promise<{ success: true; publishedPostUrl: string } | { success: false; error: string }> {
+    const post = await prisma.scheduledPost.findUnique({ where: { id }, include: { connectedSite: true, blogPost: true } });
+    if (!post) {
+        return { success: false, error: "Scheduled post not found." };
+    }
+
+    let project: Awaited<ReturnType<typeof requireOrgProjectAccess>>["project"];
+    try {
+        ({ project } = await requireOrgProjectAccess(post.projectId, "MEMBER"));
+    } catch {
+        return { success: false, error: "Not authorized" };
+    }
+
+    if (post.status !== "PUBLISHED" || post.publishStatus !== "draft") {
+        return { success: false, error: "This post isn't a ready draft." };
+    }
+
+    if (post.connectedSite) {
+        return { success: false, error: "Publishing an already-generated WordPress draft isn't supported yet - delete and reschedule it with \"Publish As: Publish\" instead." };
+    }
+
+    if (!canPublishToInternalBlog(project)) {
+        return { success: false, error: "Connect a WordPress site before publishing - there's nowhere else for this to go live." };
+    }
+
+    if (!post.blogPost) {
+        return { success: false, error: "Generated content not found." };
+    }
+
+    const publishedPostUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/blog/${post.blogPost.slug}`;
+
+    await prisma.$transaction([
+        prisma.blogPost.update({
+            where: { id: post.blogPost.id },
+            data: { status: "PUBLISHED", publishedAt: new Date() }
+        }),
+        prisma.scheduledPost.update({
+            where: { id: post.id },
+            data: { publishStatus: "publish", publishedPostUrl }
+        })
+    ]);
+
+    revalidatePath("/autopilot");
+    revalidatePath(`/blog/${post.blogPost.slug}`);
+    return { success: true, publishedPostUrl };
+}
+
 // ============================================
 // FULLY AUTONOMOUS MONTHLY DISCOVERY + SCHEDULING (called by cron)
 // ============================================
