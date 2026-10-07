@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import { OptifyMark } from "@/components/brand/OptifyMark";
 
 export function Footer() {
     return (
@@ -7,9 +7,7 @@ export function Footer() {
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
                     <div className="col-span-2">
                         <div className="flex items-center gap-2 mb-4">
-                            <div className="bg-[#009E8A] p-1 rounded-md">
-                                <Sparkles className="w-4 h-4 text-white" strokeWidth={1.75} />
-                            </div>
+                            <OptifyMark size={22} />
                             <span className="font-bold text-lg tracking-tight text-[#1C1815]">Optify</span>
                         </div>
                         <p className="text-[#6F675A] text-sm max-w-xs leading-relaxed">

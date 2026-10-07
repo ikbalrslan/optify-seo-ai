@@ -11,6 +11,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import ReCAPTCHA from "react-google-recaptcha";
 import { Suspense } from 'react';
+import { OptifyMark } from "@/components/brand/OptifyMark";
 
 function SignInContent() {
     const [view, setView] = useState<"login" | "signup">("login"); // Default to login or check param
@@ -100,11 +101,7 @@ function SignInContent() {
                 <div className="flex flex-col space-y-5">
                     {/* Logo */}
                     <div className="flex items-center gap-2">
-                        <div className="flex items-end gap-[3px]">
-                            <div className="w-1.5 h-5 bg-[#009E8A] rounded-full"></div>
-                            <div className="w-1.5 h-7 bg-[#191414] rounded-full"></div>
-                            <div className="w-1.5 h-3 bg-[#009E8A]/60 rounded-full"></div>
-                        </div>
+                        <OptifyMark size={28} />
                     </div>
 
                     {/* Header */}
