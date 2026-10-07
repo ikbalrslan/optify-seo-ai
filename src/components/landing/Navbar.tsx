@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
-import { Menu, X, Sparkles, ArrowRight } from "lucide-react";
+import { Menu, X, ArrowRight } from "lucide-react";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { OptifyMark } from "@/components/brand/OptifyMark";
 
 export function Navbar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -17,9 +18,7 @@ export function Navbar() {
                     {/* Logo */}
                     <div className="flex-shrink-0 flex items-center">
                         <Link href="/" className="flex items-center gap-2">
-                            <div className="bg-[#009E8A] p-1.5 rounded-lg">
-                                <Sparkles className="w-5 h-5 text-white" strokeWidth={1.75} />
-                            </div>
+                            <OptifyMark size={28} />
                             <span className="font-bold text-xl tracking-tight text-[#1C1815]">Optify</span>
                         </Link>
                     </div>

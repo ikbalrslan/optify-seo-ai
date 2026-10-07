@@ -1,5 +1,6 @@
 import { Card } from "@/components/ui/card";
 import { OnboardingStepper } from "@/components/onboarding/OnboardingStepper";
+import { OptifyMark } from "@/components/brand/OptifyMark";
 import type { OnboardingStep } from "@/config/onboarding";
 
 interface OnboardingShellProps {
@@ -14,10 +15,8 @@ export function OnboardingShell({ currentIndex, steps, title, subtitle, children
     return (
         <div className="min-h-screen bg-[#FAF6EF] flex flex-col items-center px-4 py-12">
             {/* Logo */}
-            <div className="flex items-end gap-[3px] mb-10">
-                <div className="w-1.5 h-5 bg-[#009E8A] rounded-full"></div>
-                <div className="w-1.5 h-7 bg-[#191414] rounded-full"></div>
-                <div className="w-1.5 h-3 bg-[#009E8A]/60 rounded-full"></div>
+            <div className="mb-10">
+                <OptifyMark size={30} />
             </div>
 
             <div className="mb-10 w-full">

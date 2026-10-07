@@ -1,7 +1,8 @@
 "use client";
 
-import { Check, Search, LineChart, Zap, Target } from "lucide-react";
+import { Check, Search, Zap, Target } from "lucide-react";
 import { ScrollReveal } from "./ScrollReveal";
+import { OptifyMark } from "@/components/brand/OptifyMark";
 
 const replaceToolsFeatures = [
     "AI-Powered Keyword Research",
@@ -93,9 +94,7 @@ export function Features() {
                                     </div>
                                     <div className="bg-[#009E8A]/10 rounded-xl p-6 text-center">
                                         <div className="flex items-center justify-center gap-2 mb-2">
-                                            <div className="w-8 h-8 bg-[#009E8A] rounded-lg flex items-center justify-center">
-                                                <LineChart className="w-4 h-4 text-white" strokeWidth={1.75} />
-                                            </div>
+                                            <OptifyMark size={32} />
                                             <span className="font-bold text-xl text-[#1C1815]">Optify</span>
                                         </div>
                                         <p className="text-[#009E8A] font-bold text-2xl">$99/mo</p>

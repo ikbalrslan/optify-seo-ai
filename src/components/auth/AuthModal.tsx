@@ -9,6 +9,7 @@ import { register } from "@/actions/register";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import ReCAPTCHA from "react-google-recaptcha";
+import { OptifyMark } from "@/components/brand/OptifyMark";
 
 interface AuthModalProps {
     isOpen: boolean;
@@ -90,11 +91,7 @@ export function AuthModal({ isOpen, onClose, initialView = "login" }: AuthModalP
                 <div className="flex flex-col space-y-5">
                     {/* Logo */}
                     <div className="flex items-center gap-2">
-                        <div className="flex items-end gap-[3px]">
-                            <div className="w-1.5 h-5 bg-[#009E8A] rounded-full"></div>
-                            <div className="w-1.5 h-7 bg-[#191414] rounded-full"></div>
-                            <div className="w-1.5 h-3 bg-[#009E8A]/60 rounded-full"></div>
-                        </div>
+                        <OptifyMark size={28} />
                     </div>
 
                     {/* Header */}
