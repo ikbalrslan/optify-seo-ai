@@ -1,4 +1,3 @@
-import { ScrollReveal } from "./ScrollReveal";
 import { SectionHeading } from "./SectionHeading";
 
 const testimonials = [
@@ -50,7 +49,7 @@ export function Testimonials() {
                     lead="Join thousands of others who are growing their business with data, not guesswork."
                 />
 
-                <ScrollReveal>
+                <div>
                     <ul className="grid gap-x-10 gap-y-10 md:grid-cols-2 lg:grid-cols-3">
                         {testimonials.map((t) => (
                             <li key={t.handle}>
@@ -70,7 +69,7 @@ export function Testimonials() {
                             </li>
                         ))}
                     </ul>
-                </ScrollReveal>
+                </div>
             </div>
         </section>
     );
