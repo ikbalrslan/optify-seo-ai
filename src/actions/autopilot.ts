@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/db";
 import { getActiveOrganization, requireOrgProjectAccess, requireOrgRole } from "@/lib/org";
 import { generateBlogPost, generateBlogContent, type BlogInput } from "@/actions/generate-blog";
+import { assembleBlogHtml } from "@/lib/blog-content";
 import { decrypt } from "@/lib/encryption";
 import { slugify } from "@/lib/slug";
 import { revalidatePath } from "next/cache";
@@ -103,6 +104,46 @@ async function isPlatformAdmin(userId: string): Promise<boolean> {
 // regular customer's site (require a connected site to actually go live anywhere).
 function canPublishToInternalBlog(project: { isPlatformSite: boolean }): boolean {
     return project.isPlatformSite;
+}
+
+// Real, existing pages a generated post is allowed to link to - see internalLinkCandidates on
+// BlogInput (src/actions/generate-blog.ts). Never returns anything unverified: the internal
+// blog branch only lists posts already known to be PUBLISHED, and the WordPress branch is a
+// best-effort public REST fetch that silently degrades to an empty list on any failure (a
+// missing internal-link opportunity is fine; a broken link in published content is not).
+async function getInternalLinkCandidates(
+    project: { isPlatformSite: boolean },
+    connectedSite: { type: string; url: string } | null
+): Promise<{ title: string; url: string }[]> {
+    if (connectedSite) {
+        if (connectedSite.type !== "WORDPRESS") return [];
+        try {
+            const response = await fetch(`${connectedSite.url}/wp-json/wp/v2/posts?per_page=15&_fields=title,link`, {
+                signal: AbortSignal.timeout(6000),
+            });
+            if (!response.ok) return [];
+            const posts = await response.json();
+            if (!Array.isArray(posts)) return [];
+            return posts
+                .map((p: { title?: { rendered?: string }; link?: string }) => ({
+                    title: p.title?.rendered ?? "",
+                    url: p.link ?? "",
+                }))
+                .filter((c): c is { title: string; url: string } => Boolean(c.title && c.url));
+        } catch {
+            return [];
+        }
+    }
+
+    if (!canPublishToInternalBlog(project)) return [];
+
+    const posts = await prisma.blogPost.findMany({
+        where: { status: "PUBLISHED" },
+        select: { title: true, slug: true },
+        orderBy: { createdAt: "desc" },
+        take: 15,
+    });
+    return posts.map(p => ({ title: p.title, url: `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/blog/${p.slug}` }));
 }
 
 // ============================================
@@ -579,11 +620,15 @@ export async function processDueScheduledPosts() {
                 // No pre-generated draft (pre-generation failed, or this post predates it) -
                 // generate now, same as always.
                 console.log(`[Autopilot] Generating post for keyword: ${post.keyword}`);
+                const internalLinkCandidates = post.project
+                    ? await getInternalLinkCandidates(post.project, post.connectedSite)
+                    : [];
                 const blogInput: BlogInput = {
                     keyword: post.keyword,
                     intent: post.intent as "informational" | "commercial" | "navigational",
                     length: post.length,
                     tone: post.tone,
+                    internalLinkCandidates,
                     ...(post.project ? projectContentContext(post.project) : { competitors: "" }),
                 };
 
@@ -598,9 +643,7 @@ export async function processDueScheduledPosts() {
                 const generated = result.data;
                 selectedTitle = generated.titles[0];
                 selectedDescription = generated.meta_descriptions[0];
-                contentHTML = generated.sections
-                    .map((s: { h2: string; content: string }) => `<h2>${s.h2}</h2>${s.content}`)
-                    .join("");
+                contentHTML = await assembleBlogHtml(generated);
                 metaKeywordsJson = JSON.stringify(generated.meta_keywords ?? []);
             }
 
@@ -914,6 +957,13 @@ export async function runAutopilotDiscoveryAndScheduling(projectId?: string) {
             });
             const usedKeywords = new Set(existing.map(p => p.keyword));
 
+            // Resolved once per project (not per candidate below) - the same set of real pages
+            // is valid to link to for every post scheduled in this run.
+            const connectedSite = project.autopilotConnectedSiteId
+                ? await prisma.connectedSite.findUnique({ where: { id: project.autopilotConnectedSiteId }, select: { type: true, url: true } })
+                : null;
+            const internalLinkCandidates = await getInternalLinkCandidates(project, connectedSite ?? null);
+
             // Fill the rest of this calendar month, one post per day, bounded by whatever
             // quota is actually left (unlimited plans still only get one post per remaining
             // day - "daily for the month," not an unbounded dump into the scheduler).
@@ -940,6 +990,7 @@ export async function runAutopilotDiscoveryAndScheduling(projectId?: string) {
                         intent: "informational",
                         length: 1500,
                         tone: "professional",
+                        internalLinkCandidates,
                         ...projectContentContext(project),
                     });
                     if (result.success && result.data) {
@@ -947,9 +998,7 @@ export async function runAutopilotDiscoveryAndScheduling(projectId?: string) {
                         pregenerated = {
                             generatedTitle: generated.titles[0],
                             generatedDescription: generated.meta_descriptions[0],
-                            generatedContent: generated.sections
-                                .map((s: { h2: string; content: string }) => `<h2>${s.h2}</h2>${s.content}`)
-                                .join(""),
+                            generatedContent: await assembleBlogHtml(generated),
                         };
                     } else {
                         console.warn(`[Autopilot] Project ${project.id}: pre-generation returned no data for "${candidate.relatedQuery}" - will generate just-in-time instead`);

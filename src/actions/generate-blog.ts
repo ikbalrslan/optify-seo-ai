@@ -3,8 +3,22 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { createAnthropicClient } from "@/lib/anthropic";
+import { assembleBlogHtml, type AssemblableBlog } from "@/lib/blog-content";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
+
+// A handful of well-known, stable root pages from genuinely authoritative SEO/marketing
+// publishers - the only external domains the model is allowed to cite (see the system prompt
+// below). Deep-linking to a specific article the model can't verify exists is how you end up
+// with hallucinated 404s in published content; linking to each publisher's own stable hub page
+// avoids that while still giving the post real outbound citations.
+const EXTERNAL_CITATION_WHITELIST = [
+    { name: "Google Search Central", url: "https://developers.google.com/search/docs" },
+    { name: "Moz Blog", url: "https://moz.com/blog" },
+    { name: "Search Engine Journal", url: "https://www.searchenginejournal.com" },
+    { name: "Ahrefs Blog", url: "https://ahrefs.com/blog" },
+    { name: "HubSpot Blog", url: "https://blog.hubspot.com" },
+];
 
 // Input Schema
 const BlogInputSchema = z.object({
@@ -21,6 +35,10 @@ const BlogInputSchema = z.object({
     articleStyle: z.string().optional(),
     customInstructions: z.string().optional(),
     internalLinksTarget: z.number().optional(),
+    // Real pages this post is allowed to link to internally (see getInternalLinkCandidates in
+    // src/actions/autopilot.ts) - a closed list of actual existing URLs, never left open-ended,
+    // so the model can't invent a broken internal link the way it could with a free-text target.
+    internalLinkCandidates: z.array(z.object({ title: z.string(), url: z.string() })).optional(),
 });
 
 export type BlogInput = z.infer<typeof BlogInputSchema>;
@@ -30,21 +48,31 @@ const GeneratorResponseSchema = z.object({
     titles: z.array(z.string()),
     meta_descriptions: z.array(z.string()),
     meta_keywords: z.array(z.string()),
+    // Short (2-5 word) visual search phrase used to auto-illustrate the post via Unsplash - see
+    // assembleBlogHtml in src/lib/blog-content.ts. Optional because image resolution itself is
+    // best-effort (a query that returns nothing just means no image for that slot).
+    hero_image_query: z.string().optional(),
     sections: z.array(z.object({
         h2: z.string(),
         content: z.string(), // HTML or Markdown
+        image_query: z.string().optional(),
     })),
     faq: z.array(z.object({
         question: z.string(),
         answer: z.string(),
     })).optional(),
-    internal_links: z.array(z.string()).optional(),
 });
 
 export async function generateBlogContent(
     input: BlogInput
 ): Promise<{ success: true; data: z.infer<typeof GeneratorResponseSchema> }> {
     const client = createAnthropicClient();
+
+    const externalLinksNote = EXTERNAL_CITATION_WHITELIST.map(s => `${s.name}: ${s.url}`).join("; ");
+
+    const internalLinksNote = input.internalLinkCandidates?.length
+        ? `You may naturally hyperlink to relevant pages from this exact list where topically appropriate (use the EXACT url given, do not alter or invent others): ${input.internalLinkCandidates.map(c => `"${c.title}" -> ${c.url}`).join("; ")}. Embed ${input.internalLinksTarget ?? "2-4"} of these as real <a href="..."> tags inside the section content, with natural anchor text - never a raw URL as the visible text.`
+        : "";
 
     const systemPrompt = `You are an expert SEO content writer. Generate a comprehensive blog post based on the user's input.
 
@@ -59,8 +87,10 @@ export async function generateBlogContent(
 
     Provide 3 distinct options for "titles" and "meta_descriptions" (150-160 chars each).
     Provide 5-8 relevant "meta_keywords".
-    ${input.internalLinksTarget ? `Suggest exactly ${input.internalLinksTarget} "internal_links" anchor-text suggestions relevant to the topic.` : ""}
-    Each section's "content" should be HTML (paragraphs and lists only, no h1/h2 tags within it).`;
+    ${internalLinksNote}
+    You may also cite 1-2 of these authoritative sources as external links where genuinely relevant, using their EXACT url (never a different page on that domain, never a different domain): ${externalLinksNote}.
+    For "hero_image_query" and each section's "image_query", give a short (2-5 word) concrete visual search phrase describing a real-world photo that would illustrate that part of the article (e.g. "team analyzing marketing charts", not an abstract concept like "growth" alone).
+    Each section's "content" should be HTML (paragraphs and lists only, no h1/h2 tags within it, no <img> tags - images are inserted separately from image_query).`;
 
     const response = await client.messages.parse({
         model: "claude-sonnet-5",
@@ -145,4 +175,15 @@ export async function generateBlogPost(
         console.error("Claude Error Detail:", error);
         return { success: false, error: error instanceof Error ? error.message : "Failed to generate blog post" };
     }
+}
+
+// Client-callable wrapper around assembleBlogHtml (src/lib/blog-content.ts) - the manual Blog
+// Generator UI (src/app/(app)/generators/blog/page.tsx) is a client component and the Unsplash
+// key must stay server-side, so it can't call assembleBlogHtml directly.
+export async function renderBlogHtml(generated: AssemblableBlog): Promise<string> {
+    const session = await auth();
+    if (!session?.user?.email) {
+        throw new Error("Not authenticated");
+    }
+    return assembleBlogHtml(generated);
 }
