@@ -1,135 +1,123 @@
 "use client";
 
 import { ScrollReveal } from "./ScrollReveal";
+import { SectionHeading } from "./SectionHeading";
 import { ApexChart } from "@/components/shared/ApexChart";
 
-export function ClientSuccess() {
-    return (
-        <section className="py-20 md:py-32 bg-[#F5EFE4]">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                {/* Header */}
-                <ScrollReveal>
-                    <div className="text-center mb-16">
-                        <h2 className="text-4xl md:text-5xl font-bold text-[#1C1815] mb-4">
-                            The <span className="text-[#009E8A]">Optify</span> Effect
-                        </h2>
-                        <p className="text-lg text-[#6F675A] max-w-2xl mx-auto">
-                            See how our users grow their organic traffic month after month
-                        </p>
-                    </div>
-                </ScrollReveal>
+// Chart colours mirror the landing tokens in globals.css (ApexCharts needs literal values).
+const BRAND = "#009E8A";
+const BASELINE = "#B8AC94";
+const FAINT = "#9B927F";
+const GRID = "#EBE2D2";
 
-                {/* Growth Chart */}
-                <ScrollReveal>
-                    <div className="bg-white rounded-2xl shadow-xl border border-[#E7DFCF] p-6 md:p-10 mb-16">
-                        <div className="flex items-center justify-between mb-8">
-                            <div>
-                                <p className="text-sm text-[#6F675A] font-medium">Total Organic Traffic</p>
-                                <h3 className="text-3xl md:text-4xl font-bold text-[#1C1815]">+247%</h3>
+export function ClientSuccess() {
+    const reduceMotion =
+        typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    return (
+        <section aria-labelledby="optify-effect" className="bg-paper-deep py-20 md:py-28">
+            <div className="mx-auto flex max-w-6xl flex-col gap-12 px-5 sm:px-8">
+                <SectionHeading
+                    id="optify-effect"
+                    title="The Optify effect"
+                    lead="See how our users grow their organic traffic month after month."
+                />
+
+                <ScrollReveal className="grid items-start gap-10 lg:grid-cols-12 lg:gap-14">
+                    <div className="flex flex-col gap-6 rounded-xl border border-line bg-white p-5 sm:p-8 lg:col-span-8">
+                        <div className="flex flex-wrap items-end justify-between gap-4">
+                            <div className="flex flex-col gap-1">
+                                <p className="text-sm text-ink-muted">Total organic traffic</p>
+                                <p className="font-lp-display text-4xl font-bold tabular-nums text-ink [font-variation-settings:'wdth'_112]">
+                                    +247%
+                                </p>
                             </div>
-                            <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 rounded-full bg-[#009E8A]" />
-                                    <span className="text-sm text-[#6F675A]">With Optify</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 rounded-full bg-[#D9CFBB]" />
-                                    <span className="text-sm text-[#6F675A]">Without</span>
-                                </div>
-                            </div>
+                            <ul className="flex items-center gap-5 text-sm text-ink-muted">
+                                <li className="flex items-center gap-2">
+                                    <span className="h-0.5 w-4 bg-brand" aria-hidden="true" />
+                                    With Optify
+                                </li>
+                                <li className="flex items-center gap-2">
+                                    <span className="h-0.5 w-4" style={{ background: BASELINE }} aria-hidden="true" />
+                                    Without
+                                </li>
+                            </ul>
                         </div>
 
-                        {/* Chart Visualization */}
-                        <div className="relative h-64 md:h-80 w-full">
+                        <div className="relative h-64 w-full md:h-72">
                             <ApexChart
                                 type="area"
                                 height="100%"
                                 width="100%"
                                 options={{
                                     chart: {
-                                        type: 'area',
+                                        type: "area",
                                         toolbar: { show: false },
-                                        fontFamily: 'inherit',
-                                        animations: {
-                                            enabled: true,
-                                            speed: 800,
-                                            animateGradually: { enabled: true, delay: 150 },
-                                            dynamicAnimation: { enabled: true, speed: 350 }
-                                        }
+                                        zoom: { enabled: false },
+                                        fontFamily: "inherit",
+                                        animations: { enabled: !reduceMotion, speed: 700 },
                                     },
-                                    colors: ['#009E8A', '#B8AC94'],
-                                    stroke: { curve: 'smooth', width: 3 },
+                                    colors: [BRAND, BASELINE],
+                                    stroke: { curve: "smooth", width: [2.5, 2] },
                                     fill: {
-                                        type: ['gradient', 'solid'],
+                                        type: ["gradient", "solid"],
                                         gradient: {
                                             shadeIntensity: 1,
-                                            opacityFrom: 0.4,
-                                            opacityTo: 0.05,
-                                            stops: [0, 90, 100]
+                                            opacityFrom: 0.28,
+                                            opacityTo: 0.02,
+                                            stops: [0, 90, 100],
                                         },
-                                        solid: { opacity: 0.1 }
+                                        solid: { opacity: 0.06 },
                                     },
                                     dataLabels: { enabled: false },
                                     xaxis: {
-                                        categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                                        categories: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
                                         axisBorder: { show: false },
                                         axisTicks: { show: false },
-                                        labels: { style: { colors: '#9B927F', fontSize: '12px' } }
+                                        labels: { style: { colors: FAINT, fontSize: "12px" } },
                                     },
                                     yaxis: { show: false },
                                     grid: {
                                         show: true,
-                                        borderColor: '#F0E9DB',
-                                        strokeDashArray: 4,
-                                        padding: { top: 0, right: 0, bottom: 0, left: 10 }
+                                        borderColor: GRID,
+                                        strokeDashArray: 3,
+                                        padding: { top: 0, right: 0, bottom: 0, left: 10 },
                                     },
                                     legend: { show: false },
                                     tooltip: {
-                                        y: { formatter: (val: number) => `${val}%` }
-                                    }
+                                        y: { formatter: (val: number) => `${val}%` },
+                                    },
                                 }}
                                 series={[
-                                    {
-                                        name: 'With Optify',
-                                        data: [30, 45, 80, 160, 230, 312]
-                                    },
-                                    {
-                                        name: 'Without',
-                                        data: [20, 25, 30, 35, 38, 42]
-                                    }
+                                    { name: "With Optify", data: [30, 45, 80, 160, 230, 312] },
+                                    { name: "Without", data: [20, 25, 30, 35, 38, 42] },
                                 ]}
                             />
                         </div>
                     </div>
-                </ScrollReveal>
 
-                {/* Success Story */}
-                <ScrollReveal>
-                    <div className="bg-white rounded-2xl shadow-xl border border-[#E7DFCF] p-8 md:p-10 max-w-3xl mx-auto">
-                        <div className="flex flex-col md:flex-row items-center gap-6">
-                            <div className="flex-shrink-0">
-                                <img
-                                    src="https://api.dicebear.com/7.x/avataaars/svg?seed=founder1"
-                                    alt="Success Story"
-                                    className="w-20 h-20 rounded-full border-4 border-[#009E8A]/20"
-                                />
-                            </div>
-                            <div className="text-center md:text-left">
-                                <div className="flex items-center justify-center md:justify-start gap-2 mb-2">
-                                    <span className="text-2xl font-bold text-[#009E8A]">+312%</span>
-                                    <span className="text-[#6F675A]">organic traffic increase</span>
-                                </div>
-                                <p className="text-[#6F675A] mb-4">
-                                    "Optify transformed our content strategy. We went from 2,000 to 15,000 monthly visitors in just 4 months without hiring a single writer."
-                                </p>
-                                <div className="flex items-center justify-center md:justify-start gap-3">
-                                    <span className="font-semibold text-[#1C1815]">Sarah Johnson</span>
-                                    <span className="text-[#D9CFBB]">•</span>
-                                    <span className="text-[#6F675A]">Founder, TechStartup.io</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <figure className="flex flex-col gap-5 lg:col-span-4 lg:pt-4">
+                        <p className="flex items-baseline gap-2">
+                            <span className="font-lp-display text-3xl font-bold tabular-nums text-brand-deep">+312%</span>
+                            <span className="text-ink-muted">organic traffic</span>
+                        </p>
+                        <blockquote className="text-lg leading-relaxed text-ink">
+                            &ldquo;Optify transformed our content strategy. We went from 2,000 to 15,000 monthly visitors in
+                            just 4 months without hiring a single writer.&rdquo;
+                        </blockquote>
+                        <figcaption className="flex items-center gap-3 border-t border-line pt-5">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src="https://api.dicebear.com/7.x/avataaars/svg?seed=founder1"
+                                alt=""
+                                className="size-10 rounded-full bg-paper"
+                            />
+                            <span className="flex flex-col text-sm">
+                                <span className="font-semibold text-ink">Sarah Johnson</span>
+                                <span className="text-ink-muted">Founder, TechStartup.io</span>
+                            </span>
+                        </figcaption>
+                    </figure>
                 </ScrollReveal>
             </div>
         </section>

@@ -1,58 +1,65 @@
-import { OptifyMark } from "@/components/brand/OptifyMark";
+import { OptifyLogo } from "@/components/brand/OptifyMark";
+
+const columns = [
+    {
+        title: "Product",
+        links: [
+            { href: "#features", label: "How it works" },
+            { href: "#pricing", label: "Pricing" },
+            { href: "/blog", label: "Blog" },
+            { href: "/signin", label: "Log in" },
+        ],
+    },
+    {
+        title: "Legal",
+        links: [
+            { href: "#", label: "Privacy Policy" },
+            { href: "#", label: "Terms of Service" },
+            { href: "#", label: "DPA" },
+        ],
+    },
+    {
+        title: "Social",
+        links: [
+            { href: "#", label: "Twitter" },
+            { href: "#", label: "GitHub" },
+            { href: "#", label: "Discord" },
+        ],
+    },
+];
 
 export function Footer() {
     return (
-        <footer className="bg-[#FAF6EF] border-t border-[#E7DFCF] py-12 md:py-24">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-8 mb-12">
-                    <div className="col-span-2">
-                        <div className="flex items-center gap-2 mb-4">
-                            <OptifyMark size={22} />
-                            <span className="font-bold text-lg tracking-tight text-[#1C1815]">Optify</span>
-                        </div>
-                        <p className="text-[#6F675A] text-sm max-w-xs leading-relaxed">
-                            The all-in-one SEO platform for modern growth teams.
-                            Audit, analyze, and optimize your organic search performance.
+        <footer className="border-t border-line py-14 md:py-20">
+            <div className="mx-auto flex max-w-6xl flex-col gap-12 px-5 sm:px-8">
+                <div className="grid grid-cols-3 gap-x-6 gap-y-10 md:grid-cols-12">
+                    <div className="col-span-3 flex flex-col gap-4 md:col-span-6">
+                        <OptifyLogo size={24} className="font-lp-display" />
+                        <p className="max-w-[38ch] text-sm leading-relaxed text-ink-muted">
+                            SEO on autopilot, built for founders. Optify plans your content, writes the articles and
+                            publishes them, so your site keeps growing while you build the business.
                         </p>
                     </div>
 
-                    <div>
-                        <h4 className="font-bold text-[#1C1815] mb-4">Product</h4>
-                        <ul className="space-y-3 text-sm text-[#6F675A]">
-                            <li><a href="#pricing" className="hover:text-[#009E8A]">Pricing</a></li>
-                            <li><a href="#" className="hover:text-[#009E8A]">Changelog</a></li>
-                            <li><a href="#" className="hover:text-[#009E8A]">Docs</a></li>
-                            <li><a href="/signin" className="hover:text-[#009E8A]">Log in</a></li>
-                        </ul>
-                    </div>
-
-                    <div>
-                        <h4 className="font-bold text-[#1C1815] mb-4">Legal</h4>
-                        <ul className="space-y-3 text-sm text-[#6F675A]">
-                            <li><a href="#" className="hover:text-[#009E8A]">Privacy Policy</a></li>
-                            <li><a href="#" className="hover:text-[#009E8A]">Terms of Service</a></li>
-                            <li><a href="#" className="hover:text-[#009E8A]">DPA</a></li>
-                        </ul>
-                    </div>
-
-                    <div>
-                        <h4 className="font-bold text-[#1C1815] mb-4">Social</h4>
-                        <ul className="space-y-3 text-sm text-[#6F675A]">
-                            <li><a href="#" className="hover:text-[#009E8A]">Twitter</a></li>
-                            <li><a href="#" className="hover:text-[#009E8A]">GitHub</a></li>
-                            <li><a href="#" className="hover:text-[#009E8A]">Discord</a></li>
-                        </ul>
-                    </div>
+                    {columns.map((col) => (
+                        <nav key={col.title} aria-label={col.title} className="flex flex-col gap-4 md:col-span-2">
+                            <h2 className="lp-label text-ink-faint">{col.title}</h2>
+                            <ul className="flex flex-col gap-2.5 text-sm">
+                                {col.links.map((link) => (
+                                    <li key={link.label}>
+                                        <a href={link.href} className="text-ink-body transition-colors hover:text-brand-deep">
+                                            {link.label}
+                                        </a>
+                                    </li>
+                                ))}
+                            </ul>
+                        </nav>
+                    ))}
                 </div>
 
-                <div className="pt-8 border-t border-[#E7DFCF] flex flex-col md:flex-row justify-between items-center gap-4">
-                    <p className="text-[#9B927F] text-sm">
-                        © {new Date().getFullYear()} Optify. All rights reserved.
-                    </p>
-                    <div className="flex gap-6">
-                        {/* Social Icons Placeholder */}
-                    </div>
-                </div>
+                <p className="border-t border-line pt-6 text-sm text-ink-faint">
+                    © {new Date().getFullYear()} Optify. All rights reserved.
+                </p>
             </div>
         </footer>
     );
