@@ -1,6 +1,5 @@
 "use client";
 
-import { ScrollReveal } from "./ScrollReveal";
 import { SectionHeading } from "./SectionHeading";
 import { ApexChart } from "@/components/shared/ApexChart";
 
@@ -23,7 +22,7 @@ export function ClientSuccess() {
                     lead="See how our users grow their organic traffic month after month."
                 />
 
-                <ScrollReveal className="grid items-start gap-10 lg:grid-cols-12 lg:gap-14">
+                <div className="grid items-start gap-10 lg:grid-cols-12 lg:gap-14">
                     <div className="flex flex-col gap-6 rounded-xl border border-line bg-white p-5 sm:p-8 lg:col-span-8">
                         <div className="flex flex-wrap items-end justify-between gap-4">
                             <div className="flex flex-col gap-1">
@@ -118,7 +117,7 @@ export function ClientSuccess() {
                             </span>
                         </figcaption>
                     </figure>
-                </ScrollReveal>
+                </div>
             </div>
         </section>
     );

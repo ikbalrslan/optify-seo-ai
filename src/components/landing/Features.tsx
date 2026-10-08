@@ -1,4 +1,3 @@
-import { ScrollReveal } from "./ScrollReveal";
 import { SectionHeading } from "./SectionHeading";
 import { OptifyMark } from "@/components/brand/OptifyMark";
 import { ALL_IN_PLAN } from "@/config/plans";
@@ -46,7 +45,7 @@ export function Features() {
         <section id="features" aria-labelledby="how-it-works" className="scroll-mt-16 border-b border-line py-20 md:py-28">
             <div className="mx-auto flex max-w-6xl flex-col gap-24 px-5 sm:px-8 md:gap-32">
                 {/* How it works: a real sequence, so the steps are numbered. */}
-                <ScrollReveal className="flex flex-col gap-12">
+                <div className="flex flex-col gap-12">
                     <SectionHeading
                         id="how-it-works"
                         title="How it works"
@@ -61,10 +60,10 @@ export function Features() {
                             </li>
                         ))}
                     </ol>
-                </ScrollReveal>
+                </div>
 
                 {/* Replace multiple tools: a priced ledger rather than another card grid. */}
-                <ScrollReveal className="grid items-start gap-12 lg:grid-cols-2 lg:gap-16">
+                <div className="grid items-start gap-12 lg:grid-cols-2 lg:gap-16">
                     <div className="flex flex-col gap-8">
                         <SectionHeading
                             title="Replace multiple tools with one"
@@ -122,7 +121,7 @@ export function Features() {
                             </tbody>
                         </table>
                     </div>
-                </ScrollReveal>
+                </div>
             </div>
         </section>
     );
