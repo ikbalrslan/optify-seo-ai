@@ -79,11 +79,6 @@ export function Hero() {
                                 Join with Google
                             </Button>
                         </div>
-
-                        <p className="border-t border-line pt-5 text-sm text-ink-muted">
-                            <span className="font-lp-mono font-medium tabular-nums text-ink">50k+</span> articles created
-                            with Optify
-                        </p>
                     </div>
 
                     <div className="lg:col-span-8">
