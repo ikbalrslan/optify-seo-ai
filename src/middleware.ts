@@ -72,5 +72,8 @@ export default auth((req) => {
 })
 
 export const config = {
-    matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+    // icon.png is the App Router's favicon convention (src/app/icon.png) - favicon.ico alone
+    // was excluded here, so a logged-out visitor's browser request for it got redirected to
+    // /signin instead of the image, meaning the favicon never actually loaded until sign-in.
+    matcher: ["/((?!api|_next/static|_next/image|favicon.ico|icon.png).*)"],
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { OptifyMark } from "@/components/brand/OptifyMark";
 
 export function BlogNavbar() {
     return (
@@ -11,9 +11,7 @@ export function BlogNavbar() {
                     {/* Logo */}
                     <div className="flex-shrink-0 flex items-center">
                         <Link href="/blog" className="flex items-center gap-2">
-                            <div className="bg-[#009E8A] p-1.5 rounded-lg">
-                                <Sparkles className="w-5 h-5 text-white" strokeWidth={1.75} />
-                            </div>
+                            <OptifyMark size={28} />
                             <span className="font-bold text-xl tracking-tight text-[#1C1815]">Optify Blog</span>
                         </Link>
                     </div>

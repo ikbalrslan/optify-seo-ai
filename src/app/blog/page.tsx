@@ -1,6 +1,6 @@
 import { BlogNavbar } from "@/components/blog/BlogNavbar";
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { OptifyMark } from "@/components/brand/OptifyMark";
 import { prisma } from "@/lib/db";
 
 export default async function BlogPage() {
@@ -84,9 +84,7 @@ export default async function BlogPage() {
                 <div className="max-w-6xl mx-auto px-4">
                     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                         <div className="flex items-center gap-2">
-                            <div className="bg-[#009E8A] p-1.5 rounded-lg">
-                                <Sparkles className="w-4 h-4 text-white" strokeWidth={1.75} />
-                            </div>
+                            <OptifyMark size={24} />
                             <span className="font-semibold text-[#1C1815]">Optify Blog</span>
                         </div>
                         <div className="flex items-center gap-6">
