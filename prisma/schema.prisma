@@ -164,6 +164,12 @@ model Project {
   autopilotSeedKeyword String? // topic fed to keyword discovery each month
   autopilotConnectedSiteId String? // manual reference to ConnectedSite.id, no relation (matches User.activeConnectedSiteId) - null means publish to the internal blog
 
+  // Marks the literal Optifyseo company project. Only this project (never just any project an
+  // admin happens to own, e.g. an admin's own test/demo sites) may publish to the internal
+  // /blog without a connected site - see isEligibleForInternalBlog() in src/actions/autopilot.ts.
+  // Not exposed in any UI; set directly in the database for the one canonical project per env.
+  isPlatformSite Boolean @default(false)
+
   // Onboarding "Audience & Competitors" step
   targetAudiences String? // JSON-encoded string[] (max 7), e.g. '["Developers","Project Managers"]'
 

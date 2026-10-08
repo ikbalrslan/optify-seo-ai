@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { X, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getEffectiveScheduledPostStatus } from "@/lib/scheduled-post-status";
 import { CalendarHeader } from "./CalendarHeader";
 
 // Base type for calendar - accepts posts with at least these fields
@@ -10,6 +11,7 @@ export type CalendarPost = {
     id: string;
     keyword: string;
     status: string;
+    publishStatus: string;
     scheduledDate: Date;
     generatedTitle?: string | null;
     publishedPostUrl?: string | null;
@@ -88,21 +90,6 @@ export function Calendar({ posts, onDateClick, onPostClick, onPostDelete, month,
         });
     };
 
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case "SCHEDULED":
-                return { bg: "bg-blue-100", text: "text-blue-700", label: "Scheduled" };
-            case "GENERATING":
-                return { bg: "bg-yellow-100", text: "text-yellow-700", label: "Generating" };
-            case "PUBLISHED":
-                return { bg: "bg-green-100", text: "text-green-700", label: "Published" };
-            case "FAILED":
-                return { bg: "bg-red-100", text: "text-red-700", label: "Failed" };
-            default:
-                return { bg: "bg-gray-100", text: "text-gray-700", label: status };
-        }
-    };
-
     const renderDays = () => {
         const days = [];
 
@@ -156,7 +143,7 @@ export function Calendar({ posts, onDateClick, onPostClick, onPostDelete, month,
                     </div>
                     <div className="space-y-2 overflow-y-auto max-h-32">
                         {postsForDay.slice(0, 1).map(post => {
-                            const statusBadge = getStatusBadge(post.status);
+                            const statusBadge = getEffectiveScheduledPostStatus(post.status, post.publishStatus);
                             return (
                                 <div
                                     key={post.id}
@@ -198,8 +185,9 @@ export function Calendar({ posts, onDateClick, onPostClick, onPostDelete, month,
                                             {post.keyword}
                                         </p>
                                     )}
-                                    {/* View Article link for published posts */}
-                                    {post.status === "PUBLISHED" && post.publishedPostUrl && (
+                                    {/* View Article link - publishedPostUrl is only set once the
+                                        content is actually live (see processDueScheduledPosts) */}
+                                    {post.publishedPostUrl && (
                                         <a
                                             href={post.publishedPostUrl}
                                             target="_blank"
@@ -297,6 +285,10 @@ export function Calendar({ posts, onDateClick, onPostClick, onPostDelete, month,
                 <div className="flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
                     <span className="text-xs text-slate-600">Published</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                    <span className="text-xs text-slate-600">Draft Ready</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
