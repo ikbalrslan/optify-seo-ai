@@ -2,13 +2,13 @@
 
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
-import { Card } from "@/components/ui/card";
 import { ALL_IN_PLAN } from "@/config/plans";
+import { cn } from "@/lib/utils";
+import { lpButton } from "./GoogleIcon";
+import { SectionHeading } from "./SectionHeading";
 
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-
-
 
 export function Pricing() {
     const { data: session } = useSession();
@@ -27,64 +27,68 @@ export function Pricing() {
     };
 
     return (
-        <section id="pricing" className="py-24 bg-[#FAF6EF]">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="text-center mb-16">
-                    <h2 className="text-3xl md:text-5xl font-bold text-[#1C1815] mb-6">
-                        Organic Traffic Growth{" "}
-                        <span className="text-[#009E8A]">
-                            on Autopilot
-                        </span>
-                    </h2>
-                    <p className="text-lg text-[#6F675A] max-w-2xl mx-auto mb-12">
-                        One plan, everything included. Priced per site, with an automatic volume discount as you add more.
+        <section id="pricing" aria-labelledby="pricing-title" className="scroll-mt-16 border-t border-line bg-paper-deep py-20 md:py-28">
+            <div className="mx-auto grid max-w-6xl items-start gap-12 px-5 sm:px-8 lg:grid-cols-12 lg:gap-16">
+                <div className="flex flex-col gap-8 lg:col-span-5">
+                    <SectionHeading
+                        id="pricing-title"
+                        title={
+                            <>
+                                Organic traffic growth <span className="text-brand-deep">on autopilot</span>
+                            </>
+                        }
+                        lead="One plan, everything included. Priced per site, with an automatic volume discount as you add more."
+                    />
+                    <dl className="grid grid-cols-2 gap-6 border-t border-line pt-6">
+                        <div className="flex flex-col gap-1">
+                            <dt className="lp-label text-ink-faint">Articles</dt>
+                            <dd className="text-ink">Up to {ALL_IN_PLAN.articles} a month per site</dd>
+                        </div>
+                        <div className="flex flex-col gap-1">
+                            <dt className="lp-label text-ink-faint">Commitment</dt>
+                            <dd className="text-ink">Cancel anytime</dd>
+                        </div>
+                    </dl>
+                    <p className="text-sm text-ink-muted">
+                        Need something custom?{" "}
+                        <a href="#" className="font-medium text-ink underline underline-offset-4 hover:text-brand-deep">
+                            Contact sales
+                        </a>
                     </p>
                 </div>
 
-                {/* Plan Display */}
-                <div className="max-w-lg mx-auto">
-                    <Card className="p-8 border-2 border-[#009E8A] ring-4 ring-[#009E8A]/10 shadow-xl rounded-2xl relative overflow-hidden flex flex-col transition-all duration-300 bg-white">
-                        <div className="mb-8 text-center">
-                            <h3 className="text-2xl font-bold text-[#1C1815] mb-4">{ALL_IN_PLAN.name}</h3>
-                            <div className="flex items-center justify-center gap-1 mb-2">
-                                <span className="text-5xl font-bold text-[#1C1815]">${ALL_IN_PLAN.price}</span>
-                                <span className="text-[#9B927F] text-lg">/mo per site</span>
-                            </div>
-                            <p className="text-[#9B927F] text-sm">Cancel anytime</p>
-                        </div>
-
-                        <div className="flex-1 mb-8">
-                            <div className="text-sm font-semibold text-[#1C1815] mb-4 uppercase tracking-wide">What's included:</div>
-                            <ul className="space-y-4">
-                                {ALL_IN_PLAN.features.map((feature, i) => (
-                                    <li key={i} className="flex items-start text-[#1C1815]/80">
-                                        <div className="bg-[#009E8A]/10 rounded-full p-1 mr-3 mt-0.5 flex-shrink-0">
-                                            <Check className="w-3 h-3 text-[#009E8A]" strokeWidth={2.5} />
-                                        </div>
-                                        <span className="text-sm leading-relaxed">{feature}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-
-                        <div className="mt-auto">
-                            <Button
-                                onClick={handleSubscribe}
-                                className="w-full h-14 text-lg font-bold rounded-full shadow-lg transition-transform hover:scale-[1.02] active:scale-[0.98] bg-[#009E8A] hover:bg-[#00877A] text-white"
-                            >
-                                Initialize Subscription
-                            </Button>
-                            <p className="text-xs text-center text-[#9B927F] mt-4">
-                                You will be redirected to Stripe to complete your purchase securely.
+                <div className="flex flex-col gap-8 rounded-xl border border-line bg-white p-6 sm:p-8 lg:col-span-7">
+                    <div className="flex flex-wrap items-end justify-between gap-4 border-b border-line-soft pb-6">
+                        <div className="flex flex-col gap-2">
+                            <h3 className="lp-label text-brand-deep">{ALL_IN_PLAN.name}</h3>
+                            <p className="flex items-baseline gap-1.5">
+                                <span className="font-lp-display text-5xl font-bold tabular-nums text-ink [font-variation-settings:'wdth'_112]">
+                                    ${ALL_IN_PLAN.price}
+                                </span>
+                                <span className="text-ink-muted">/mo per site</span>
                             </p>
                         </div>
-                    </Card>
-                </div>
+                        <p className="max-w-[22ch] text-sm text-ink-muted">Volume discount applied automatically as you add sites.</p>
+                    </div>
 
-                <div className="mt-16 text-center">
-                    <p className="text-[#6F675A] text-sm">Need something custom? <a href="#" className="underline hover:text-[#009E8A]">Contact Sales</a></p>
-                </div>
+                    <ul className="grid gap-x-8 gap-y-3 md:grid-cols-2">
+                        {ALL_IN_PLAN.features.map((feature) => (
+                            <li key={feature} className="flex items-start gap-3 text-[0.9375rem] leading-snug text-ink-body">
+                                <Check className="mt-0.5 size-4 shrink-0 text-brand" strokeWidth={2.25} aria-hidden="true" />
+                                {feature}
+                            </li>
+                        ))}
+                    </ul>
 
+                    <div className="flex flex-col gap-3">
+                        <Button onClick={handleSubscribe} className={cn(lpButton.primary, "h-12 w-full text-base")}>
+                            Choose a site and subscribe
+                        </Button>
+                        <p className="text-center text-xs text-ink-faint">
+                            You&apos;ll pick which site the plan covers, then pay securely with Stripe.
+                        </p>
+                    </div>
+                </div>
             </div>
         </section>
     );

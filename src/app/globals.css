@@ -88,6 +88,101 @@
   }
 }
 
+/* ------------------------------------------------------------------
+   Marketing landing page tokens (src/app/page.tsx + components/landing).
+   Layout idea: left-aligned editorial columns on hairline rules; the
+   hero's auto-scheduled content calendar is the single loud element.
+   The font variables (--lp-font-*) are only set on the landing <main>,
+   so these utilities have no effect inside the logged-in app.
+   ------------------------------------------------------------------ */
+@theme {
+  --color-paper: #FAF6EF;      /* page ground */
+  --color-paper-deep: #F3ECDF; /* alternate band, inset surfaces */
+  --color-line: #E7DFCF;       /* hairline rules */
+  --color-line-soft: #EBE2D2;
+  --color-ink: #1C1815;        /* headings */
+  --color-ink-body: #3A342C;   /* running text */
+  --color-ink-muted: #6F675A;  /* secondary text */
+  --color-ink-faint: #9B927F;  /* captions, meta */
+  --color-brand: #009E8A;      /* primary accent */
+  --color-brand-deep: #00877A; /* hover / text-on-cream accent */
+  --color-clay: #C2704A;       /* sparing secondary accent */
+  --color-ochre: #B58A3D;      /* sparing secondary accent */
+}
+
+/* `inline` so the stacks resolve on the element (the --lp-font-* vars only exist on the
+   landing <main>); utilities below therefore use --theme() rather than var(). */
+@theme inline {
+  --font-lp-display: var(--lp-font-display), "Arial Narrow", system-ui, sans-serif;
+  --font-lp-text: var(--lp-font-text), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-lp-mono: var(--lp-font-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+
+/* Type scale: display / h2 / h3 / label. Archivo's width axis carries the
+   personality; wider at larger sizes, closer to normal on phones. */
+@utility lp-display {
+  font-family: --theme(--font-lp-display inline);
+  font-weight: 700;
+  font-variation-settings: "wdth" 100;
+  font-size: clamp(2rem, 0.9rem + 5vw, 5rem);
+  line-height: 1;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+  @media (width >= 48rem) {
+    font-variation-settings: "wdth" 118;
+  }
+}
+
+@utility lp-h2 {
+  font-family: --theme(--font-lp-display inline);
+  font-weight: 700;
+  font-variation-settings: "wdth" 112;
+  font-size: clamp(1.875rem, 1.2rem + 2.6vw, 3rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+@utility lp-h3 {
+  font-family: --theme(--font-lp-display inline);
+  font-weight: 650;
+  font-variation-settings: "wdth" 108;
+  font-size: 1.1875rem;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+@utility lp-label {
+  font-family: --theme(--font-lp-mono inline);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.landing {
+  font-family: --theme(--font-lp-text inline);
+  -webkit-font-smoothing: antialiased;
+}
+
+.landing :focus-visible {
+  outline: 2px solid var(--color-brand-deep);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing *,
+  .landing *::before,
+  .landing *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 @keyframes shimmer {
   from { background-position: 0 0; }
   to { background-position: -200% 0; }
