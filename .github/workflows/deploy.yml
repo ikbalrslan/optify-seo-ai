@@ -72,10 +72,10 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H "${{ secrets.VPS_HOST }}" >> ~/.ssh/known_hosts
 
-      - name: Copy docker-compose.yml and Caddyfile to VPS
+      - name: Copy docker-compose.yml to VPS
         run: |
           ssh "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}" "mkdir -p ~/optifyseo-deploy"
-          scp docker-compose.yml Caddyfile "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:~/optifyseo-deploy/"
+          scp docker-compose.yml "${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:~/optifyseo-deploy/"
 
       - name: Write .env and deploy
         env:
@@ -127,6 +127,6 @@ jobs:
             echo "$GH_TOKEN" | docker login ghcr.io -u "$GH_ACTOR" --password-stdin
             cd ~/optifyseo-deploy
             docker compose pull "$SERVICE"
-            docker compose up -d caddy "$SERVICE"
+            docker compose up -d "$SERVICE"
             docker compose exec -T "$SERVICE" npx prisma migrate deploy
           EOF
